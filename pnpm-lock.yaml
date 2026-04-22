@@ -39,6 +39,15 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.17)
 
+  packages/resolver:
+    dependencies:
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../spec
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+
   packages/scope-catalog:
     dependencies:
       '@kybernesis/arp-spec':

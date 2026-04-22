@@ -1,0 +1,41 @@
+{
+  "name": "@kybernesis/arp-resolver",
+  "version": "0.2.0",
+  "description": "ARP resolver — HNS DoH + did:web resolution with LRU cache. Used by runtime/transport for agent-to-agent lookups.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/resolver"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-spec": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {}
+}
