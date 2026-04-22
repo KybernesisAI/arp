@@ -1,0 +1,37 @@
+{
+  "name": "arp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent Relationship Protocol — shared contract, runtime, and tooling",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.31.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9",
+    "@types/node": "^22.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3",
+    "tsup": "^8.3.5",
+    "turbo": "^2.3.0",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}
