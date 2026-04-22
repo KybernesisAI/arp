@@ -135,4 +135,62 @@ describe('compileBundle — implications + conflicts', () => {
       })
     ).toThrow(BundleCompileError);
   });
+
+  // Regression guard for Phase-1 Conservative-Call #4: when the caller supplies
+  // paramsMap for a parent scope but NOT for the scopes it implies, the bundle
+  // compiler MUST inherit required params along the implication edge.
+  // Removing this behavior would mean every bundle author has to duplicate
+  // `project_id` across every implied scope — the whole reason the inheritance
+  // exists. If this test breaks, either the inheritance was removed or the
+  // contract changed; do not paper over it by adding explicit paramsMap
+  // entries to the test.
+  it('inherits parent paramsMap along implication chain when implied scope is omitted', () => {
+    const result = compileBundle({
+      scopeIds: ['files.project.files.summarize'],
+      paramsMap: {
+        // Only the parent is declared. The implied scopes
+        // (files.project.files.read → .list → .metadata.read) each also
+        // require `project_id`, and must pick it up from the parent.
+        'files.project.files.summarize': { project_id: 'alpha', max_output_words: 1000 },
+      },
+      audienceDid: 'did:web:ghost.agent',
+      catalog,
+    });
+
+    // All implied scopes should have compiled (not thrown on missing param).
+    expect(result.expandedScopeIds).toEqual(
+      expect.arrayContaining([
+        'files.project.files.summarize',
+        'files.project.files.read',
+        'files.project.files.list',
+        'files.project.metadata.read',
+      ])
+    );
+
+    // Each compiled policy should contain the inherited project_id, proving
+    // the param propagated rather than silently defaulted to something else.
+    for (const policy of result.policies) {
+      expect(policy).toContain('Project::"alpha"');
+    }
+  });
+
+  // Caller overrides take precedence over inherited values.
+  it('caller-supplied paramsMap on an implied scope overrides the parent', () => {
+    const result = compileBundle({
+      scopeIds: ['files.project.files.summarize'],
+      paramsMap: {
+        'files.project.files.summarize': { project_id: 'alpha', max_output_words: 1000 },
+        'files.project.files.read':      { project_id: 'beta',  max_size_mb: 10 },
+      },
+      audienceDid: 'did:web:ghost.agent',
+      catalog,
+    });
+
+    const readPolicy = result.policies.find((p) => p.includes('Action::"read"'));
+    const summarizePolicy = result.policies.find((p) => p.includes('Action::"summarize"'));
+    expect(readPolicy).toBeDefined();
+    expect(summarizePolicy).toBeDefined();
+    expect(readPolicy!).toContain('Project::"beta"');       // explicit override
+    expect(summarizePolicy!).toContain('Project::"alpha"'); // explicit parent
+  });
 });
