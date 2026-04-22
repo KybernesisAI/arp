@@ -33,5 +33,11 @@
     "turbo": "^2.3.0",
     "typescript": "~5.5.4",
     "vitest": "^2.1.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
