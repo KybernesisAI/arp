@@ -233,5 +233,27 @@ export function compileScope({
 
   const template = Handlebars.compile(scope.cedar_template, { noEscape: true });
   const rendered = template(ctx);
-  return rendered.trim();
+  return normalizeBareEntityTypes(rendered.trim());
+}
+
+/**
+ * Post-process the Handlebars output to produce valid Cedar.
+ *
+ * Several scope templates in ARP-scope-catalog-v1.md §5 use the shorthand
+ * `resource == Tool` (and similar bare-type forms) to mean "any entity of
+ * type Tool". Cedar's parser requires an entity UID on the right-hand side
+ * of `==`, not a bare type name — the idiomatic form is `resource is Tool`.
+ *
+ * We rewrite `<scope> == <TypeName>` → `<scope> is <TypeName>` whenever the
+ * right-hand side is a bare UpperCamelCase identifier (no `::"..."` UID and
+ * no lower-case head, which would indicate a variable or attribute access).
+ *
+ * Keeps the YAML sources faithful to the spec doc while guaranteeing the
+ * compiled output parses with @cedar-policy/cedar-wasm.
+ */
+function normalizeBareEntityTypes(cedar: string): string {
+  return cedar.replace(
+    /(principal|resource)\s*==\s*([A-Z][A-Za-z0-9_]*)(?=\s*[,)\n])/g,
+    '$1 is $2'
+  );
 }
