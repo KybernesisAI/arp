@@ -62,6 +62,35 @@ permit (principal == Agent::"did:web:ghost.agent", action == Action::"read", res
 Both forms are stripped before handing the policy to Cedar so the upstream
 parser never sees the non-standard syntax.
 
+## Context value conventions
+
+Cedar's runtime type system is `long | boolean | string | set | record` — there
+are **no native floats and no native timestamps**. The ARP PDP adapts the
+`context.*` vocabulary from `docs/ARP-policy-examples.md` accordingly, and
+every upstream consumer (scope-catalog compiler, adapters, owner-app consent
+renderer, reference agents) MUST use the same representations:
+
+| Vocabulary from the doc | On the wire (PDP input + policy body) |
+|---|---|
+| `quoted_price_usd`      | `quoted_price_cents` (integer) |
+| `spend_last_24h_usd`    | `spend_last_24h_cents` (integer) |
+| `spend_last_30d_usd`    | `spend_last_30d_cents` (integer) |
+| `spend_all_time_usd`    | `spend_all_time_cents` (integer) |
+| `time.now`              | `time.now_ms` (epoch milliseconds, integer) |
+| `connection.expires_at` | `connection.expires_at_ms` (epoch milliseconds, integer) |
+| `connection.created_at` | `connection.created_at_ms` (epoch milliseconds, integer) |
+
+Money in cents prevents floating-point drift on cap comparisons; epoch
+milliseconds give us ordered integer comparisons without parsing ISO strings
+inside Cedar. The doc's narrative float/ISO syntax is illustrative, not
+normative — Cedar policies compiled by the scope-catalog compiler already
+follow this convention, and adapters that synthesise ad-hoc policies must
+follow it too.
+
+If Cedar later adds a decimal or timestamp type, we migrate by rewriting the
+scope templates and updating this table; the rest of the stack is unchanged
+because it only ever reads the integer fields.
+
 ## Design notes
 
 - Each input policy gets an auto-assigned `@id("p_<n>")` / `@id("o_<n>")` if
