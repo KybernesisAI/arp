@@ -163,7 +163,7 @@ arp.onRevocation((conn_id) => { /* drop state */ });
 
 ### 3.3 Mode C — Library (embedded SDK)
 
-**One-line pitch:** `npm install @arp/sdk` and add ~20 lines of code.
+**One-line pitch:** `npm install @kybernesis/arp-sdk` and add ~20 lines of code.
 
 **Topology:**
 ```
@@ -171,7 +171,7 @@ arp.onRevocation((conn_id) => { /* drop state */ });
 │                                      │
 │   [Your agent code]                  │
 │        │                             │
-│        └─▶ @arp/sdk (in-process)     │
+│        └─▶ @kybernesis/arp-sdk (in-process)     │
 │                │                     │
 └────────────────┼─────────────────────┘
                  ▼ HTTPS / DIDComm (443)
@@ -180,11 +180,11 @@ arp.onRevocation((conn_id) => { /* drop state */ });
 
 **Install (Node.js / TS):**
 ```bash
-npm install @arp/sdk
+npm install @kybernesis/arp-sdk
 ```
 
 ```ts
-import { ArpAgent } from '@arp/sdk';
+import { ArpAgent } from '@kybernesis/arp-sdk';
 import handoff from './handoff.json';
 
 const agent = await ArpAgent.fromHandoff(handoff, {
@@ -216,13 +216,13 @@ For popular agent frameworks, we ship **adapter packages** that wrap the sidecar
 
 | Framework | Package | Pattern | What it exposes |
 |---|---|---|---|
-| **OpenClaw** | `@arp/adapter-openclaw` | sidecar-aware plugin | `openclaw.use(arpPlugin({ handoff }))` |
-| **Hermes-Agent** | `@arp/adapter-hermes` | middleware | auto-wraps every tool call |
-| **NanoClaw** | `@arp/adapter-nanoclaw` | decorator | `@arp_guarded` on tool handlers |
-| **KyberBot** | `@arp/adapter-kyberbot` | native integration | hooks into KyberBot's permission layer directly |
-| **LangGraph** | `@arp/adapter-langgraph` | graph node | drop-in ARP node between state transitions |
-| **CrewAI** | `@arp/adapter-crewai` | crew-level wrapper | every agent in the crew speaks ARP |
-| **MCP** | `@arp/adapter-mcp` | server wrapper | turns any MCP server into an ARP-guarded endpoint |
+| **OpenClaw** | `@kybernesis/arp-adapter-openclaw` | sidecar-aware plugin | `openclaw.use(arpPlugin({ handoff }))` |
+| **Hermes-Agent** | `@kybernesis/arp-adapter-hermes` | middleware | auto-wraps every tool call |
+| **NanoClaw** | `@kybernesis/arp-adapter-nanoclaw` | decorator | `@arp_guarded` on tool handlers |
+| **KyberBot** | `@kybernesis/arp-adapter-kyberbot` | native integration | hooks into KyberBot's permission layer directly |
+| **LangGraph** | `@kybernesis/arp-adapter-langgraph` | graph node | drop-in ARP node between state transitions |
+| **CrewAI** | `@kybernesis/arp-adapter-crewai` | crew-level wrapper | every agent in the crew speaks ARP |
+| **MCP** | `@kybernesis/arp-adapter-mcp` | server wrapper | turns any MCP server into an ARP-guarded endpoint |
 
 Each adapter is ~500 lines of code and presents the five integration points (§3.2) in the idiom the framework's users already know.
 
@@ -240,13 +240,13 @@ Recommended: **Mode C (library)** if you're on TS/Python, **Mode B (sidecar)** o
 # 1. Buy kyberbot.agent, tick "ARP-ready"
 # 2. Download handoff.json from the owner app (or email)
 # 3. Install the adapter
-npm install @arp/sdk @arp/adapter-kyberbot
+npm install @kybernesis/arp-sdk @kybernesis/arp-adapter-kyberbot
 
 # 4. In your KyberBot entry point:
 ```
 ```ts
 import { KyberBot } from 'kyberbot';
-import { withArp } from '@arp/adapter-kyberbot';
+import { withArp } from '@kybernesis/arp-adapter-kyberbot';
 import handoff from './config/arp-handoff.json';
 
 const bot = withArp(new KyberBot({ /* your config */ }), { handoff });
@@ -299,7 +299,7 @@ Recommended: **Mode C (library)** via the LangGraph adapter.
 
 ```ts
 import { StateGraph } from '@langchain/langgraph';
-import { arpNode } from '@arp/adapter-langgraph';
+import { arpNode } from '@kybernesis/arp-adapter-langgraph';
 import handoff from './handoff.json';
 
 const graph = new StateGraph(...)
@@ -393,7 +393,7 @@ Adapters wrap these in framework idioms. An OpenClaw user sees a plugin; a LangG
 ## 9. Distribution & updates
 
 - **Docker images:** published to GHCR under the `KybernesisAI` org. Tagged `ghcr.io/kybernesisai/sidecar:0.1`, `:latest`, etc.
-- **NPM packages:** `@arp/sdk`, `@arp/adapter-*` under our org. Semver.
+- **NPM packages:** `@kybernesis/arp-sdk`, `@kybernesis/arp-adapter-*` under our org. Semver.
 - **Python packages:** `arp-sdk`, `arp-adapter-*` on PyPI. Semver.
 - **Mobile apps:** App Store + Play Store under the ARP spec organization.
 - **Install guides:** permanent versioned URLs under `arp.spec/install/*/v<version>`.

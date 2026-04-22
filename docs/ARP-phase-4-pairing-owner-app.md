@@ -28,9 +28,9 @@
 
 ## 1. Definition of done
 
-- [ ] `@arp/pairing` package: creates, verifies, countersigns Connection Tokens
-- [ ] `@arp/consent-ui` package: Cedar policies → structured English bullets
-- [ ] `@arp/selfxyz-bridge` package: request VC presentation, verify ZK proof on receipt
+- [ ] `@kybernesis/arp-pairing` package: creates, verifies, countersigns Connection Tokens
+- [ ] `@kybernesis/arp-consent-ui` package: Cedar policies → structured English bullets
+- [ ] `@kybernesis/arp-selfxyz-bridge` package: request VC presentation, verify ZK proof on receipt
 - [ ] `apps/owner-app` Next.js app with routes in §4
 - [ ] Sidecar serves the owner app on `/owner/*` and owner-subdomain HTTP routing works
 - [ ] End-to-end pairing demo: two sidecars (Samantha + Ghost) pair, exchange messages, revoke
@@ -45,7 +45,7 @@
 
 - Phase 2 runtime core
 - Phase 3 sidecar packaging
-- Phase 1 `@arp/scope-catalog` (for scope templates)
+- Phase 1 `@kybernesis/arp-scope-catalog` (for scope templates)
 
 ---
 
@@ -92,7 +92,7 @@ arp/
 
 ## 4. Implementation tasks
 
-### Task 1 — `@arp/pairing`
+### Task 1 — `@kybernesis/arp-pairing`
 
 Exports:
 ```ts
@@ -126,11 +126,11 @@ export function verifyConnectionToken(
 ): Promise<{ ok: true } | { ok: false; reason: string }>;
 ```
 
-Uses `@arp/spec` schemas and JWS signatures via `jose`.
+Uses `@kybernesis/arp-spec` schemas and JWS signatures via `jose`.
 
 **Acceptance:** round-trip test — proposal → invitation URL → parse → countersign → verify. Tamper with each field; verify rejects.
 
-### Task 2 — `@arp/consent-ui`
+### Task 2 — `@kybernesis/arp-consent-ui`
 
 Exports `renderConsentView(connectionToken): ConsentView`:
 
@@ -148,14 +148,14 @@ type ConsentView = {
 
 Implementation:
 1. Parse `cedar_policies` and `obligations`
-2. Cross-reference `@arp/scope-catalog` to get each scope's `consent_text_template`
+2. Cross-reference `@kybernesis/arp-scope-catalog` to get each scope's `consent_text_template`
 3. Render Handlebars templates with the parameters embedded in the policies
 4. Aggregate, dedupe, group by category
 5. Produce the structured view
 
 **Acceptance:** visual snapshot tests for all 10 worked examples in `ARP-policy-examples.md` and all 5 bundles in `ARP-scope-catalog-v1.md §6`.
 
-### Task 3 — `@arp/selfxyz-bridge`
+### Task 3 — `@kybernesis/arp-selfxyz-bridge`
 
 Wrap Self.xyz's public API / SDK:
 ```ts
@@ -208,8 +208,8 @@ v0 scope: support `self_xyz.verified_human`, `self_xyz.over_18`, `self_xyz.over_
 
 ### Task 7 — Connection detail / edit (`/connections/[id]`)
 
-1. Server-rendered view of the Connection Token, parsed via `@arp/spec`
-2. Uses `@arp/consent-ui` to render the scope summary
+1. Server-rendered view of the Connection Token, parsed via `@kybernesis/arp-spec`
+2. Uses `@kybernesis/arp-consent-ui` to render the scope summary
 3. Each scope row shows: label, parameters (editable for editable scopes), obligations applied
 4. "Adjust scopes" form: changes produce a new Connection Token version, which requires re-consent from the peer (marked pending until they countersign)
 5. "Suspend" / "Revoke" / "Extend" buttons
@@ -221,14 +221,14 @@ v0 scope: support `self_xyz.verified_human`, `self_xyz.over_18`, `self_xyz.over_
 1. Paginated, reverse-chronological list of audit entries
 2. Each row: timestamp, action, decision, obligations fired, spend delta
 3. Filter bar: decision type, time range, action
-4. "Verify integrity" button runs `@arp/audit` chain verifier and reports result
+4. "Verify integrity" button runs `@kybernesis/arp-audit` chain verifier and reports result
 
 **Acceptance:** 100 entries paginate correctly; verify button returns correct result for both clean and tampered logs.
 
 ### Task 9 — Pairing initiation (`/pair`)
 
 1. Form: pick peer agent DID (manual or from recent), purpose label, scope bundle or custom selection, required VCs, expiry
-2. Preview panel renders `@arp/consent-ui` live as the form changes
+2. Preview panel renders `@kybernesis/arp-consent-ui` live as the form changes
 3. "Generate invitation" → produces QR + shareable URL
 4. Displays pending invitations; auto-refresh for countersignature
 
@@ -237,8 +237,8 @@ v0 scope: support `self_xyz.verified_human`, `self_xyz.over_18`, `self_xyz.over_
 ### Task 10 — Pairing acceptance (`/pair/accept/[token]`)
 
 1. Parse the invitation URL server-side
-2. Render consent view via `@arp/consent-ui`
-3. Prompt for required VC presentation via `@arp/selfxyz-bridge`
+2. Render consent view via `@kybernesis/arp-consent-ui`
+3. Prompt for required VC presentation via `@kybernesis/arp-selfxyz-bridge`
 4. Approve → countersign via principal key (same wallet flow as login) → POST to runtime to store the token
 5. Reject → sends a decline notification to originator (optional; v0 can just not respond)
 
@@ -264,7 +264,7 @@ v0 scope: support `self_xyz.verified_human`, `self_xyz.over_18`, `self_xyz.over_
 
 ### Task 13 — Runtime admin API
 
-Extend `@arp/runtime` with internal routes under `/admin/*`, authenticated via a local-only shared secret (set in env):
+Extend `@kybernesis/arp-runtime` with internal routes under `/admin/*`, authenticated via a local-only shared secret (set in env):
 - `GET /admin/connections`
 - `GET /admin/connections/:id`
 - `POST /admin/connections/:id/revoke`

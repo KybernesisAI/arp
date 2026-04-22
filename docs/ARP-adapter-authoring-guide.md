@@ -16,9 +16,9 @@ Build one when:
 - You want automatic PDP guarding, audit logging, and obligation enforcement for all tool calls in your framework
 
 Don't build one when:
-- Your framework can already use `@arp/sdk` directly in <20 lines. If so, use the SDK — an adapter is only worth it when it removes friction a plain SDK call can't.
+- Your framework can already use `@kybernesis/arp-sdk` directly in <20 lines. If so, use the SDK — an adapter is only worth it when it removes friction a plain SDK call can't.
 - Your "framework" is really one agent. The SDK is the right tool.
-- You're wrapping an adapter for private use only. Ship your own package under your scope; don't publish to `@arp/*` without going through governance (§9).
+- You're wrapping an adapter for private use only. Ship your own package under your scope; don't publish to `@kybernesis/arp-*` without going through governance (§9).
 
 ---
 
@@ -64,14 +64,14 @@ All five must be wired. If a framework doesn't expose a natural hook for one, do
 
 ### 2.4 Pass the conformance suite
 
-Every adapter must pass the full `@arp/testkit` audit (`ARP-phase-5-reference-agents-testkit.md`) when wired into an agent. 8/8 green is the bar.
+Every adapter must pass the full `@kybernesis/arp-testkit` audit (`ARP-phase-5-reference-agents-testkit.md`) when wired into an agent. 8/8 green is the bar.
 
 ### 2.5 Include required metadata
 
 `package.json` includes:
 ```json
 {
-  "name": "@arp/adapter-<framework>",
+  "name": "@kybernesis/arp-adapter-<framework>",
   "version": "0.1.0",
   "arp": {
     "specVersion": "0.1",
@@ -85,7 +85,7 @@ Every adapter must pass the full `@arp/testkit` audit (`ARP-phase-5-reference-ag
 
 ### 2.6 Follow naming conventions
 
-- TS: `@arp/adapter-<framework-slug>` (if official) or `@<yourscope>/arp-adapter-<framework-slug>` (community)
+- TS: `@kybernesis/arp-adapter-<framework-slug>` (if official) or `@<yourscope>/arp-adapter-<framework-slug>` (community)
 - Python: `arp-adapter-<framework-slug>` or `<yourscope>-arp-adapter-<framework-slug>`
 - `<framework-slug>` is lowercase, hyphenated, matches framework's canonical name
 
@@ -109,15 +109,15 @@ Use this table to pick the right framework hook for each ARP integration point. 
 | `audit()` | Graph logger | Plugin event | Built-in observability | Logger hook | Log sink | Observability plugin / event listener |
 | `on('revocation'...)` | Side-channel event | Lifecycle hook | Plugin event | Event subscriber | Status callback | Event emitter / pub-sub |
 
-**Heuristic:** if a framework has "middleware," use it. If it has "plugins," use them. If it has "hooks," use them. If it has "decorators," use them. If it has none of these, reconsider whether an adapter is the right path (maybe just use `@arp/sdk` directly).
+**Heuristic:** if a framework has "middleware," use it. If it has "plugins," use them. If it has "hooks," use them. If it has "decorators," use them. If it has none of these, reconsider whether an adapter is the right path (maybe just use `@kybernesis/arp-sdk` directly).
 
 ---
 
 ## 4. Minimum-viable adapter (template)
 
 ```ts
-// @arp/adapter-<framework>/src/index.ts
-import { ArpAgent, type HandoffBundle } from '@arp/sdk';
+// @kybernesis/arp-adapter-<framework>/src/index.ts
+import { ArpAgent, type HandoffBundle } from '@kybernesis/arp-sdk';
 import { FrameworkAgent } from '<framework>';
 
 export interface ArpAdapterOptions {
@@ -195,7 +195,7 @@ adapters/<framework>/
 │   └── obligations.ts            # how to apply obligations to framework-native responses
 ├── tests/
 │   ├── unit.test.ts
-│   └── conformance.test.ts       # imports from @arp/testkit
+│   └── conformance.test.ts       # imports from @kybernesis/arp-testkit
 ├── examples/
 │   └── minimal-agent/            # smallest-possible working example
 ├── MIGRATION.md                  # before/after for devs adding this to an existing agent
@@ -212,7 +212,7 @@ adapters/<framework>/
 Use the official generator:
 
 ```bash
-npx @arp/create-adapter \
+npx @kybernesis/arp-create-adapter \
   --framework my-framework \
   --language ts \
   --out ./adapters/my-framework
@@ -222,12 +222,12 @@ Flags:
 - `--framework <slug>` (required) — framework name, lowercase-hyphenated
 - `--language ts|python` (required)
 - `--out <path>` (default: `./adapters/<framework>`)
-- `--official` (flag; only for maintainers) — uses `@arp/` scope instead of unscoped
+- `--official` (flag; only for maintainers) — uses `@kybernesis/arp-` scope instead of unscoped
 - `--size-budget <number>` (default: 1000) — warns if your adapter exceeds
 
 Produces:
 - Full project scaffold from §5
-- Pre-wired conformance test that imports `@arp/testkit`
+- Pre-wired conformance test that imports `@kybernesis/arp-testkit`
 - README and MIGRATION.md with placeholders
 - package.json with correct ARP metadata (§2.5)
 - Example agent stub
@@ -239,8 +239,8 @@ After generation, you edit `src/hooks.ts` to wire your framework's specific exte
 
 ## 7. Authoring steps (ordered)
 
-1. **Identify extension points.** Read the framework's plugin / middleware / hook docs. Map each of the 5 ARP integration points to a framework primitive. If any one has no primitive, stop and consider whether `@arp/sdk` direct usage is simpler.
-2. **Generate the scaffold.** `npx @arp/create-adapter …`
+1. **Identify extension points.** Read the framework's plugin / middleware / hook docs. Map each of the 5 ARP integration points to a framework primitive. If any one has no primitive, stop and consider whether `@kybernesis/arp-sdk` direct usage is simpler.
+2. **Generate the scaffold.** `npx @kybernesis/arp-create-adapter …`
 3. **Wire `check()`.** Hook into the framework's pre-action surface. Test with a simple deny-all policy; verify actions are blocked.
 4. **Wire `egress()`.** Hook into the framework's post-action surface. Test with a redaction obligation; verify output is transformed.
 5. **Wire `onIncoming()`.** Find where the framework receives external tasks; register the ARP inbound handler there.
@@ -263,7 +263,7 @@ Every adapter must have unit tests for:
 - Deny decisions propagate as the expected framework-native error type
 
 ### 8.2 Integration tests
-Boot a minimal agent using the adapter, pair with a test peer (`@arp/testkit` provides a harness), run through:
+Boot a minimal agent using the adapter, pair with a test peer (`@kybernesis/arp-testkit` provides a harness), run through:
 - Happy path: allowed action succeeds
 - Deny path: forbidden action blocked
 - Obligation path: redacted response correct
@@ -273,7 +273,7 @@ Boot a minimal agent using the adapter, pair with a test peer (`@arp/testkit` pr
 
 ```ts
 // tests/conformance.test.ts
-import { runFullAudit } from '@arp/testkit';
+import { runFullAudit } from '@kybernesis/arp-testkit';
 import { startExampleAgent } from '../examples/minimal-agent';
 
 test('adapter passes full ARP conformance', async () => {
@@ -291,7 +291,7 @@ Every adapter MUST pass this. No conformance, no release.
 
 ### 9.1 Official vs community
 
-- **Official** (`@arp/adapter-<framework>`): maintained by the ARP core team or a designated co-maintainer. Listed on `arp.spec/adapters`. Included in the nightly compliance workflow.
+- **Official** (`@kybernesis/arp-adapter-<framework>`): maintained by the ARP core team or a designated co-maintainer. Listed on `arp.spec/adapters`. Included in the nightly compliance workflow.
 - **Community** (`@<yourscope>/arp-adapter-<framework>` or unscoped): maintained by you. Can be linked from `arp.spec/adapters` as community; must still pass conformance to be listed.
 
 ### 9.2 Submission process
@@ -324,8 +324,8 @@ If an adapter goes unmaintained for 6 months (no commits, conformance failing), 
 Do not:
 
 - **Fork the framework.** Ever. Use public APIs only.
-- **Re-implement Cedar.** Always route through `@arp/pdp` via `@arp/sdk`.
-- **Bundle your own DIDComm.** Always use `@arp/transport`.
+- **Re-implement Cedar.** Always route through `@kybernesis/arp-pdp` via `@kybernesis/arp-sdk`.
+- **Bundle your own DIDComm.** Always use `@kybernesis/arp-transport`.
 - **Bypass PDP for "trusted" sources.** Zero trust between agents means every call is checked.
 - **Cache PDP decisions across requests.** Each invocation is evaluated fresh. Policies change; revocations propagate.
 - **Swallow errors silently.** If ARP is down or misconfigured, the framework should fail loudly.
@@ -358,7 +358,7 @@ The skill walks the user through the steps in §7 and produces a conformance-pas
 ## 12. Cheat sheet (minimum viable adapter in 30 lines)
 
 ```ts
-import { ArpAgent } from '@arp/sdk';
+import { ArpAgent } from '@kybernesis/arp-sdk';
 import type { FrameworkAgent } from '<framework>';
 
 export function withArp(agent: FrameworkAgent, opts: { handoff: string }) {
@@ -394,13 +394,13 @@ export function withArp(agent: FrameworkAgent, opts: { handoff: string }) {
 
 | Question | Answer |
 |---|---|
-| Which SDK do I build on? | `@arp/sdk` (TS) or `arp-sdk` (Python) |
+| Which SDK do I build on? | `@kybernesis/arp-sdk` (TS) or `arp-sdk` (Python) |
 | How many files? | ~4 source files + tests |
 | How many lines? | ≤1000 (≤500 for lightweight frameworks) |
 | What tests are required? | Unit + integration + full testkit conformance |
-| What must pass? | `@arp/testkit audit` → 8/8 green |
+| What must pass? | `@kybernesis/arp-testkit audit` → 8/8 green |
 | Where do I submit? | PR to arp.spec `/adapters` listing |
-| What's the naming? | `@arp/adapter-<framework>` (official) or `@scope/arp-adapter-<framework>` (community) |
+| What's the naming? | `@kybernesis/arp-adapter-<framework>` (official) or `@scope/arp-adapter-<framework>` (community) |
 | How long should this take? | ≤1 day for a framework with a clean plugin API |
 
 ---

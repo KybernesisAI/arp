@@ -39,7 +39,7 @@
 
 ## 2. Prerequisites
 
-- Phase 2 complete (`@arp/runtime` and `runtime-bin` working)
+- Phase 2 complete (`@kybernesis/arp-runtime` and `runtime-bin` working)
 
 ---
 
@@ -82,7 +82,7 @@ arp-sidecar init              # interactive: reads handoff.json, verifies, store
 arp-sidecar start [--handoff PATH] [--port 443] [--data-dir /data]
 arp-sidecar status            # calls /health on localhost
 arp-sidecar logs              # tails the audit log + process log
-arp-sidecar audit verify      # runs audit chain verifier from @arp/audit
+arp-sidecar audit verify      # runs audit chain verifier from @kybernesis/arp-audit
 arp-sidecar install-service   # Linux only: installs systemd unit
 arp-sidecar uninstall-service
 ```
@@ -97,16 +97,16 @@ arp-sidecar uninstall-service
 
 `apps/sidecar/src/bootstrap.ts`:
 
-1. Given a handoff bundle path, validate it against `@arp/spec` HandoffBundleSchema
+1. Given a handoff bundle path, validate it against `@kybernesis/arp-spec` HandoffBundleSchema
 2. Check data directory:
    - If `keys/private.key` exists: load it (second+ boot)
    - Else: derive keypair from handoff's public key + retrieve private key from owner (see §8 decisions)
-3. Generate self-signed TLS cert via `@arp/tls` if `certs/agent.pem` absent; cache fingerprint
+3. Generate self-signed TLS cert via `@kybernesis/arp-tls` if `certs/agent.pem` absent; cache fingerprint
 4. Write the DID document JSON to `/app/well-known/did.json` with the correct key + fingerprint
 5. Write `agent-card.json` and `arp.json` similarly
 6. Initialize SQLite at `<data-dir>/registry.db` (runs migrations)
 7. Initialize audit log dir at `<data-dir>/audit/`
-8. Start `@arp/runtime` pointing at this config
+8. Start `@kybernesis/arp-runtime` pointing at this config
 9. Emit a one-line startup banner listing: agent DID, port, cert fingerprint, handoff version
 
 Boot is idempotent: running twice changes nothing.
@@ -129,7 +129,7 @@ COPY apps/runtime-bin/package.json ./apps/runtime-bin/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm -r build
-RUN pnpm --filter @arp/sidecar deploy --prod /out
+RUN pnpm --filter @kybernesis/arp-sidecar deploy --prod /out
 
 # ---------- runtime stage ----------
 FROM node:24-alpine
@@ -212,7 +212,7 @@ WantedBy=multi-user.target
 
 ### Task 6 — Health check + graceful shutdown
 
-1. `/health` endpoint in `@arp/runtime` already returns `{ ok: true, version, uptime_ms }`; extend to also return `{ cert_fingerprint, connections_count, audit_seq }`
+1. `/health` endpoint in `@kybernesis/arp-runtime` already returns `{ ok: true, version, uptime_ms }`; extend to also return `{ cert_fingerprint, connections_count, audit_seq }`
 2. On SIGTERM:
    a. Stop accepting new HTTP requests (return 503)
    b. Wait up to 5s for in-flight requests to complete

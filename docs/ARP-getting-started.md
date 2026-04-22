@@ -18,7 +18,7 @@ Some phases can't start without these in place. Front-load them.
 | Item | Required by phase | Why |
 |---|---|---|
 | **GitHub org `KybernesisAI`** | 1 | Monorepo home (already exists) |
-| **npm org** (e.g., `@arp`) | 1 | Package publishing |
+| **npm scope `@kybernesis`** | 1 | Package publishing (already exists: `npmjs.com/~kybernesis`) |
 | **`.agent` domains** — `samantha.agent`, `ghost.agent`, `arp-test.agent` | 5 | Reference agents + testing |
 | **VPS or equivalent** (DigitalOcean, Fly, Hetzner) × 2 | 5 | Reference-agent hosting |
 | **Vercel account + team** | 7 | ARP Cloud hosting |
@@ -191,7 +191,7 @@ Adjust the constraints block per phase as needed (e.g., for phase 9 launch you'l
 - You register `samantha.agent` and `ghost.agent` at Headless Domains
 - You spin up two small VPSes (Hetzner CPX11 or similar, ~$5/mo each)
 - You hand Claude Code the SSH keys, handoff bundles, VPS IPs via env vars
-**Acceptance:** `npx @arp/testkit audit samantha.agent` returns 8/8
+**Acceptance:** `npx @kybernesis/arp-testkit audit samantha.agent` returns 8/8
 **Duration:** 2 sessions
 **Deliverable:** PR #5 + two live reference agents
 
@@ -213,7 +213,7 @@ Adjust the constraints block per phase as needed (e.g., for phase 9 launch you'l
 - Vercel team set up; Claude Code can deploy to staging environments once you provide project IDs
 - Stripe test keys in `.env.local`
 - Production keys NOT provided until Phase 9 launch
-**Acceptance:** `npx @arp/testkit audit atlas.agent --via cloud` returns 8/8 on a staging tenant
+**Acceptance:** `npx @kybernesis/arp-testkit audit atlas.agent --via cloud` returns 8/8 on a staging tenant
 **Duration:** 4–6 sessions
 **Deliverable:** PR #7
 
@@ -238,7 +238,7 @@ Adjust the constraints block per phase as needed (e.g., for phase 9 launch you'l
 - You flip Stripe production keys (not Claude Code)
 - You hit publish on store listings
 - You post the launch blog yourself
-**Acceptance:** public beta open; Headless registration flow live; `@arp/*` at `1.0.0` on `latest`
+**Acceptance:** public beta open; Headless registration flow live; `@kybernesis/arp-*` at `1.0.0` on `latest`
 **Duration:** 2–4 sessions + real-world coordination time
 **Deliverable:** public launch
 
@@ -370,11 +370,11 @@ gh pr merge <n> --squash --delete-branch
 git worktree add ../arp-phase-<n> main
 
 # Reference agent checks (after phase 5)
-npx @arp/testkit audit samantha.agent
-npx @arp/testkit audit ghost.agent
+npx @kybernesis/arp-testkit audit samantha.agent
+npx @kybernesis/arp-testkit audit ghost.agent
 
 # Cloud smoke test (after phase 7)
-npx @arp/testkit audit atlas.agent --via cloud
+npx @kybernesis/arp-testkit audit atlas.agent --via cloud
 ```
 
 ---

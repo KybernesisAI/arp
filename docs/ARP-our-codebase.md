@@ -8,7 +8,7 @@
 
 > **There is exactly one shared thing between us and the TLD operators: the spec. Everything else is separate codebases, separate deployments, separate release cycles, separate security boundaries.**
 
-If we ever find ourselves importing their internal modules, sharing a database, or calling a private API, we have failed at this principle. Interop happens only through public HTTP, DNS, and the published `@arp/spec` and `@arp/templates` packages.
+If we ever find ourselves importing their internal modules, sharing a database, or calling a private API, we have failed at this principle. Interop happens only through public HTTP, DNS, and the published `@kybernesis/arp-spec` and `@kybernesis/arp-templates` packages.
 
 This is the same architectural posture a webmail client has toward a DNS host: the webmail client doesn't need the DNS provider's codebase — it just speaks DNS and HTTPS.
 
@@ -46,7 +46,7 @@ This is the same architectural posture a webmail client has toward a DNS host: t
                      └──────────────────────────┘
 ```
 
-Both sides depend on the shared-contract packages published from `github.com/KybernesisAI/arp` (the `@arp/spec` and `@arp/templates` npm packages). Neither side writes to the other's plane. All runtime interop is via:
+Both sides depend on the shared-contract packages published from `github.com/KybernesisAI/arp` (the `@kybernesis/arp-spec` and `@kybernesis/arp-templates` npm packages). Neither side writes to the other's plane. All runtime interop is via:
 - DNS queries (any standard resolver)
 - HTTPS GETs to `/.well-known/*`
 - Standard registrar API calls (our owner app calls theirs like any other API consumer)
@@ -58,7 +58,7 @@ Both sides depend on the shared-contract packages published from `github.com/Kyb
 ```
 arp/ (our repo — public, we own governance)
 ├── packages/
-│   ├── spec/                  # Shared contract (@arp/spec). Published to npm. THEY import this.
+│   ├── spec/                  # Shared contract (@kybernesis/arp-spec). Published to npm. THEY import this.
 │   ├── arp-templates/         # Pure template functions. Published. They may import.
 │   ├── arp-runtime/           # Agent HTTP server (DIDComm, PDP, endpoints)
 │   ├── arp-pdp/               # Cedar policy engine wrapper + obligations
@@ -80,8 +80,8 @@ arp/ (our repo — public, we own governance)
 ```
 
 **Only two packages cross the seam** (published to npm, consumed by their codebase):
-- `@arp/spec` — schemas + constants (data, no logic)
-- `@arp/templates` — pure functions generating default JSON (stateless, no network calls)
+- `@kybernesis/arp-spec` — schemas + constants (data, no logic)
+- `@kybernesis/arp-templates` — pure functions generating default JSON (stateless, no network calls)
 
 Everything else is ours alone — our infra, our release cadence, our security boundary.
 
@@ -90,8 +90,8 @@ Everything else is ours alone — our infra, our release cadence, our security b
 ## 4. Build sequence
 
 ### Phase A — Publish the shared contract *(ship first, unblocks everything)*
-1. `@arp/spec` — JSON schemas for DID doc, agent card, `arp.json`, representation VC, revocations, Connection Token, handoff bundle
-2. `@arp/templates` — template functions matching those schemas
+1. `@kybernesis/arp-spec` — JSON schemas for DID doc, agent card, `arp.json`, representation VC, revocations, Connection Token, handoff bundle
+2. `@kybernesis/arp-templates` — template functions matching those schemas
 3. Scope catalog v1 + Cedar schema at stable public URLs
 4. Public spec site — versioned (v0.1 → v1.0), permissive license, documented governance
 
@@ -109,11 +109,11 @@ Everything else is ours alone — our infra, our release cadence, our security b
 13. Self.xyz wallet bridge
 
 ### Phase D — Developer SDKs *(ours alone)*
-14. `@arp/sdk` — drop-in library for agent developers
+14. `@kybernesis/arp-sdk` — drop-in library for agent developers
 15. Adapters — LangGraph, CrewAI, MCP server wrapper
 
 ### Phase E — Compliance & demos *(ours alone)*
-16. `@arp/testkit` — automated compliance tests; how we certify a `.agent` domain
+16. `@kybernesis/arp-testkit` — automated compliance tests; how we certify a `.agent` domain
 17. `samantha.agent` + `ghost.agent` reference deployments
 
 ### Phase F — Optional network services *(v0.2+)*
@@ -128,10 +128,10 @@ When a buyer registers `new-agent.agent`:
 
 ```
 1. Buyer → their checkout UI → picks "ARP-ready"
-2. Their server → imports @arp/templates → generates default DID doc, agent card, arp.json
+2. Their server → imports @kybernesis/arp-templates → generates default DID doc, agent card, arp.json
 3. Their server → their registrar API → publishes DNS records, issues Let's Encrypt cert,
                                           hosts the .well-known files
-4. Their server → emits handoff bundle (shape defined in @arp/spec)
+4. Their server → emits handoff bundle (shape defined in @kybernesis/arp-spec)
                 → redirects buyer to our owner app
 5. Buyer → our owner app → signs in, takes over key custody, configures agent
 6. Our runtime → takes over hosting /didcomm etc. on new-agent.agent
@@ -155,7 +155,7 @@ Both conform to the same spec; the buyer doesn't perceive the handoff except tha
 | Secrets / keys | Buyer's private key is custodied on the client; never touches either server |
 | Deploy pipelines | We ship independently. Their outage doesn't break our runtime for already-registered agents |
 | Auth tokens beyond public OAuth/API-key | Normal third-party API integration only |
-| Build dependencies beyond `@arp/spec`/`@arp/templates` | No shared infrastructure libraries |
+| Build dependencies beyond `@kybernesis/arp-spec`/`@kybernesis/arp-templates` | No shared infrastructure libraries |
 
 ---
 
@@ -186,4 +186,4 @@ This is what makes ARP an independent protocol, not a product. The spec outlives
 
 ## 9. One-paragraph summary
 
-We build a separate codebase — our repo, our infrastructure, our team. The only things that cross the seam are two published npm packages (`@arp/spec` and `@arp/templates`) and the public well-known HTTPS paths + DNS records they define. The TLD operators implement the spec on their side using our published templates; we implement the runtime, owner UX, PDP, and SDKs on our side. Interop is through DNS, HTTPS, and the registrar's public API only. The shared contract is versioned and open-governed so that neither side is locked in to the other, and new TLDs or runtimes can adopt the protocol without coordinating with us.
+We build a separate codebase — our repo, our infrastructure, our team. The only things that cross the seam are two published npm packages (`@kybernesis/arp-spec` and `@kybernesis/arp-templates`) and the public well-known HTTPS paths + DNS records they define. The TLD operators implement the spec on their side using our published templates; we implement the runtime, owner UX, PDP, and SDKs on our side. Interop is through DNS, HTTPS, and the registrar's public API only. The shared contract is versioned and open-governed so that neither side is locked in to the other, and new TLDs or runtimes can adopt the protocol without coordinating with us.

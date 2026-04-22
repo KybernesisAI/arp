@@ -11,7 +11,7 @@
 **Phase goal:** publish two public reference agents and the compliance testkit that validates any `.agent` domain's ARP implementation.
 
 **Tech pins:**
-- `@arp/testkit`: published npm package with CLI + programmatic API
+- `@kybernesis/arp-testkit`: published npm package with CLI + programmatic API
 - Test runner: Vitest for unit; Playwright for any browser-level tests
 - Reference agents deployed on cheap always-on hosting (a small DigitalOcean droplet or Fly machine is fine for v0)
 - Hosting of reference agents: use the Phase 3 sidecar image; ops are proof that the sidecar works in anger
@@ -22,7 +22,7 @@
 
 ## 1. Definition of done
 
-- [ ] `@arp/testkit` package published, usable via CLI (`npx @arp/testkit audit <domain>`)
+- [ ] `@kybernesis/arp-testkit` package published, usable via CLI (`npx @kybernesis/arp-testkit audit <domain>`)
 - [ ] Testkit covers all tests listed in `ARP-tld-integration-spec-v2.md §9` plus our own additions
 - [ ] `samantha.agent` and `ghost.agent` reference deployments live, running sidecar v0.1
 - [ ] Reference agents pair, exchange messages under the 5 bundles in `ARP-scope-catalog-v1.md §6`, revoke cleanly
@@ -82,7 +82,7 @@ arp/
 
 ## 4. Implementation tasks
 
-### Task 1 — `@arp/testkit` probes
+### Task 1 — `@kybernesis/arp-testkit` probes
 
 Each probe is a pure async function returning `{ name, pass, details, duration_ms }`.
 
@@ -105,13 +105,13 @@ Each probe carries its own pass/fail semantics; aggregate reporting in `audit.ts
 
 ### Task 2 — Testkit CLI
 
-`@arp/testkit` ships as a CLI:
+`@kybernesis/arp-testkit` ships as a CLI:
 ```
-npx @arp/testkit audit <domain> [--json] [--verbose]
-npx @arp/testkit probe dns <domain>
-npx @arp/testkit probe well-known <domain>
+npx @kybernesis/arp-testkit audit <domain> [--json] [--verbose]
+npx @kybernesis/arp-testkit probe dns <domain>
+npx @kybernesis/arp-testkit probe well-known <domain>
 ...
-npx @arp/testkit compare <domain-a> <domain-b>     # diff capabilities
+npx @kybernesis/arp-testkit compare <domain-a> <domain-b>     # diff capabilities
 ```
 
 Output (human mode):
@@ -133,12 +133,12 @@ ARP Compliance Audit — samantha.agent
 
 JSON mode emits one object per probe + a summary record.
 
-**Acceptance:** CLI runs against a local sidecar and emits the expected summary; JSON output validates against a schema in `@arp/spec`.
+**Acceptance:** CLI runs against a local sidecar and emits the expected summary; JSON output validates against a schema in `@kybernesis/arp-spec`.
 
 ### Task 3 — `samantha-reference` agent
 
 Minimal agent logic:
-1. Uses `@arp/runtime` directly (not a custom framework) to demonstrate the bare-bones path
+1. Uses `@kybernesis/arp-runtime` directly (not a custom framework) to demonstrate the bare-bones path
 2. Responds to Phase 4's pairing invitations
 3. Has a small knowledge base per connection (for demoing the memory-isolation story)
 4. Simple tools: `summarize`, `check_availability`, `read_project_file` (mocked content)
@@ -161,7 +161,7 @@ Same structure as Samantha, different identity. Used as the counterparty for dem
 `tests/phase-5/bundle-coverage.test.ts`:
 
 For each of the 5 bundles in `ARP-scope-catalog-v1.md §6`:
-1. Compile the bundle via `@arp/scope-catalog`
+1. Compile the bundle via `@kybernesis/arp-scope-catalog`
 2. Issue a Connection Token from Samantha to Ghost
 3. Ghost invokes every action the bundle implies should be allowed → PDP allows
 4. Ghost invokes one action the bundle forbids → PDP denies
@@ -196,7 +196,7 @@ For each of the 5 bundles in `ARP-scope-catalog-v1.md §6`:
 
 `.github/workflows/testkit-nightly.yml`:
 1. Runs at 02:00 UTC every night
-2. Executes `npx @arp/testkit audit samantha.agent` and `npx @arp/testkit audit ghost.agent`
+2. Executes `npx @kybernesis/arp-testkit audit samantha.agent` and `npx @kybernesis/arp-testkit audit ghost.agent`
 3. If any probe fails, creates a GitHub issue labeled `testkit-regression` with the JSON report attached
 4. Posts summary to the repo's discussions or a Slack webhook if configured
 
@@ -215,8 +215,8 @@ Each is an executable shell script that uses the testkit CLI + plain `curl` for 
 
 ### Task 10 — Testkit docs
 
-README for `@arp/testkit`:
-- Install: `npm i -g @arp/testkit` or `npx @arp/testkit`
+README for `@kybernesis/arp-testkit`:
+- Install: `npm i -g @kybernesis/arp-testkit` or `npx @kybernesis/arp-testkit`
 - Run an audit
 - Interpret the output
 - Run individual probes
@@ -229,10 +229,10 @@ README for `@arp/testkit`:
 ```bash
 pnpm install
 pnpm -r build
-pnpm --filter @arp/testkit test
+pnpm --filter @kybernesis/arp-testkit test
 pnpm --filter tests/phase-5 test
-npx @arp/testkit audit samantha.agent --json > /tmp/samantha-audit.json
-npx @arp/testkit audit ghost.agent --json > /tmp/ghost-audit.json
+npx @kybernesis/arp-testkit audit samantha.agent --json > /tmp/samantha-audit.json
+npx @kybernesis/arp-testkit audit ghost.agent --json > /tmp/ghost-audit.json
 # Both audits must show 8/8 pass
 ```
 
@@ -240,7 +240,7 @@ npx @arp/testkit audit ghost.agent --json > /tmp/ghost-audit.json
 
 ## 6. Deliverables
 
-- `@arp/testkit` on npm (pre-release)
+- `@kybernesis/arp-testkit` on npm (pre-release)
 - `samantha.agent` and `ghost.agent` live
 - Nightly compliance workflow
 - Demo scripts

@@ -29,7 +29,7 @@
 - [ ] `arp.cloud` (Vercel project) hosts multi-tenant runtime
 - [ ] Users can register, sign in with principal DID, paste handoff bundle, provision agent in <60s
 - [ ] `app.arp.spec` serves the fallback UI (ICANN domain, real cert)
-- [ ] `@arp/cloud-client` package: small npm binary that opens outbound WebSocket from a user's machine
+- [ ] `@kybernesis/arp-cloud-client` package: small npm binary that opens outbound WebSocket from a user's machine
 - [ ] Cloud client survives network drops with exponential backoff reconnect
 - [ ] Inbound DIDComm messages route correctly to tenant agents via the outbound WebSocket
 - [ ] Message queue: if cloud client is offline, messages persist for ≥7 days, deliver on reconnect
@@ -71,7 +71,7 @@ arp/
 │       ├── package.json
 │       └── vercel.ts
 ├── packages/
-│   └── cloud-client/                   # @arp/cloud-client npm package
+│   └── cloud-client/                   # @kybernesis/arp-cloud-client npm package
 │       ├── src/
 │       │   ├── cli.ts
 │       │   ├── connection.ts
@@ -170,7 +170,7 @@ Enforce in a middleware: every request has a tenant context derived from the ses
 
 ### Task 3 — Multi-tenant runtime
 
-Adapt `@arp/runtime` for multi-agent hosting:
+Adapt `@kybernesis/arp-runtime` for multi-agent hosting:
 1. Wrap per-request with the agent's tenant context
 2. Route `/.well-known/*` per Host header
 3. Route `/didcomm` per agent DID in the envelope
@@ -179,14 +179,14 @@ Adapt `@arp/runtime` for multi-agent hosting:
 
 **Acceptance:** multi-agent test — 5 agents on the same cloud instance, each receiving messages; zero cross-agent leakage.
 
-### Task 4 — `@arp/cloud-client`
+### Task 4 — `@kybernesis/arp-cloud-client`
 
-`npx @arp/cloud-client` CLI:
+`npx @kybernesis/arp-cloud-client` CLI:
 ```
-npx @arp/cloud-client init                 # interactive setup
-npx @arp/cloud-client start                # run in foreground
-npx @arp/cloud-client install-service      # macOS/Linux: launchd/systemd
-npx @arp/cloud-client status
+npx @kybernesis/arp-cloud-client init                 # interactive setup
+npx @kybernesis/arp-cloud-client start                # run in foreground
+npx @kybernesis/arp-cloud-client install-service      # macOS/Linux: launchd/systemd
+npx @kybernesis/arp-cloud-client status
 ```
 
 Behavior:
@@ -226,7 +226,7 @@ Behavior:
 `apps/cloud/app/(marketing)/onboarding/page.tsx`:
 1. Sign in with principal DID
 2. Upload handoff.json (drag-drop or paste contents)
-3. Validate via `@arp/spec`
+3. Validate via `@kybernesis/arp-spec`
 4. Confirm agent DID + owner subdomain
 5. Click "Provision" → server:
    a. Creates tenant row (if first agent)
@@ -235,7 +235,7 @@ Behavior:
    d. Issues Let's Encrypt cert via DNS-01 through Headless's API
    e. Writes the well-known docs and serves them from `apps/cloud`
 6. Redirect to dashboard
-7. Prompt to install `@arp/cloud-client` locally
+7. Prompt to install `@kybernesis/arp-cloud-client` locally
 
 **Acceptance:** onboarding completes in under 60s end-to-end in a test run.
 
@@ -276,9 +276,9 @@ Integration:
 
 ### Task 11 — Cloud testkit integration
 
-Extend `@arp/testkit` with a cloud-mode flag:
+Extend `@kybernesis/arp-testkit` with a cloud-mode flag:
 ```
-npx @arp/testkit audit atlas.agent --via cloud --tenant <tenant-id>
+npx @kybernesis/arp-testkit audit atlas.agent --via cloud --tenant <tenant-id>
 ```
 
 Runs the same probes but against the cloud-hosted tenant. Must return 8/8 green.
@@ -294,7 +294,7 @@ pnpm install
 pnpm -r build
 pnpm --filter apps/cloud test
 pnpm --filter tests/phase-7 test
-npx @arp/testkit audit atlas.agent --via cloud
+npx @kybernesis/arp-testkit audit atlas.agent --via cloud
 ```
 
 ---
@@ -303,7 +303,7 @@ npx @arp/testkit audit atlas.agent --via cloud
 
 - `arp.cloud` Vercel project deployed + password-gated in staging
 - `app.arp.spec` live
-- `@arp/cloud-client` on npm
+- `@kybernesis/arp-cloud-client` on npm
 - Stripe integration live in test mode; production keys flipped at Phase 9 launch
 - Observability dashboards + alerts
 

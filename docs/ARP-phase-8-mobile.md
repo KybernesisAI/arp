@@ -14,7 +14,7 @@
 - React Native via Expo (managed workflow initially; eject if native modules demand it)
 - Native modules: `expo-secure-store` (keychain), `expo-local-authentication` (biometrics), `expo-camera` (QR), `expo-notifications` (push)
 - HNS resolution: bundle a DoH client that queries `hnsdoh.com/dns-query`
-- DIDComm: `@arp/sdk` runs client-side in the app (no server-side requirement for mobile)
+- DIDComm: `@kybernesis/arp-sdk` runs client-side in the app (no server-side requirement for mobile)
 - Push: Expo Push Notifications service → APNs/FCM
 - Backend: reuses Phase 7's cloud backend (`arp.cloud`) for tenant auth and connection API
 - State: Zustand for local state; Tanstack Query for server data
@@ -73,7 +73,7 @@ arp-mobile/
 │   └── +not-found.tsx
 ├── components/
 ├── lib/
-│   ├── arp/                       # client wrapper around @arp/sdk
+│   ├── arp/                       # client wrapper around @kybernesis/arp-sdk
 │   ├── hns/                       # DoH resolver
 │   ├── biometric/
 │   └── push/
@@ -104,7 +104,7 @@ arp-mobile/
 `lib/hns/resolver.ts`:
 1. Implement DoH client using `fetch` against `hnsdoh.com/dns-query`
 2. Wire into app's HTTP client: every `.agent` URL is resolved via DoH, then fetch is issued with the original Host header
-3. TLS validation uses DID-pinned fingerprints from `@arp/sdk`
+3. TLS validation uses DID-pinned fingerprints from `@kybernesis/arp-sdk`
 
 **Acceptance:** unit test — `resolveAgent("samantha.agent")` returns expected IP.
 
@@ -138,7 +138,7 @@ arp-mobile/
 
 1. `(app)/agent/[did]/scan.tsx`: camera view via `expo-camera`
 2. On valid QR decode → parse invitation → navigate to `(app)/agent/[did]/pair`
-3. Pair screen renders consent view via `@arp/consent-ui`
+3. Pair screen renders consent view via `@kybernesis/arp-consent-ui`
 4. "Prove with Self.xyz" button opens the Self.xyz mobile SDK (or universal link)
 5. On approval, biometric prompt → sign the Connection Token → post to cloud
 6. Success animation + return to connections list

@@ -45,7 +45,7 @@
 
 ## 2. Prerequisites
 
-- Phase 1 complete (`@arp/spec`, `@arp/templates`, `@arp/scope-catalog` published to workspace)
+- Phase 1 complete (`@kybernesis/arp-spec`, `@kybernesis/arp-templates`, `@kybernesis/arp-scope-catalog` published to workspace)
 
 ---
 
@@ -75,16 +75,16 @@ arp/apps/
 
 ## 4. Implementation tasks
 
-### Task 1 — `@arp/resolver`
+### Task 1 — `@kybernesis/arp-resolver`
 
 1. `resolveHns(name: string): Promise<{ a: string[]; txt: Record<string, string[]> }>` — queries `https://hnsdoh.com/dns-query` (DoH, RFC 8484) for A and TXT records
-2. `resolveDidWeb(did: string): Promise<DidDocument>` — splits `did:web:<domain>` → `https://<domain>/.well-known/did.json`; for `.agent` domains, routes DNS through HNS DoH, TLS validation deferred to `@arp/tls`
+2. `resolveDidWeb(did: string): Promise<DidDocument>` — splits `did:web:<domain>` → `https://<domain>/.well-known/did.json`; for `.agent` domains, routes DNS through HNS DoH, TLS validation deferred to `@kybernesis/arp-tls`
 3. Cache resolver results with 300s TTL (in-memory LRU, 1000 entries)
 4. Export fallback to local `hnsd` when `ARP_HNSD_LOCAL=true` env var is set
 
 **Acceptance:** integration test resolves at least one well-known HNS name (use `welcome.nb` or similar test domain) and parses its records.
 
-### Task 2 — `@arp/tls`
+### Task 2 — `@kybernesis/arp-tls`
 
 1. `generateAgentCert(did: string, publicKeyMultibase: string): { certPem: string; keyPem: string; fingerprint: string }` — produces a self-signed X.509 cert with:
    - CN = the agent DID
@@ -97,7 +97,7 @@ arp/apps/
 
 **Acceptance:** round-trip test — generate cert, publish fingerprint, connect TLS client validating against fingerprint, assert success. Tamper with fingerprint; assert failure.
 
-### Task 3 — `@arp/registry`
+### Task 3 — `@kybernesis/arp-registry`
 
 1. Schema: SQLite with tables:
    ```sql
@@ -146,7 +146,7 @@ arp/apps/
 
 **Acceptance:** CRUD tests covering happy path + error paths. Registry persists across process restart.
 
-### Task 4 — `@arp/audit`
+### Task 4 — `@kybernesis/arp-audit`
 
 1. Append-only log written to a JSON Lines file in the agent's data dir (`audit/<connection_id>.jsonl`)
 2. Each line:
@@ -168,7 +168,7 @@ arp/apps/
 
 **Acceptance:** write 100 entries, verify chain, tamper with one, assert `verifyAuditChain` detects at that index.
 
-### Task 5 — `@arp/pdp`
+### Task 5 — `@kybernesis/arp-pdp`
 
 1. Wraps `@cedar-policy/cedar-wasm`
 2. Exports:
@@ -198,7 +198,7 @@ arp/apps/
 
 **Acceptance:** tests mirror the 10 worked examples in `ARP-policy-examples.md`. For each, construct the evaluation input and assert the expected decision + obligations.
 
-### Task 6 — `@arp/transport`
+### Task 6 — `@kybernesis/arp-transport`
 
 1. DIDComm v2 over HTTPS using `@veramo/did-comm`
 2. Exports:
@@ -210,7 +210,7 @@ arp/apps/
 
 **Acceptance:** two in-process agents exchange a signed DIDComm message end-to-end; signature validates; message is stored in mailbox and delivered to handler.
 
-### Task 7 — `@arp/runtime`
+### Task 7 — `@kybernesis/arp-runtime`
 
 1. Hono server exposing:
    - `POST /didcomm` — inbound DIDComm v2 envelope
@@ -308,8 +308,8 @@ All exit 0.
 
 Phase 3 (Sidecar) consumes:
 
-- `@arp/runtime` as the binary to containerize
-- `handoff.json` as the input config format (already defined in `@arp/spec`)
+- `@kybernesis/arp-runtime` as the binary to containerize
+- `handoff.json` as the input config format (already defined in `@kybernesis/arp-spec`)
 - `runtime-bin` startup logic (port binding, config loading, graceful shutdown)
 
 Phase 3 adds Docker + systemd + first-boot UX on top of what this phase produces. No refactors into Phase 2 packages should be required.
@@ -321,7 +321,7 @@ Phase 3 adds Docker + systemd + first-boot UX on top of what this phase produces
 - SQLite (single-writer) for agent-local state; no Postgres in this phase
 - DID-pinned TLS only; no Let's Encrypt
 - DIDComm v2 only; A2A-HTTPS stubbed
-- Cedar policies with `@obligation` annotation as our extension; parsed by a custom shim in `@arp/pdp`
+- Cedar policies with `@obligation` annotation as our extension; parsed by a custom shim in `@kybernesis/arp-pdp`
 - Single-process, single-agent per binary; no multi-tenancy (that's Phase 7)
 - No retries on DIDComm sends in v0 beyond the library's defaults
 - HNS DoH against `hnsdoh.com`; `hnsd` local override via env only
@@ -336,4 +336,4 @@ Phase 3 adds Docker + systemd + first-boot UX on top of what this phase produces
 - **DIDComm v2 uses JWM (JSON Web Message).** Don't confuse with JWS/JWE alone.
 - **Fingerprint computation:** SHA-256 of DER bytes, not PEM bytes. Strip PEM headers first.
 - **Audit log `prev_hash` of first entry is all-zeros.** Genesis entry has `prev_hash: "sha256:00...00"`.
-- **Do not import DIDComm types outside `@arp/transport`.** The runtime, PDP, registry, and all other packages must talk to transport via the `Transport` interface only. This keeps future transports (A2A, etc.) as drop-in swaps rather than cross-package rewrites. If you find yourself reaching for `@veramo/did-comm` in `@arp/runtime` or anywhere else, stop — add the capability to `@arp/transport`'s interface instead.
+- **Do not import DIDComm types outside `@kybernesis/arp-transport`.** The runtime, PDP, registry, and all other packages must talk to transport via the `Transport` interface only. This keeps future transports (A2A, etc.) as drop-in swaps rather than cross-package rewrites. If you find yourself reaching for `@veramo/did-comm` in `@kybernesis/arp-runtime` or anywhere else, stop — add the capability to `@kybernesis/arp-transport`'s interface instead.

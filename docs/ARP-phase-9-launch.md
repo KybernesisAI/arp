@@ -27,7 +27,7 @@
 - [ ] `arp.spec` live — versioned spec pages, JSON schemas at stable URLs, scope catalog viewer
 - [ ] `docs.arp.spec` live — getting-started, three install guides, SDK API reference, adapter guides
 - [ ] GitHub org `KybernesisAI` holds public repos: `arp` (main, `https://github.com/KybernesisAI/arp`), `arp-sdk-python`, `arp-mobile`
-- [ ] `@arp/*` packages promoted to `latest` on npm
+- [ ] `@kybernesis/arp-*` packages promoted to `latest` on npm
 - [ ] `ghcr.io/kybernesisai/sidecar:1.0.0` tagged + released
 - [ ] Headless "Set up as ARP agent" checkout flow live in their production registrar
 - [ ] ARP Cloud password-gate removed; Stripe switched to live keys
@@ -100,7 +100,7 @@ Separate repo or subpath for `rfcs/` depending on organizational preference; lea
    - `/` — landing + pitch
    - `/spec/v0.1/*` — spec pages
    - `/docs/*` — getting-started + how-tos
-   - `/schema/*` — serves JSON schemas (proxied from `@arp/spec/json-schema`)
+   - `/schema/*` — serves JSON schemas (proxied from `@kybernesis/arp-spec/json-schema`)
    - `/scope-catalog/v1/manifest.json` — serves compiled manifest
    - `/rfcs/*` — RFC archive
 3. Versioned docs with clear "v0.1" banner until v1.0 ships
@@ -166,7 +166,7 @@ Seed with 3 reference RFCs (even if accepted retroactively):
 
 1. Walk Headless through `ARP-tld-integration-spec-v2.md` §12 checklist
 2. Confirm each of the 5 contract points (§12) green on their side
-3. Run the `@arp/testkit` against a Headless-provisioned test domain; must return 8/8
+3. Run the `@kybernesis/arp-testkit` against a Headless-provisioned test domain; must return 8/8
 4. Headless flips the "Set up as ARP agent" option to public
 
 **Acceptance:** a newly-purchased `.agent` domain from Headless, with the checkbox ticked, passes testkit audit within 5 minutes of registration.
@@ -191,13 +191,13 @@ Seed with 3 reference RFCs (even if accepted retroactively):
 
 ### Task 9 — npm + GHCR promotion
 
-1. Bump all `@arp/*` packages to `1.0.0`
+1. Bump all `@kybernesis/arp-*` packages to `1.0.0`
 2. Publish under `latest` tag (currently on `next`)
 3. Tag `ghcr.io/kybernesisai/sidecar:1.0.0` and `:latest`
 4. Generate a GitHub Release with consolidated changelog
 5. Update all READMEs to reference stable versions
 
-**Acceptance:** `npm i @arp/sdk` installs 1.0.0; `docker pull ghcr.io/kybernesisai/sidecar:latest` pulls the stable image.
+**Acceptance:** `npm i @kybernesis/arp-sdk` installs 1.0.0; `docker pull ghcr.io/kybernesisai/sidecar:latest` pulls the stable image.
 
 ### Task 10 — Status page + uptime
 
@@ -206,7 +206,7 @@ Seed with 3 reference RFCs (even if accepted retroactively):
    - `samantha.agent` / `ghost.agent` availability
    - Latest incident reports
 2. Deploy at `status.arp.spec`
-3. Automated probes from `@arp/testkit` post results every 5 minutes
+3. Automated probes from `@kybernesis/arp-testkit` post results every 5 minutes
 
 **Acceptance:** status page shows live data; a simulated outage is reflected within 1 minute.
 
@@ -238,9 +238,9 @@ pnpm install
 pnpm -r build
 pnpm --filter spec-site build
 pnpm --filter tests/phase-9 test
-npx @arp/testkit audit samantha.agent
-npx @arp/testkit audit ghost.agent
-npx @arp/testkit audit <headless-test-domain>
+npx @kybernesis/arp-testkit audit samantha.agent
+npx @kybernesis/arp-testkit audit ghost.agent
+npx @kybernesis/arp-testkit audit <headless-test-domain>
 # All three audits 8/8
 ```
 

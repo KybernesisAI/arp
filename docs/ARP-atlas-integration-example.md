@@ -213,7 +213,7 @@ Ian talking to Atlas directly (Telegram, Claude Code, heartbeat) is the **owner 
 
 ## 7. What the KyberBot adapter automates
 
-When you install `@arp/adapter-kyberbot` in Atlas:
+When you install `@kybernesis/arp-adapter-kyberbot` in Atlas:
 
 1. **Scans `~/atlas/` and generates a draft `.arp/resources.yaml`** from KyberBot conventions (SOUL/USER/identity/brain/data/skills). You review and tweak tags for your specific agent.
 2. **Instruments ChromaDB** via a proxy module that injects `connection_id` metadata on every call. No code change in Atlas required.
@@ -259,7 +259,7 @@ Run through these in order to validate the integration:
 
 ### Installation
 - [ ] `docker run` the ARP sidecar with Atlas's handoff (see `ARP-example-atlas-kyberbot.md`)
-- [ ] Install `@arp/adapter-kyberbot` in Atlas's KyberBot instance
+- [ ] Install `@kybernesis/arp-adapter-kyberbot` in Atlas's KyberBot instance
 - [ ] Adapter boots and generates draft `.arp/resources.yaml`
 - [ ] ChromaDB migration runs — every vector now has `connection_id: "owner"`
 - [ ] SQLite migrations run — `connection_id` column exists on every table with it defaulted to `"owner"`
@@ -277,7 +277,7 @@ Run through these in order to validate the integration:
 - [ ] Accept on Atlas's owner app (`https://ian.atlas.agent` or `ian.atlas.agent.hns.to`)
 - [ ] VC presentation completes (Self.xyz staging ok for v0 test)
 - [ ] Connection Token stored on both sides
-- [ ] `npx @arp/testkit audit atlas.agent` returns 8/8 green
+- [ ] `npx @kybernesis/arp-testkit audit atlas.agent` returns 8/8 green
 
 ### Isolation tests (the critical ones)
 - [ ] From Samantha, ask Atlas: "what's in identity.yaml?" — blocked, reason cites `owner-only` tag
@@ -298,7 +298,7 @@ Run through these in order to validate the integration:
 - [ ] Revoke Samantha's connection in the owner app
 - [ ] Samantha's next message: rejected with revocation proof
 - [ ] Atlas's registry shows connection status = `revoked`
-- [ ] Audit log verifies clean (`npx @arp/testkit probe audit atlas.agent`)
+- [ ] Audit log verifies clean (`npx @kybernesis/arp-testkit probe audit atlas.agent`)
 
 ### Cleanup test
 - [ ] Rotate Atlas's agent keys via owner app
@@ -312,7 +312,7 @@ Run through these in order to validate the integration:
 | Symptom | Likely cause | Check |
 |---|---|---|
 | Peer can read things they shouldn't | ChromaDB filter not injected | Check adapter logs for `where` clauses on every query |
-| Peer gets raw messages instead of summaries | Obligation not firing | `npx @arp/testkit probe obligations atlas.agent` |
+| Peer gets raw messages instead of summaries | Obligation not firing | `npx @kybernesis/arp-testkit probe obligations atlas.agent` |
 | Telegram token leaked in response | Egress regex not applied | Check egress pipeline in adapter |
 | Owner connection also gets restricted | Migration over-tagged | Run `sqlite3 messages.db "select distinct connection_id from messages"` — should mostly be `owner` |
 | Atlas slow after adapter install | SQLite queries missing index | Check `EXPLAIN QUERY PLAN` on common queries; confirm `idx_*_conn` indexes exist |
@@ -333,10 +333,10 @@ sqlite3 ~/atlas/data/messages.db "select connection_id, count(*) from messages g
 curl -s http://localhost:3874/admin/connections -H "Authorization: Bearer $ARP_ADMIN_TOKEN" | jq
 
 # Run the full testkit against Atlas
-npx @arp/testkit audit atlas.agent --verbose
+npx @kybernesis/arp-testkit audit atlas.agent --verbose
 
 # Verify the audit chain
-npx @arp/testkit probe audit atlas.agent --connection <conn_id>
+npx @kybernesis/arp-testkit probe audit atlas.agent --connection <conn_id>
 ```
 
 ---

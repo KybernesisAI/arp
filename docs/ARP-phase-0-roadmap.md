@@ -11,12 +11,12 @@
 | # | Name | Doc | Weeks | Output |
 |---|---|---|---|---|
 | 0 | **Roadmap & prerequisites** | this doc | — | Alignment |
-| 1 | **Shared Contract** | `ARP-phase-1-shared-contract.md` | 2 | `@arp/spec`, `@arp/templates`, `@arp/scope-catalog` on npm |
+| 1 | **Shared Contract** | `ARP-phase-1-shared-contract.md` | 2 | `@kybernesis/arp-spec`, `@kybernesis/arp-templates`, `@kybernesis/arp-scope-catalog` on npm |
 | 2 | **Runtime Core** | `ARP-phase-2-runtime-core.md` | 3–4 | PDP, transport, registry, audit, resolver, TLS libs |
 | 3 | **Sidecar Packaging** | `ARP-phase-3-sidecar.md` | 2 | Docker image, systemd unit, first-boot bootstrap |
 | 4 | **Pairing + Owner App** | `ARP-phase-4-pairing-owner-app.md` | 3–4 | QR pairing flow + Next.js owner UI on owner subdomain |
 | 5 | **Reference Agents + Compliance Testkit** | `ARP-phase-5-reference-agents-testkit.md` | 2 | `samantha.agent`, `ghost.agent`, automated compliance tests |
-| 6 | **SDKs + Framework Adapters** | `ARP-phase-6-sdks-adapters.md` | 3 | `@arp/sdk`, `arp-sdk` (Python), **required:** OpenClaw + Hermes-Agent + NanoClaw + KyberBot + LangGraph adapters. **Stretch:** CrewAI + MCP |
+| 6 | **SDKs + Framework Adapters** | `ARP-phase-6-sdks-adapters.md` | 3 | `@kybernesis/arp-sdk`, `arp-sdk` (Python), **required:** OpenClaw + Hermes-Agent + NanoClaw + KyberBot + LangGraph adapters. **Stretch:** CrewAI + MCP |
 | 7 | **ARP Cloud (hosted mode)** | `ARP-phase-7-cloud.md` | 4 | Multi-tenant runtime at `app.arp.spec`, outbound client, billing |
 | 8 | **Mobile Apps** | `ARP-phase-8-mobile.md` | 4 | iOS + Android app, biometric consent, QR pairing, push |
 | 9 | **Headless Integration + Launch** | `ARP-phase-9-launch.md` | 3 | TLD-side registration flow, public beta, docs site |
@@ -136,7 +136,7 @@ These are deferred to v0.2+, mentioned in multiple docs, noted here once for ref
 | Layer | Owner |
 |---|---|
 | Spec repo (`arp/`) | ARP team — us |
-| npm packages (`@arp/*`) | ARP team |
+| npm packages (`@kybernesis/arp-*`) | ARP team |
 | ARP Cloud infrastructure | ARP team |
 | `.agent` TLD, registrar, hybrid resolver | Headless Domains |
 | HNS protocol itself | Handshake community |

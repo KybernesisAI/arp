@@ -42,7 +42,7 @@ Refer to the guide's §3 table. For the target framework, determine:
 | `audit()` | ??? |
 | `on('revocation' \| 'rotation' \| 'pairing')` | ??? |
 
-If any row has no viable framework primitive, stop and recommend using `@arp/sdk` directly. Do not proceed with a half-adapter.
+If any row has no viable framework primitive, stop and recommend using `@kybernesis/arp-sdk` directly. Do not proceed with a half-adapter.
 
 Present this mapping to the user and get confirmation before writing code.
 
@@ -50,13 +50,13 @@ Present this mapping to the user and get confirmation before writing code.
 
 Run the generator:
 ```bash
-npx @arp/create-adapter \
+npx @kybernesis/arp-create-adapter \
   --framework <slug> \
   --language <ts|python> \
   --out ./adapters/<slug>
 ```
 
-If `@arp/create-adapter` isn't available, create the scaffold manually matching the layout in the guide's §5.
+If `@kybernesis/arp-create-adapter` isn't available, create the scaffold manually matching the layout in the guide's §5.
 
 ### Step 4 — Wire the adapter
 
@@ -75,7 +75,7 @@ Constraints (enforce these):
 
 Copy the template in the guide's §8.3. Wire it to a minimal example agent under `examples/minimal-agent/`. The test must:
 - Boot the adapter-backed agent
-- Run `@arp/testkit`'s `runFullAudit`
+- Run `@kybernesis/arp-testkit`'s `runFullAudit`
 - Assert 8/8 pass
 
 ### Step 6 — Write MIGRATION.md
@@ -107,7 +107,7 @@ All must be green. If any test fails, debug before handing off.
 
 - Verify `package.json` has the `arp` metadata block per the guide's §2.5
 - Count source lines: if over budget, either trim or document the overage in README
-- Confirm naming matches the convention: `@arp/adapter-<slug>` for official, scoped otherwise
+- Confirm naming matches the convention: `@kybernesis/arp-adapter-<slug>` for official, scoped otherwise
 
 ### Step 10 — Hand off
 

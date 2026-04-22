@@ -18,10 +18,10 @@
 ```
 /
 ├── packages/
-│   ├── spec/                      # JSON schemas + constants, no runtime code  (@arp/spec)
-│   ├── templates/                 # DID doc, agent card, arp.json generators   (@arp/templates)
-│   ├── sdk/                       # Bootstrap SDK consumed by registrar        (@arp/sdk)
-│   ├── testkit/                   # Automated §9 test suite                    (@arp/testkit)
+│   ├── spec/                      # JSON schemas + constants, no runtime code  (@kybernesis/arp-spec)
+│   ├── templates/                 # DID doc, agent card, arp.json generators   (@kybernesis/arp-templates)
+│   ├── sdk/                       # Bootstrap SDK consumed by registrar        (@kybernesis/arp-sdk)
+│   ├── testkit/                   # Automated §9 test suite                    (@kybernesis/arp-testkit)
 │   └── owner-app/                 # Reference owner UI (Next.js 16 App Router)
 ├── apps/
 │   └── registrar-integration/     # Reference registrar-side integration
@@ -415,7 +415,7 @@ Each test has a clear assertion. Test 5 is the critical path — if it fails, st
 
 Implement in this order:
 
-1. `packages/spec/` (published as `@arp/spec`) — JSON schemas (`did-doc.json`, `agent-card.json`, `arp-json.json`, `representation-vc.json`, `revocations.json`), constants (reserved names, TTLs, library versions).
+1. `packages/spec/` (published as `@kybernesis/arp-spec`) — JSON schemas (`did-doc.json`, `agent-card.json`, `arp-json.json`, `representation-vc.json`, `revocations.json`), constants (reserved names, TTLs, library versions).
 2. `packages/arp-templates` — pure functions that produce valid JSON given inputs.
 3. `packages/arp-sdk` — the bootstrap SDK the registrar integration calls. Exports `bootstrapAgent(input): Promise<HandoffBundle>` implementing §7.
 4. `packages/arp-testkit` — the §9 test suite, runnable against any `.agent` staging environment via env-var config.

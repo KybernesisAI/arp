@@ -11,7 +11,7 @@
 **Phase goal:** ship developer-facing libraries so agent developers never need to learn ARP primitives. Two SDKs (TypeScript, Python) and adapters for the five must-ship frameworks: **OpenClaw, Hermes-Agent, NanoClaw, KyberBot, LangGraph**. CrewAI + MCP adapters are stretch goals for this phase; they can slip to v1.1 without blocking launch.
 
 **Tech pins:**
-- TS SDK: same repo, `@arp/sdk`
+- TS SDK: same repo, `@kybernesis/arp-sdk`
 - Python SDK: separate repo `arp-sdk-python`, published to PyPI
 - Framework adapters: per-framework npm packages (TS) or PyPI packages (Python)
 - Each adapter must be ≤1000 lines
@@ -25,20 +25,20 @@
 ## 1. Definition of done
 
 **Must ship for v1 (phase cannot complete without these):**
-- [ ] `@arp/sdk` (TS) published — implements the 5 integration points from `ARP-installation-and-hosting.md §8`
+- [ ] `@kybernesis/arp-sdk` (TS) published — implements the 5 integration points from `ARP-installation-and-hosting.md §8`
 - [ ] `arp-sdk` (Python) — same API surface
-- [ ] `@arp/adapter-kyberbot` — drop-in for KyberBot using its plugin system
-- [ ] `@arp/adapter-openclaw` — drop-in for OpenClaw using its public plugin / middleware API
-- [ ] `@arp/adapter-hermes-agent` — drop-in for Hermes-Agent
-- [ ] `@arp/adapter-nanoclaw` — drop-in for NanoClaw
-- [ ] `@arp/adapter-langgraph` — graph node + helper
+- [ ] `@kybernesis/arp-adapter-kyberbot` — drop-in for KyberBot using its plugin system
+- [ ] `@kybernesis/arp-adapter-openclaw` — drop-in for OpenClaw using its public plugin / middleware API
+- [ ] `@kybernesis/arp-adapter-hermes-agent` — drop-in for Hermes-Agent
+- [ ] `@kybernesis/arp-adapter-nanoclaw` — drop-in for NanoClaw
+- [ ] `@kybernesis/arp-adapter-langgraph` — graph node + helper
 - [ ] Each of the 5 required adapters has a working example in `examples/` running against Phase 5 reference agents
-- [ ] Each required adapter passes `@arp/testkit audit` when serving a full agent
+- [ ] Each required adapter passes `@kybernesis/arp-testkit audit` when serving a full agent
 - [ ] Migration doc per required adapter: "no ARP" → "with ARP"
 
 **Stretch (ship if time allows; otherwise defer to v1.1):**
-- [ ] `@arp/adapter-crewai` — crew-level wrapper (Python)
-- [ ] `@arp/adapter-mcp` — wraps any MCP server as ARP-guarded
+- [ ] `@kybernesis/arp-adapter-crewai` — crew-level wrapper (Python)
+- [ ] `@kybernesis/arp-adapter-mcp` — wraps any MCP server as ARP-guarded
 
 Stretch adapters are not blocking. If either lags, tag the phase complete on the required five and open tracking issues for the rest.
 
@@ -57,17 +57,17 @@ Stretch adapters are not blocking. If either lags, tag the phase complete on the
 ```
 arp/
 ├── packages/
-│   └── sdk/                       # @arp/sdk (TS)
+│   └── sdk/                       # @kybernesis/arp-sdk (TS)
 │       ├── src/
 │       ├── tests/
 │       └── README.md
 ├── adapters/
-│   ├── kyberbot/                  # @arp/adapter-kyberbot          (required)
-│   ├── openclaw/                  # @arp/adapter-openclaw          (required)
-│   ├── hermes-agent/              # @arp/adapter-hermes-agent      (required)
-│   ├── nanoclaw/                  # @arp/adapter-nanoclaw          (required)
-│   ├── langgraph/                 # @arp/adapter-langgraph         (required)
-│   └── mcp/                       # @arp/adapter-mcp               (stretch)
+│   ├── kyberbot/                  # @kybernesis/arp-adapter-kyberbot          (required)
+│   ├── openclaw/                  # @kybernesis/arp-adapter-openclaw          (required)
+│   ├── hermes-agent/              # @kybernesis/arp-adapter-hermes-agent      (required)
+│   ├── nanoclaw/                  # @kybernesis/arp-adapter-nanoclaw          (required)
+│   ├── langgraph/                 # @kybernesis/arp-adapter-langgraph         (required)
+│   └── mcp/                       # @kybernesis/arp-adapter-mcp               (stretch)
 ├── examples/
 │   ├── kyberbot-atlas/
 │   ├── openclaw-demo/
@@ -91,7 +91,7 @@ arp-sdk-python/
 
 ## 4. Implementation tasks
 
-### Task 1 — `@arp/sdk` (TS)
+### Task 1 — `@kybernesis/arp-sdk` (TS)
 
 Public API:
 
@@ -117,7 +117,7 @@ export class ArpAgent {
 }
 ```
 
-Internally wraps `@arp/runtime`, `@arp/registry`, `@arp/pdp`, `@arp/transport`. Presents a high-level API — developers shouldn't need to know about Cedar, DIDComm, or Connection Tokens in normal use.
+Internally wraps `@kybernesis/arp-runtime`, `@kybernesis/arp-registry`, `@kybernesis/arp-pdp`, `@kybernesis/arp-transport`. Presents a high-level API — developers shouldn't need to know about Cedar, DIDComm, or Connection Tokens in normal use.
 
 **Acceptance:** build a minimal agent in ≤20 lines using the SDK; pair with `ghost.agent`; exchange messages; pass testkit audit.
 
@@ -141,14 +141,14 @@ Implementation: use `pycedarpolicy` if available; else ship a small Cedar WASM b
 
 **Acceptance:** Python example agent pairs + messages with TS `samantha.agent`; testkit green.
 
-### Task 3 — `@arp/adapter-kyberbot` *(required)*
+### Task 3 — `@kybernesis/arp-adapter-kyberbot` *(required)*
 
 Integrates with the KyberBot agent framework. Reads `~/<kyberbot-agent>/config/arp-handoff.json` and wires up the runtime.
 
 Public API:
 ```ts
 import { KyberBot } from 'kyberbot';
-import { withArp } from '@arp/adapter-kyberbot';
+import { withArp } from '@kybernesis/arp-adapter-kyberbot';
 
 const bot = withArp(new KyberBot(/* normal config */), {
   handoff: '/path/to/arp-handoff.json',
@@ -164,14 +164,14 @@ Behavior:
 
 **Acceptance:** Atlas example in `examples/kyberbot-atlas/` boots, pairs, receives a scoped request, returns a redacted response, all via standard KyberBot idioms.
 
-### Task 4 — `@arp/adapter-openclaw` *(required)*
+### Task 4 — `@kybernesis/arp-adapter-openclaw` *(required)*
 
 Integrates with the OpenClaw agent framework. Use OpenClaw's public plugin / middleware API — do not fork.
 
 Expected public API (refine to match OpenClaw's actual extension idioms):
 ```ts
 import { OpenClaw } from 'openclaw';
-import { arpPlugin } from '@arp/adapter-openclaw';
+import { arpPlugin } from '@kybernesis/arp-adapter-openclaw';
 
 const agent = new OpenClaw(/* normal config */)
   .use(arpPlugin({ handoff: './arp-handoff.json' }));
@@ -190,16 +190,16 @@ Implementation notes:
 - If OpenClaw's hooks are sync-only, wrap the async PDP call with a bounded waiter (5s default, configurable)
 - Never patch OpenClaw internals; if the public API is insufficient, open an upstream issue and document the workaround
 
-**Acceptance:** `examples/openclaw-demo/` — a minimal OpenClaw agent configured with the adapter; pairs with `ghost.agent`; receives a scoped task; returns a response filtered through obligations; passes full `@arp/testkit` audit.
+**Acceptance:** `examples/openclaw-demo/` — a minimal OpenClaw agent configured with the adapter; pairs with `ghost.agent`; receives a scoped task; returns a response filtered through obligations; passes full `@kybernesis/arp-testkit` audit.
 
-### Task 5 — `@arp/adapter-hermes-agent` *(required)*
+### Task 5 — `@kybernesis/arp-adapter-hermes-agent` *(required)*
 
 Integrates with the Hermes-Agent framework.
 
 Expected public API (refine to match Hermes-Agent's actual extension idioms):
 ```ts
 import { HermesAgent } from 'hermes-agent';
-import { withArp } from '@arp/adapter-hermes-agent';
+import { withArp } from '@kybernesis/arp-adapter-hermes-agent';
 
 const agent = withArp(new HermesAgent(/* normal config */), {
   handoff: './arp-handoff.json',
@@ -216,14 +216,14 @@ Implementation notes:
 
 **Acceptance:** `examples/hermes-demo/` — Hermes-Agent configured with the adapter; same acceptance bar as OpenClaw (pair, scoped request, obligations, testkit green).
 
-### Task 6 — `@arp/adapter-nanoclaw` *(required)*
+### Task 6 — `@kybernesis/arp-adapter-nanoclaw` *(required)*
 
-Integrates with the NanoClaw agent framework. NanoClaw is the smaller / lighter variant; the adapter must be proportionally lightweight (≤500 lines, no additional runtime deps beyond `@arp/sdk`).
+Integrates with the NanoClaw agent framework. NanoClaw is the smaller / lighter variant; the adapter must be proportionally lightweight (≤500 lines, no additional runtime deps beyond `@kybernesis/arp-sdk`).
 
 Expected public API:
 ```ts
 import { NanoClaw } from 'nanoclaw';
-import { withArp } from '@arp/adapter-nanoclaw';
+import { withArp } from '@kybernesis/arp-adapter-nanoclaw';
 
 const agent = withArp(new NanoClaw(/* config */), {
   handoff: './arp-handoff.json',
@@ -238,12 +238,12 @@ Behavior: same integration points as the others, but optimized for NanoClaw's co
 
 **Acceptance:** `examples/nanoclaw-demo/` — NanoClaw with the adapter running on a constrained target (document which targets were tested); passes full testkit audit; bundle size ≤100 KB gzipped.
 
-### Task 7 — `@arp/adapter-langgraph` *(required)*
+### Task 7 — `@kybernesis/arp-adapter-langgraph` *(required)*
 
 Public API:
 ```ts
 import { StateGraph } from '@langchain/langgraph';
-import { arpNode } from '@arp/adapter-langgraph';
+import { arpNode } from '@kybernesis/arp-adapter-langgraph';
 
 const graph = new StateGraph(...)
   .addNode('arp_guard', arpNode({ handoff }))
@@ -286,14 +286,14 @@ crew = Crew(agents=[
 
 *Skip if time pressure; defer to v1.1. Do not block the phase on this.*
 
-### Task 9 — `@arp/adapter-mcp` *(stretch)*
+### Task 9 — `@kybernesis/arp-adapter-mcp` *(stretch)*
 
 Wraps any MCP server such that tool invocations require ARP permission.
 
 Public API:
 ```ts
 import { createServer } from '@modelcontextprotocol/sdk/server';
-import { withArp } from '@arp/adapter-mcp';
+import { withArp } from '@kybernesis/arp-adapter-mcp';
 
 const mcp = createServer(/* your MCP config */);
 const guardedMcp = withArp(mcp, { handoff: './handoff.json' });
@@ -324,24 +324,24 @@ If stretch adapters shipped, include them too; if not, skip their entries and le
 
 **Acceptance:** all 5 required adapters green. Stretch adapters green if shipped.
 
-### Task 12 — `@arp/create-adapter` CLI (community on-ramp)
+### Task 12 — `@kybernesis/arp-create-adapter` CLI (community on-ramp)
 
 Ship the scaffolding CLI so third-party developers can author conformance-passing adapters for frameworks we don't cover.
 
-Package: `@arp/create-adapter`
-Invocation: `npx @arp/create-adapter --framework <slug> --language ts|python --out <path>`
+Package: `@kybernesis/arp-create-adapter`
+Invocation: `npx @kybernesis/arp-create-adapter --framework <slug> --language ts|python --out <path>`
 
 Behavior:
 1. Copies a canonical adapter template into `<path>`
 2. Substitutes framework name, slug, and ARP spec version into templates
 3. Scaffolds `src/`, `tests/`, `examples/minimal-agent/`, `MIGRATION.md`, `README.md`, `package.json` with the `arp` metadata block
-4. Pre-wires the conformance test importing from `@arp/testkit`
+4. Pre-wires the conformance test importing from `@kybernesis/arp-testkit`
 5. Prints next-steps guidance referencing `ARP-adapter-authoring-guide.md`
 
 Implementation:
 - TS CLI using `commander`, templates rendered with `handlebars`
 - Templates live in `packages/create-adapter/templates/ts/` and `.../python/`
-- Publishes to npm under `@arp/create-adapter`
+- Publishes to npm under `@kybernesis/arp-create-adapter`
 
 **Acceptance:** running the generator in a scratch dir produces a buildable skeleton; `pnpm install && pnpm build && pnpm test` on the generated project all pass (tests are stubs but conformance test skeleton is valid).
 
@@ -373,12 +373,12 @@ uv run pytest
 
 ## 6. Deliverables
 
-- `@arp/sdk` + `arp-sdk` (Python)
+- `@kybernesis/arp-sdk` + `arp-sdk` (Python)
 - Five required adapters: KyberBot, OpenClaw, Hermes-Agent, NanoClaw, LangGraph
 - Two stretch adapters if completed: CrewAI, MCP
 - Working example agent per shipped adapter
 - Migration docs per shipped adapter
-- `@arp/create-adapter` CLI for third-party adapter authoring
+- `@kybernesis/arp-create-adapter` CLI for third-party adapter authoring
 - ARP adapter authoring skill published for Claude Code users
 - Authoring guide live on `arp.spec`
 

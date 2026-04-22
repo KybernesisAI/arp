@@ -31,9 +31,9 @@
 The phase is complete when all of the following are true:
 
 - [ ] Monorepo `arp/` exists with the package layout in §3
-- [ ] `@arp/spec` package publishable (compiled, typed, tested)
-- [ ] `@arp/templates` package publishable
-- [ ] `@arp/scope-catalog` package publishable (includes YAML sources + compiled JSON)
+- [ ] `@kybernesis/arp-spec` package publishable (compiled, typed, tested)
+- [ ] `@kybernesis/arp-templates` package publishable
+- [ ] `@kybernesis/arp-scope-catalog` package publishable (includes YAML sources + compiled JSON)
 - [ ] All JSON schemas from `ARP-tld-integration-spec-v2.md §6` and `ARP-policy-examples.md §8` are implemented as both Zod schemas and JSON Schema
 - [ ] All 50 scopes from `ARP-scope-catalog-v1.md §4` exist as YAML files
 - [ ] Cedar schema compiles and validates a sample policy
@@ -162,11 +162,11 @@ Execute in order. Each task is atomic; commit after each.
 
 **Acceptance:** workflow file validates via `actionlint` (run locally if available, otherwise just YAML-lint).
 
-### Task 3 — `@arp/spec` package scaffold
+### Task 3 — `@kybernesis/arp-spec` package scaffold
 1. Create `packages/spec/package.json`:
    ```json
    {
-     "name": "@arp/spec",
+     "name": "@kybernesis/arp-spec",
      "version": "0.1.0",
      "description": "ARP shared contract: JSON Schemas, Zod schemas, constants",
      "main": "./dist/index.cjs",
@@ -190,9 +190,9 @@ Execute in order. Each task is atomic; commit after each.
 2. Create `tsup.config.ts` for dual ESM+CJS output
 3. Create `tsconfig.json` extending base
 
-**Acceptance:** `pnpm --filter @arp/spec build` produces `dist/*` files.
+**Acceptance:** `pnpm --filter @kybernesis/arp-spec build` produces `dist/*` files.
 
-### Task 4 — Implement Zod schemas in `@arp/spec`
+### Task 4 — Implement Zod schemas in `@kybernesis/arp-spec`
 Translate every JSON shape in these sources into a Zod schema, one per file under `src/schemas/`:
 
 | File | Source |
@@ -228,11 +228,11 @@ Also populate `src/constants.ts` with:
 
 **Acceptance:** after `pnpm build`, `json-schema/` contains 9 `.json` files. Each validates as a draft-2020-12 JSON Schema.
 
-### Task 6 — `@arp/templates` package scaffold
+### Task 6 — `@kybernesis/arp-templates` package scaffold
 1. Create `packages/templates/package.json` same shape as `spec`
-2. Add dep: `@arp/spec: workspace:*`
+2. Add dep: `@kybernesis/arp-spec: workspace:*`
 
-### Task 7 — Template functions in `@arp/templates`
+### Task 7 — Template functions in `@kybernesis/arp-templates`
 Each template is a pure function that takes typed inputs and produces a valid document that passes the corresponding Zod schema.
 
 Implement:
@@ -252,14 +252,14 @@ Do this for: `did-document`, `agent-card`, `arp-json`, `representation-vc`, `rev
 
 Each function:
 1. Constructs the object
-2. Validates it via the Zod schema from `@arp/spec`
+2. Validates it via the Zod schema from `@kybernesis/arp-spec`
 3. Returns it or throws a typed error if invalid
 
 **Acceptance:** property-based tests (at least 10 per template) that generate random valid inputs and verify outputs always pass the schema.
 
-### Task 8 — `@arp/scope-catalog` package scaffold
+### Task 8 — `@kybernesis/arp-scope-catalog` package scaffold
 1. Create `packages/scope-catalog/package.json`
-2. Add deps: `@arp/spec: workspace:*`, `yaml`, `handlebars`
+2. Add deps: `@kybernesis/arp-spec: workspace:*`, `yaml`, `handlebars`
 
 ### Task 9 — Author all 50 scope YAML files
 Using `ARP-scope-catalog-v1.md §4` (table) and §5 (detailed specs):
@@ -274,14 +274,14 @@ Rules when synthesizing:
 - Always include `implies` and `conflicts_with` (empty arrays if none)
 - Parameter defaults match values from the table where given
 
-**Acceptance:** all 50 YAML files validate against the `ScopeTemplateSchema` from `@arp/spec`.
+**Acceptance:** all 50 YAML files validate against the `ScopeTemplateSchema` from `@kybernesis/arp-spec`.
 
 ### Task 10 — Scope loader + catalog manifest
 1. `src/loader.ts` — reads all YAML files from `scopes/`, validates each, returns typed array
 2. `src/catalog-manifest.ts` — produces the public manifest JSON (with metadata: catalog version, scope count, checksum)
 3. `generated/manifest.json` + `generated/scopes.json` are build artifacts
 
-**Acceptance:** `pnpm --filter @arp/scope-catalog build` produces both generated files. Manifest checksum is deterministic (same input → same hash).
+**Acceptance:** `pnpm --filter @kybernesis/arp-scope-catalog build` produces both generated files. Manifest checksum is deterministic (same input → same hash).
 
 ### Task 11 — Scope → Cedar compiler
 1. `src/compiler.ts` exports `compileScope(scope: ScopeTemplate, params: Record<string, unknown>, audienceDid: string): string`
@@ -303,7 +303,7 @@ Rules when synthesizing:
 2. Place it at `packages/spec/src/cedar-schema.json` (copied; referenced by schema wrapper)
 3. Include a test that uses `@cedar-policy/cedar-wasm` to parse the schema and a sample policy (from `ARP-policy-examples.md §3.Layer2`) and confirm the policy is syntactically valid
 
-Note: this adds `@cedar-policy/cedar-wasm` as a devDependency in `@arp/spec` for testing only. Production consumers don't need it for schema access.
+Note: this adds `@cedar-policy/cedar-wasm` as a devDependency in `@kybernesis/arp-spec` for testing only. Production consumers don't need it for schema access.
 
 **Acceptance:** a test `cedar-schema.test.ts` that parses the schema + policy without error.
 
@@ -339,9 +339,9 @@ All must exit 0.
 
 Additional phase-level tests (add to a `tests/phase-1/` directory at repo root):
 
-1. **End-to-end template → schema validation:** build a full DID doc via `@arp/templates`, validate it against the JSON Schema from `@arp/spec`, assert pass.
-2. **End-to-end scope → Cedar:** load a bundle YAML via `@arp/scope-catalog`, compile it, parse the output with `@cedar-policy/cedar-wasm`, assert no errors.
-3. **Handoff bundle round-trip:** build a sample handoff bundle via `@arp/templates`, serialize to JSON, parse, validate, assert equal to original.
+1. **End-to-end template → schema validation:** build a full DID doc via `@kybernesis/arp-templates`, validate it against the JSON Schema from `@kybernesis/arp-spec`, assert pass.
+2. **End-to-end scope → Cedar:** load a bundle YAML via `@kybernesis/arp-scope-catalog`, compile it, parse the output with `@cedar-policy/cedar-wasm`, assert no errors.
+3. **Handoff bundle round-trip:** build a sample handoff bundle via `@kybernesis/arp-templates`, serialize to JSON, parse, validate, assert equal to original.
 
 ---
 
@@ -362,9 +362,9 @@ At end of phase:
 
 Phase 2 (Runtime Core) consumes:
 
-- `@arp/spec` — all schemas as Zod and JSON Schema
-- `@arp/templates` — functions to generate documents at runtime
-- `@arp/scope-catalog` — scope templates + compiler used by PDP and pairing flow
+- `@kybernesis/arp-spec` — all schemas as Zod and JSON Schema
+- `@kybernesis/arp-templates` — functions to generate documents at runtime
+- `@kybernesis/arp-scope-catalog` — scope templates + compiler used by PDP and pairing flow
 - Cedar schema + sample policies for PDP integration tests
 
 Phase 1 must **not** export any HTTP, filesystem, or network dependencies. Phase 2 layers those on top.

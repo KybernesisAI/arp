@@ -49,7 +49,7 @@ On your Mac, paste into Terminal:
 
 ```bash
 cd ~/atlas
-npx @arp/cloud-client init
+npx @kybernesis/arp-cloud-client init
 ```
 
 This walks you through a short wizard:
@@ -63,7 +63,7 @@ It creates a small config file at `~/atlas/.arp-cloud.json`.
 
 ```bash
 cd ~/atlas
-npx @arp/cloud-client start
+npx @kybernesis/arp-cloud-client start
 ```
 
 This opens a persistent outbound connection to ARP Cloud. Leave the terminal running.
@@ -71,7 +71,7 @@ This opens a persistent outbound connection to ARP Cloud. Leave the terminal run
 Alternative: install as a background service so it starts with your Mac:
 
 ```bash
-npx @arp/cloud-client install-service
+npx @kybernesis/arp-cloud-client install-service
 ```
 
 Now it runs in the background forever, restarting automatically.
@@ -198,8 +198,8 @@ About **5 minutes** after buying the domain. This is by far the fastest setup â€
 
 1. Buy `atlas.agent` â†’ redirect to ARP Cloud
 2. Sign in + provision (60 seconds of clicking)
-3. `npx @arp/cloud-client init` on your Mac (one command)
-4. `npx @arp/cloud-client install-service` so it runs in the background forever
+3. `npx @kybernesis/arp-cloud-client init` on your Mac (one command)
+4. `npx @kybernesis/arp-cloud-client install-service` so it runs in the background forever
 5. Open `https://ian.atlas.agent` to manage it
 
 That's the whole thing. Atlas stays on your Mac, we host the internet-facing layer, and you never touch a tunnel or a VPS.
