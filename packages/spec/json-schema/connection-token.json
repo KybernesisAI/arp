@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/connection-token/v0.1.json",
+  "title": "connection-token",
+  "type": "object",
+  "properties": {
+    "connection_id": {
+      "type": "string",
+      "pattern": "^conn_[A-Za-z0-9_-]{4,}$"
+    },
+    "issuer": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Principal DID who authored the token"
+    },
+    "subject": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Agent DID the token runs under"
+    },
+    "audience": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Counterparty agent DID"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-text purpose label"
+    },
+    "cedar_policies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "One or more compiled Cedar policy strings"
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Obligation type (see ARP-policy-examples.md §7)"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Obligation-specific parameters (structured JSON)"
+          }
+        },
+        "required": [
+          "type",
+          "params"
+        ],
+        "additionalProperties": false
+      },
+      "default": []
+    },
+    "scope_catalog_version": {
+      "type": "string",
+      "description": "Catalog version pinned at pairing time (e.g. \"v1\")"
+    },
+    "expires": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Absolute expiry (ISO 8601)"
+    },
+    "sigs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Map of signer label → signature (base64url). Both connection parties must sign."
+    }
+  },
+  "required": [
+    "connection_id",
+    "issuer",
+    "subject",
+    "audience",
+    "purpose",
+    "cedar_policies",
+    "scope_catalog_version",
+    "expires",
+    "sigs"
+  ],
+  "additionalProperties": false
+}

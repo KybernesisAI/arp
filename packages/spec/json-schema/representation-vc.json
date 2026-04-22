@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/representation-vc/v0.1.json",
+  "title": "representation-vc",
+  "type": "object",
+  "properties": {
+    "iss": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Issuer = principal DID"
+    },
+    "sub": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Subject = agent DID"
+    },
+    "iat": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Issued-at (Unix seconds)"
+    },
+    "exp": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "description": "Expiry (Unix seconds)"
+    },
+    "vc": {
+      "type": "object",
+      "properties": {
+        "@context": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "credentialSubject": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+              "description": "Agent DID being represented"
+            },
+            "representedBy": {
+              "type": "string",
+              "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+              "description": "Principal DID doing the representing"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "full",
+                "scoped"
+              ],
+              "description": "Representation scope"
+            },
+            "constraints": {
+              "type": "object",
+              "properties": {
+                "maxConcurrentConnections": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Upper bound on simultaneously-active connections"
+                },
+                "allowedTransferOfOwnership": {
+                  "type": "boolean",
+                  "description": "Whether the representation survives agent ownership transfer (v0.2+)"
+                }
+              },
+              "required": [
+                "maxConcurrentConnections",
+                "allowedTransferOfOwnership"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "representedBy",
+            "scope",
+            "constraints"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "@context",
+        "type",
+        "credentialSubject"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "iss",
+    "sub",
+    "iat",
+    "exp",
+    "vc"
+  ],
+  "additionalProperties": false
+}

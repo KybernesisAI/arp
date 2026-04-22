@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/agent-card/v0.1.json",
+  "title": "agent-card",
+  "type": "object",
+  "properties": {
+    "arp_version": {
+      "type": "string",
+      "description": "ARP protocol version (e.g. \"0.1\")"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable agent name"
+    },
+    "did": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line purpose description"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "endpoints": {
+      "type": "object",
+      "properties": {
+        "didcomm": {
+          "type": "string",
+          "format": "uri",
+          "description": "DIDComm v2 endpoint"
+        },
+        "a2a": {
+          "type": "string",
+          "format": "uri",
+          "description": "Agent-to-Agent HTTPS endpoint (stubbed v0)"
+        },
+        "pairing": {
+          "type": "string",
+          "format": "uri",
+          "description": "Pairing flow entry point"
+        }
+      },
+      "required": [
+        "didcomm",
+        "pairing"
+      ],
+      "additionalProperties": false
+    },
+    "accepted_protocols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "Wire protocols this agent accepts"
+    },
+    "supported_scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Scope IDs from the catalog this agent supports"
+    },
+    "payment": {
+      "type": "object",
+      "properties": {
+        "x402_enabled": {
+          "type": "boolean",
+          "description": "Whether this agent accepts x402 payments"
+        },
+        "currencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "ISO-like currency/asset codes (e.g. \"USDC\", \"ETH\")"
+        },
+        "pricing_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "HTTPS URL to the pricing page, or null"
+        }
+      },
+      "required": [
+        "x402_enabled",
+        "currencies",
+        "pricing_url"
+      ],
+      "additionalProperties": false
+    },
+    "vc_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Peer-counterparty VC type IDs required (e.g. \"self_xyz.verified_human\")"
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "const": "cedar",
+          "description": "Only Cedar is supported as a PDP engine in v0"
+        },
+        "schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL to the Cedar schema (typically /.well-known/policy-schema.json)"
+        }
+      },
+      "required": [
+        "engine",
+        "schema"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "arp_version",
+    "name",
+    "did",
+    "description",
+    "created_at",
+    "endpoints",
+    "accepted_protocols",
+    "supported_scopes",
+    "payment",
+    "vc_requirements",
+    "policy"
+  ],
+  "additionalProperties": false
+}

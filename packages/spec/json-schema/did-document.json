@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/did-document/v0.1.json",
+  "title": "did-document",
+  "type": "object",
+  "properties": {
+    "@context": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "The DID being described, e.g. did:web:samantha.agent"
+    },
+    "controller": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Principal DID that controls the agent"
+    },
+    "verificationMethod": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verification method ID, e.g. \"did:web:samantha.agent#key-1\""
+          },
+          "type": {
+            "type": "string",
+            "const": "Ed25519VerificationKey2020",
+            "description": "Only Ed25519VerificationKey2020 is supported in v0"
+          },
+          "controller": {
+            "type": "string",
+            "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+            "description": "DID that controls this verification method"
+          },
+          "publicKeyMultibase": {
+            "type": "string",
+            "pattern": "^z[1-9A-HJ-NP-Za-km-z]{40,}$"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "controller",
+          "publicKeyMultibase"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "authentication": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "assertionMethod": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "keyAgreement": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "service": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Service ID (DID-URL fragment)"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "DIDCommMessaging",
+              "AgentCard"
+            ],
+            "description": "Service type; v0 supports DIDCommMessaging + AgentCard"
+          },
+          "serviceEndpoint": {
+            "type": "string",
+            "format": "uri",
+            "description": "HTTPS endpoint URL"
+          },
+          "accept": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Accepted protocol tokens"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "serviceEndpoint"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "principal": {
+      "type": "object",
+      "properties": {
+        "did": {
+          "type": "string",
+          "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+          "description": "The human principal DID (e.g. did:web:ian.self.xyz)"
+        },
+        "representationVC": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL of the signed representation VC (see §6.4)"
+        }
+      },
+      "required": [
+        "did",
+        "representationVC"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "@context",
+    "id",
+    "controller",
+    "verificationMethod",
+    "authentication",
+    "assertionMethod",
+    "keyAgreement",
+    "service",
+    "principal"
+  ],
+  "additionalProperties": false
+}

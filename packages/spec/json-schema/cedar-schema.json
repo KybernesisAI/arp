@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/cedar-schema/v0.1.json",
+  "title": "cedar-schema",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "properties": {
+      "entityTypes": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "memberOfTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "shape": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Record"
+                },
+                "attributes": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "String"
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Long"
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Boolean"
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Set"
+                          },
+                          "element": {}
+                        },
+                        "required": [
+                          "type",
+                          "element"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Record"
+                          },
+                          "attributes": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "attributes"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Entity"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "Extension"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "attributes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "shape"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "actions": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "appliesTo": {
+              "type": "object",
+              "properties": {
+                "principalTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "resourceTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "context": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "Record"
+                    },
+                    "attributes": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "String"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Long"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Boolean"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Set"
+                              },
+                              "element": {}
+                            },
+                            "required": [
+                              "type",
+                              "element"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Record"
+                              },
+                              "attributes": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "attributes"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Entity"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "Extension"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "attributes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "principalTypes",
+                "resourceTypes"
+              ],
+              "additionalProperties": false
+            },
+            "memberOf": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "appliesTo"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "commonTypes": {
+        "type": "object",
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "String"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Long"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Boolean"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Set"
+                },
+                "element": {}
+              },
+              "required": [
+                "type",
+                "element"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Record"
+                },
+                "attributes": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "type",
+                "attributes"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Entity"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "type",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "Extension"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "type",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "entityTypes",
+      "actions"
+    ],
+    "additionalProperties": false
+  }
+}
