@@ -24,8 +24,9 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # Version is read from "packageManager" in package.json so CI stays
+        # aligned with the lockfile. Declaring `version:` here as well causes
+        # pnpm/action-setup to error out (ERR_PNPM_BAD_PM_VERSION).
 
       - name: Setup Node 24
         uses: actions/setup-node@v4
