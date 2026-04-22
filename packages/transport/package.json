@@ -1,0 +1,46 @@
+{
+  "name": "@kybernesis/arp-transport",
+  "version": "0.2.0",
+  "description": "ARP transport — DIDComm v2 signed messaging + SQLite mailbox. The only package permitted to depend on DIDComm wire-format libraries.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/transport"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "better-sqlite3": "^11.5.0",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11"
+  }
+}
