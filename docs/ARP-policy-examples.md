@@ -1,0 +1,585 @@
+# ARP Policy — Worked Examples & Variable Catalog
+
+**Purpose:** show exactly how a Connection's policy is authored, compiled, and evaluated, using the scenario Ian (owns `samantha.agent`) + Nick (owns `ghost.agent`) collaborating on Project Alpha.
+
+---
+
+## 1. The three layers of a policy
+
+```
+┌──────────────────────────────────────────────────┐
+│ Layer 1 — Scope Template (human UX)              │
+│ "Let Ghost read Project Alpha files during       │
+│  business hours, up to $50 in paid queries."    │
+├──────────────────────────────────────────────────┤
+│ Layer 2 — Cedar Policy (wire format)             │
+│ permit (...) when {...}                          │
+├──────────────────────────────────────────────────┤
+│ Layer 3 — UCAN/Biscuit Envelope (signed)         │
+│ { iss, sub, aud, cedar_policies[], sigs, ... }   │
+└──────────────────────────────────────────────────┘
+```
+
+Owner sees Layer 1. Agents exchange Layer 3. The PDP evaluates Layer 2.
+
+---
+
+## 2. Scenario
+
+- **Ian** owns `samantha.agent` (his personal agent)
+- **Nick** owns `ghost.agent` (his personal agent)
+- They're collaborating on **Project Alpha** — a research project whose files live in Samantha's memory
+- Ian wants Ghost to be able to read the Alpha project files and discuss scheduling, but nothing else
+- Ian wants the connection to cap at $50/month in paid operations
+- Ian wants business-hours-only access
+- Ian wants all mentions of specific client names redacted on the way out
+
+---
+
+## 3. Example 1 — Minimal policy (starter)
+
+### Layer 1 — what Ian picks in the UI
+
+```
+[ New Connection: ghost.agent ]
+
+Purpose:  Project Alpha
+
+Permissions:
+  ☑ Read project files        Project: [Alpha ▾]
+  ☐ Write project files
+  ☐ Read calendar
+  ☐ Share externally
+```
+
+### Layer 2 — compiled Cedar
+
+```cedar
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action in [Action::"read", Action::"list"],
+    resource in Project::"alpha"
+);
+```
+
+### Layer 3 — signed envelope (excerpt)
+
+```json
+{
+  "connection_id": "conn_7a3f...",
+  "issuer":   "did:web:ian.self.xyz",
+  "subject":  "did:web:samantha.agent",
+  "audience": "did:web:ghost.agent",
+  "purpose":  "project:alpha",
+  "cedar_policies": [
+    "permit (principal == Agent::\"did:web:ghost.agent\", action in [Action::\"read\", Action::\"list\"], resource in Project::\"alpha\");"
+  ],
+  "expires": "2026-10-22T00:00:00Z",
+  "sigs": { "ian": "...", "nick": "..." }
+}
+```
+
+---
+
+## 4. Example 2 — Scoped policy (realistic)
+
+Adds time windows, stated purpose, required VCs, spend caps, and a deny rule for sensitive tags.
+
+### Layer 1 — UI expansion
+
+```
+[ Edit Connection: ghost.agent · Project Alpha ]
+
+Permissions:
+  ☑ Read project files                  Project: [Alpha ▾]
+  ☑ Discuss scheduling                  Days ahead: [14]
+  ☑ Summarize documents                 Max output: [2000 words]
+
+Access windows:
+  ☑ Business hours only                 09:00–17:00 [America/New_York ▾]
+  ☑ Weekdays only
+
+Counterparty requirements (Self.xyz):
+  ☑ Verified human
+  ☑ Over 18
+  ☐ US resident
+  ☐ Specific employer
+
+Economic limits:
+  ☑ Spend cap: $50 / rolling 30 days
+  ☑ Per-request cap: $5
+
+Sensitive data:
+  ☑ Never share items tagged "confidential"
+  ☑ Never share items tagged "client-list"
+
+Expires: [2026-10-22]
+```
+
+### Layer 2 — compiled Cedar
+
+```cedar
+// --- PERMIT rules ---
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action in [Action::"read", Action::"list", Action::"summarize"],
+    resource in Project::"alpha"
+) when {
+    // Business hours, weekdays, NY timezone
+    context.time.within_business_hours &&
+    context.time.day_of_week in ["Mon","Tue","Wed","Thu","Fri"] &&
+    // Required VCs presented this session
+    context.presented_vcs.contains("self_xyz.verified_human") &&
+    context.presented_vcs.contains("self_xyz.over_18") &&
+    // Per-request spend cap
+    context.quoted_price_usd <= 5 &&
+    // Aggregate 30-day cap
+    context.spend_last_30d_usd + context.quoted_price_usd <= 50
+};
+
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action == Action::"discuss_scheduling",
+    resource == Calendar::"ian.primary"
+) when {
+    context.time.within_business_hours &&
+    context.schedule_window_days <= 14
+};
+
+// --- FORBID rules (override permits) ---
+forbid (
+    principal,
+    action,
+    resource
+) when {
+    resource.tags.contains("confidential") ||
+    resource.tags.contains("client-list")
+};
+
+forbid (
+    principal,
+    action,
+    resource
+) when {
+    // Expired connection
+    context.time.now > connection.expires_at
+};
+```
+
+### Evaluation trace (walk-through)
+
+Ghost sends: *"Summarize the Q2 research findings doc from Project Alpha."*
+
+```
+1. Transport:   DIDComm envelope received, connection_id = conn_7a3f
+2. PDP loads:   Connection Token → Cedar policies above
+3. Build context:
+     principal = Agent::"did:web:ghost.agent"
+     action    = Action::"summarize"
+     resource  = Document::"alpha/q2-research"
+                 { tags: ["research","q2"], classification: "internal" }
+     context   = {
+       time.now: 2026-04-22T14:30 NYC,
+       time.within_business_hours: true,
+       time.day_of_week: "Wed",
+       presented_vcs: ["self_xyz.verified_human","self_xyz.over_18"],
+       quoted_price_usd: 0.02,
+       spend_last_30d_usd: 3.18,
+       connection.expires_at: 2026-10-22
+     }
+4. Cedar.isAuthorized(...) →
+     permit #1 matches (all when-clauses true)
+     forbid #1 does NOT match (no confidential tag)
+     forbid #2 does NOT match (not expired)
+   → ALLOW, no obligations
+5. Dispatch to LLM with memory filtered to Project::"alpha"
+6. Generate summary
+7. PDP egress re-check → ALLOW
+8. Log to audit chain, charge $0.02 via x402
+9. Return response to Ghost
+```
+
+---
+
+## 5. Example 3 — Advanced policy (obligations, rate limits, re-prompts)
+
+Adds egress redaction, rate limiting, and fresh-consent re-prompts for specific actions.
+
+### Layer 2 — Cedar with obligations
+
+Cedar core doesn't have "obligations" as a first-class construct — we express them as a parallel obligation policy set evaluated after the allow decision. Structure:
+
+```cedar
+// --- PERMIT (as before) ---
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action in [Action::"read", Action::"summarize"],
+    resource in Project::"alpha"
+) when { /* as in example 2 */ };
+
+// --- OBLIGATIONS (post-allow, applied as transforms) ---
+// Rendered by the PDP into a side-channel result, not a Cedar primitive
+
+@obligation("redact_fields")
+@obligation_params({ "fields": ["client.name", "client.email", "client.phone"] })
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action == Action::"read",
+    resource in Project::"alpha"
+);
+
+@obligation("rate_limit")
+@obligation_params({ "max_requests_per_hour": 60 })
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action,
+    resource in Project::"alpha"
+);
+
+@obligation("require_fresh_consent")
+@obligation_params({ "max_age_seconds": 300, "prompt": "Ghost is requesting export of multiple files" })
+permit (
+    principal == Agent::"did:web:ghost.agent",
+    action == Action::"bulk_export",
+    resource in Project::"alpha"
+);
+```
+
+> **Note on syntax:** Cedar's real syntax doesn't include `@obligation` annotations natively; the ARP profile extends Cedar with a parallel obligation-rules file. The PDP evaluates the permit set, then evaluates the obligation set against the same request, and returns `{ decision, obligations[] }`.
+
+### What the PDP returns
+
+```json
+{
+  "decision": "allow",
+  "obligations": [
+    { "type": "redact_fields", "params": { "fields": ["client.name", "client.email", "client.phone"] } },
+    { "type": "rate_limit",   "params": { "max_requests_per_hour": 60, "current": 12 } }
+  ],
+  "policies_fired": ["p_alpha_read", "o_redact_clients", "o_rate_limit_alpha"]
+}
+```
+
+The agent runtime:
+1. Calls the LLM with resources scoped to `Project::alpha`
+2. Passes the raw response through the `redact_fields` transform
+3. Increments the rate-limit counter
+4. Logs everything to the audit chain
+
+---
+
+## 6. Full variable catalog
+
+Variables the PDP exposes at evaluation time. Organized by category. Use these in `when { ... }` clauses.
+
+### 6.1 Principal (the requesting agent)
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `principal.did` | string | Agent DID (e.g., `did:web:ghost.agent`) |
+| `principal.owner_did` | string | The human principal's DID |
+| `principal.agent_name` | string | Human-readable name from agent card |
+| `principal.connection_id` | string | Which connection this invocation runs under |
+| `principal.connection_purpose` | string | Purpose label of the connection |
+| `principal.delegation_depth` | int | How many hops in the UCAN chain |
+| `principal.delegated_by` | [string] | Full chain of delegator DIDs |
+| `principal.reputation_score` | int 0–100 | Optional external reputation (v0.2+) |
+| `principal.key_age_seconds` | int | How long the signing key has existed |
+
+### 6.2 Resource (what's being accessed)
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `resource.type` | enum | `file`, `folder`, `project`, `calendar_event`, `contact`, `memory`, `tool`, `payment` |
+| `resource.id` | string | Unique ID within its type |
+| `resource.path` | string | Hierarchical path |
+| `resource.project` | string | Parent project ID |
+| `resource.owner_did` | string | Resource owner's DID |
+| `resource.classification` | enum | `public`, `internal`, `confidential`, `restricted` |
+| `resource.tags` | [string] | Arbitrary labels |
+| `resource.data_categories` | [enum] | `pii`, `phi`, `financial`, `legal`, `credentials`, `location` |
+| `resource.contains_pii` | bool | Shortcut for category check |
+| `resource.created_at` | timestamp | When created |
+| `resource.updated_at` | timestamp | Last modified |
+| `resource.size_bytes` | int | For files |
+| `resource.mime_type` | string | For files |
+
+### 6.3 Action (what's being done)
+
+Actions are enumerated from the scope catalog. Core set:
+
+| Action | Category |
+|---|---|
+| `read`, `list`, `search`, `summarize`, `derive` | Read-family |
+| `write`, `update`, `create`, `append` | Write-family |
+| `delete`, `archive`, `purge` | Destructive |
+| `share_internal`, `share_external`, `forward`, `bulk_export` | Share-family |
+| `execute_tool`, `call_function`, `run_code` | Compute |
+| `pay`, `refund`, `authorize_payment` | Economic |
+| `pair`, `re_consent`, `rotate_keys`, `revoke` | Meta |
+| `discuss_scheduling`, `propose_meeting`, `check_availability` | Domain-specific (calendar example) |
+
+### 6.4 Temporal context
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.time.now` | timestamp | Request time (ISO 8601) |
+| `context.time.hour` | int 0–23 | Hour in connection's configured TZ |
+| `context.time.day_of_week` | enum | `Mon`, `Tue`, ... `Sun` |
+| `context.time.date` | date | ISO date |
+| `context.time.within_business_hours` | bool | Within connection-configured window |
+| `context.time.timezone` | string | IANA TZ string |
+| `context.time.is_holiday` | bool | Optional holiday-calendar check |
+
+### 6.5 Connection state
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.connection.created_at` | timestamp | When this connection was first signed |
+| `context.connection.expires_at` | timestamp | When it dies |
+| `context.connection.last_consent_at` | timestamp | Last human-approved refresh |
+| `context.connection.status` | enum | `active`, `suspended`, `expiring`, `revoked` |
+| `context.connection.scope_resources` | [string] | Resources the connection covers |
+| `context.connection.audit_log_size` | int | How many events logged |
+| `context.connection.total_messages` | int | Messages exchanged ever |
+
+### 6.6 Economic context
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.quoted_price_usd` | float | Price of this specific request |
+| `context.spend_this_request_usd` | float | Same as quoted, post-execution |
+| `context.spend_last_24h_usd` | float | Rolling |
+| `context.spend_last_7d_usd` | float | Rolling |
+| `context.spend_last_30d_usd` | float | Rolling |
+| `context.spend_all_time_usd` | float | Lifetime of this connection |
+| `context.currency` | enum | `USDC`, `ETH`, etc. |
+
+### 6.7 Rate / frequency
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.requests_last_minute` | int | |
+| `context.requests_last_hour` | int | |
+| `context.requests_last_day` | int | |
+| `context.seconds_since_last_request` | int | |
+| `context.concurrent_requests` | int | In-flight right now |
+
+### 6.8 Stated intent / purpose
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.stated_purpose` | string | Free-text purpose claimed by requesting agent |
+| `context.stated_purpose_category` | enum | Classifier output: `scheduling`, `research`, `payment`, `introduction`, `other` |
+| `context.thread_id` | string | Conversation thread |
+| `context.turn_number` | int | Nth turn in this thread |
+
+### 6.9 Presented credentials (Self.xyz + others)
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.presented_vcs` | [string] | Full list of VC type IDs presented this session |
+| `context.presented_vcs.contains(X)` | bool | Convenience check |
+| `context.presented_vcs.self_xyz.verified_human` | bool | |
+| `context.presented_vcs.self_xyz.over_18` | bool | |
+| `context.presented_vcs.self_xyz.over_21` | bool | |
+| `context.presented_vcs.self_xyz.country` | string | ISO country code |
+| `context.presented_vcs.self_xyz.us_resident` | bool | |
+| `context.presented_vcs.self_xyz.attestation_age_seconds` | int | Freshness |
+| `context.presented_vcs.employment.verified` | bool | External issuer |
+| `context.presented_vcs.employment.employer_did` | string | |
+
+### 6.10 Request origin / environment
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.origin.ip` | string | Source IP |
+| `context.origin.geo.country` | string | ISO country |
+| `context.origin.network_type` | enum | `residential`, `corporate`, `vpn`, `tor`, `cloud` |
+| `context.origin.is_known_device` | bool | Previously-seen fingerprint |
+
+### 6.11 Risk signals
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.risk.score` | int 0–100 | Composite risk |
+| `context.risk.signals` | [string] | E.g., `["velocity_spike","new_device","high_value"]` |
+| `context.anomaly.detected` | bool | Behavioral anomaly |
+
+### 6.12 Principal state (the human)
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `context.principal.online` | bool | Reachable for consent |
+| `context.principal.do_not_disturb` | bool | DND mode |
+| `context.principal.last_active_seconds_ago` | int | |
+| `context.principal.recent_consent_count` | int | Anti-fatigue signal |
+
+---
+
+## 7. Obligation types (what policies can demand post-allow)
+
+| Obligation | Effect |
+|---|---|
+| `redact_fields` | Strip named fields from the response |
+| `redact_regex` | Strip anything matching regex |
+| `summarize_only` | Replace raw content with model-generated summary ≤ N words |
+| `aggregate_only` | Return count/sum/avg instead of rows |
+| `rate_limit` | Enforce max-N-per-window |
+| `require_fresh_consent` | Prompt the human for approval; block until granted |
+| `require_vc` | Demand a specific VC be presented in this session |
+| `log_audit_level` | Force heightened audit detail |
+| `delete_after` | Attach a TTL to the response (sticky policy) |
+| `no_downstream_share` | Mark response as non-re-sharable |
+| `notify_principal` | Fire a push to the human after the request |
+| `charge_usd` | Trigger an x402 settlement |
+| `insert_watermark` | Embed a traceable marker |
+
+---
+
+## 8. Cedar schema (type declarations)
+
+Cedar requires a schema declaring entity types + action groups. Published at `/.well-known/policy-schema.json` on each agent. Shape:
+
+```json
+{
+  "ARP": {
+    "entityTypes": {
+      "Agent": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "owner_did": { "type": "String" },
+            "agent_name": { "type": "String" },
+            "connection_id": { "type": "String" }
+          }
+        }
+      },
+      "Project": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "classification": { "type": "String" },
+            "tags": { "type": "Set", "element": { "type": "String" } }
+          }
+        }
+      },
+      "Document": {
+        "memberOfTypes": ["Project"],
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "classification": { "type": "String" },
+            "tags": { "type": "Set", "element": { "type": "String" } },
+            "data_categories": { "type": "Set", "element": { "type": "String" } }
+          }
+        }
+      }
+    },
+    "actions": {
+      "read":     { "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document","Project"] } },
+      "list":     { "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Project"] } },
+      "summarize":{ "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document","Project"] } },
+      "share_external": { "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document"] } }
+    }
+  }
+}
+```
+
+---
+
+## 9. Common patterns
+
+### Pattern: time-bounded access
+```cedar
+permit (principal == Agent::"did:web:ghost.agent", action, resource)
+when { context.time.now < datetime("2026-10-22T00:00:00Z") };
+```
+
+### Pattern: Step-up consent for expensive operations
+```cedar
+forbid (principal, action == Action::"bulk_export", resource)
+when { context.connection.last_consent_at < context.time.now - duration("5m") };
+```
+
+### Pattern: Reputation gate
+```cedar
+permit (principal, action in [Action::"read"], resource in Project::"alpha")
+when { principal.reputation_score >= 70 };
+```
+
+### Pattern: Attribute-gated sharing (Self.xyz)
+```cedar
+permit (principal, action == Action::"share_external", resource)
+when {
+    context.presented_vcs.contains("self_xyz.us_resident") &&
+    context.presented_vcs.contains("self_xyz.over_18")
+};
+```
+
+### Pattern: Spending ratchet (per-counterparty cap)
+```cedar
+forbid (principal, action == Action::"pay", resource)
+when { context.spend_last_30d_usd + context.quoted_price_usd > 50 };
+```
+
+### Pattern: Purpose binding
+```cedar
+permit (principal, action == Action::"read", resource in Project::"alpha")
+when { context.stated_purpose_category in ["scheduling", "summarization"] };
+```
+
+### Pattern: Blast-radius clamp (forbid bulk)
+```cedar
+forbid (principal, action, resource)
+when { resource.size_bytes > 10_000_000 };
+```
+
+### Pattern: No-onward-sharing (sticky)
+```cedar
+permit (principal, action == Action::"read", resource)
+when { true }
+advice { "no_downstream_share": true };
+```
+
+---
+
+## 10. Evaluation semantics
+
+1. Start with decision = `DENY` (deny-by-default).
+2. Evaluate all `permit` policies. If any matches, decision = `ALLOW`.
+3. Evaluate all `forbid` policies. If any matches, decision = `DENY` (forbid wins over permit).
+4. Evaluate all obligation policies. Collect their params.
+5. Return `{ decision, obligations[], policies_fired[] }`.
+
+Evaluate both inbound (request) and outbound (response) — obligations typically fire on outbound.
+
+---
+
+## 11. What the owner UI actually renders
+
+From the Example 2 Cedar, the owner's consent screen shows:
+
+```
+Ghost wants to connect with Samantha for Project Alpha.
+
+Ghost WILL be able to:
+  • Read, list, and summarize files in Project Alpha
+  • Discuss scheduling (up to 14 days ahead)
+  • Spend up to $5 per request, $50 per month
+
+Ghost WILL NOT be able to:
+  • See anything tagged "confidential" or "client-list"
+  • Access your calendar details beyond availability
+  • Share Project Alpha files externally
+
+Access is limited to:
+  • Weekdays, 09:00–17:00 America/New_York
+  • Ghost must prove: Verified human, 18+
+
+Connection expires: October 22, 2026
+
+[ Approve ]    [ Adjust ]    [ Cancel ]
+```
+
+That rendering is generated from the Cedar policies + schema + scope catalog — not hand-written. The consent UI is a deterministic projection of the signed policy.

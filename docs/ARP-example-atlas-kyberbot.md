@@ -1,0 +1,182 @@
+# ARP — Worked Example: Atlas (KyberBot) → `atlas.agent`
+
+**Audience:** non-technical-ish. Copy-paste the commands.
+**Scenario:** you've built KyberBot locally. You have an agent named Atlas living at `~/atlas/` (the folder with `SOUL.md`, `USER.md`, `brain/`, `skills/`). You want Atlas to be reachable as `atlas.agent` and manageable with scopes/permissions via ARP.
+
+---
+
+## What you're actually adding
+
+A small **gatekeeper program** (the "ARP sidecar") that sits in front of Atlas. Atlas itself doesn't change. The sidecar handles the outside world and checks permissions before anything reaches Atlas.
+
+Think of it like a bouncer at the door — Atlas keeps being Atlas inside; the bouncer decides who gets in and what they're allowed to ask for.
+
+---
+
+## The 5 steps
+
+### Step 1 — Buy the domain
+
+1. Go to Headless Domains.
+2. Register `atlas.agent`.
+3. Tick "Set up as ARP agent" at checkout.
+4. Download the `handoff.json` it gives you.
+
+### Step 2 — Drop the handoff into your Atlas folder
+
+```
+~/atlas/
+├── SOUL.md
+├── USER.md
+├── brain/
+├── skills/
+└── handoff.json   ← new
+```
+
+### Step 3 — Start the ARP sidecar
+
+Paste this into Terminal:
+
+```bash
+cd ~/atlas
+docker run -d --name atlas-arp \
+  -v $(pwd)/handoff.json:/config/handoff.json:ro \
+  -v atlas-arp-data:/data \
+  -e AGENT_API_URL=http://host.docker.internal:3874 \
+  -p 443:443 \
+  ghcr.io/kybernesisai/sidecar:0.1
+```
+
+Docker is already running for KyberBot's memory DB, so this just adds one more container.
+
+The `AGENT_API_URL` tells the sidecar where Atlas is listening locally (KyberBot's messaging port).
+
+### Step 4 — Expose `atlas.agent` to the internet
+
+Pick **one** of the two tunnel options below. Both work equally well — pick whichever you already use.
+
+#### Option A: ngrok *(use this if you're already paying for ngrok — which you are for KyberBot)*
+
+```bash
+ngrok http --domain=atlas.agent 443
+```
+
+Done. One-time setup: add `atlas.agent` as a custom domain in your ngrok dashboard (one click).
+
+**Note:** custom domains require an ngrok paid plan. You already have one for KyberBot, so you're covered.
+
+#### Option B: Cloudflare Tunnel *(free, no ngrok paid plan needed)*
+
+```bash
+brew install cloudflared
+cloudflared tunnel login              # opens browser; log in with any free CF account
+cloudflared tunnel create atlas       # creates the tunnel
+cloudflared tunnel route dns atlas atlas.agent
+cloudflared tunnel run atlas          # keep this terminal running
+```
+
+---
+
+### Step 5 — Manage Atlas from your browser
+
+`.agent` is a Handshake TLD and doesn't resolve in a vanilla browser. Use **one** of these to open the owner UI:
+
+- **ARP mobile app** *(recommended)* — has HNS resolution built in; scan a QR or tap a push to open Atlas directly.
+- **Any browser, via the HNS gateway:** `https://ian.atlas.agent.hns.to`
+- **Any browser, via our fallback SaaS:** `https://app.arp.spec` (log in with your principal DID)
+
+More detail on why and what the tradeoffs are: `ARP-hns-resolution.md`.
+
+Once open, you'll see your control panel:
+
+- **Pending pairing requests** — "Ghost wants to connect with Atlas about Project Alpha..."
+- **Active connections** — one row per peer/purpose (Dave · Orion, Nick · Alpha, Nick · Beta, Mike · Delta, ...)
+- **Scope checkboxes** — what each connection is allowed to do
+- **Revoke buttons** — kill any connection with one tap
+- **Audit log** — every action taken under every connection
+
+Optional: install the ARP mobile app for QR pairing + push approvals on your phone.
+
+---
+
+## What's running on your Mac after all this
+
+```
+┌─ Your Mac ───────────────────────────────────────────┐
+│                                                       │
+│  KyberBot / Atlas   ← you still use it the same way   │
+│       ▲                                               │
+│       │ localhost                                     │
+│  ARP sidecar        ← gatekeeper: permissions + logs  │
+│       ▲                                               │
+│       │ HTTPS via ngrok OR Cloudflare Tunnel          │
+│  atlas.agent on the internet                          │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+When Ghost's agent messages Atlas, the message hits the sidecar first. The sidecar checks the Cedar policy for that connection, and only forwards it to Atlas if allowed.
+
+---
+
+## Tunnel comparison (ngrok vs Cloudflare)
+
+| | **ngrok** | **Cloudflare Tunnel** |
+|---|---|---|
+| Cost | Paid plan (you already have one) | Free |
+| Custom domain | Paid feature | Built in, free |
+| TLS / HTTPS | Automatic on custom domain | Automatic |
+| Already running for KyberBot? | ✅ Yes | ❌ No |
+| Setup complexity | 1 command | 4 commands, one-time |
+| Recommended for you | **Yes** — you already pay for it | Good fallback / alternative |
+
+---
+
+## Can I use both?
+
+Sort of. DNS only points one place at a time, so you can't have both live as inbound simultaneously — but you can:
+
+- **Switch** anytime by updating the A/CNAME at the registrar (propagates in ~1 min). Useful if one provider has an outage.
+- **Run both tunnels** pointed at the same sidecar in parallel, and flip DNS between them when needed.
+- **Use different subdomains** — e.g., `atlas.agent` via ngrok (primary), `backup.atlas.agent` via Cloudflare (fallback).
+
+For v0, pick ngrok since it's already part of your KyberBot setup. Swap later if you ever want to.
+
+---
+
+## What you DON'T have to do
+
+- ❌ Change any KyberBot code
+- ❌ Run anything in the cloud
+- ❌ Pay for hosting
+- ❌ Learn Cedar, DIDComm, or protocol internals
+- ❌ Manage TLS certs (handled automatically)
+- ❌ Think about DIDs or handshake crypto
+
+---
+
+## Gotchas
+
+**1. Your Mac has to be on** (or the sidecar running) to receive messages. If your Mac sleeps, messages queue in the sidecar's mailbox and deliver when you wake up — same as email.
+
+**2. Both terminals (Docker sidecar + tunnel) must stay running.** If you close the tunnel terminal, Atlas disappears from the internet until you start it again. Consider running the tunnel as a background service (ngrok and cloudflared both support this — ask ChatGPT or check their docs when ready).
+
+**3. First pairing approval is manual.** When another agent requests a connection, you tap Approve in the owner app. Subsequent messages on an approved connection flow automatically (within the scopes you granted).
+
+---
+
+## Total time
+
+About **10 minutes** after buying the domain. Most of it is clicking through the registrar and waiting for Docker to pull the sidecar image.
+
+---
+
+## Quick recap
+
+1. Buy `atlas.agent` → download `handoff.json`
+2. Drop `handoff.json` in `~/atlas/`
+3. `docker run` the sidecar (one command)
+4. Start your tunnel (ngrok OR cloudflared, one command)
+5. Open `https://ian.atlas.agent` to manage it
+
+That's the whole thing. Atlas keeps running as KyberBot. The sidecar is the only new piece.
