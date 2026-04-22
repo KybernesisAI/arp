@@ -1,0 +1,41 @@
+{
+  "name": "@kybernesis/arp-audit",
+  "version": "0.2.0",
+  "description": "ARP audit log — append-only JSON Lines with SHA-256 hash-chaining over JCS-canonicalised entries.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/audit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-spec": "workspace:*",
+    "canonicalize": "^2.0.0"
+  },
+  "devDependencies": {}
+}
