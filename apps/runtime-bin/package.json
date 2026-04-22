@@ -1,0 +1,31 @@
+{
+  "name": "@kybernesis/arp-runtime-bin",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Reference ARP agent binary — wires the Phase 2 packages together for local development and integration tests.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "arp-runtime": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo 'no tests for runtime-bin' && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-registry": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-runtime": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-tls": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*"
+  },
+  "devDependencies": {}
+}

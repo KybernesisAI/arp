@@ -1,0 +1,51 @@
+{
+  "name": "@kybernesis/arp-runtime",
+  "version": "0.2.0",
+  "description": "ARP runtime — Hono HTTP server, PDP pipeline, connection registry + audit orchestration, per-connection memory partitioning.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/runtime"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.5",
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-registry": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-templates": "workspace:*",
+    "@kybernesis/arp-tls": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "hono": "^4.6.12"
+  },
+  "devDependencies": {
+    "@noble/ed25519": "^2.2.3"
+  }
+}
