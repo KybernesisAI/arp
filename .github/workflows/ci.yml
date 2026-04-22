@@ -37,14 +37,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Use the root scripts, which route through Turborepo. Turbo honours
+      # `dependsOn: ["^build"]` in turbo.json — i.e., upstream packages are
+      # built before downstream typecheck/test. `pnpm -r <task>` skips that
+      # coordination and runs in parallel, causing TS2307 "cannot find module
+      # @kybernesis/arp-spec" when a downstream package typechecks before the
+      # upstream package has emitted its dist/*.d.ts.
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm run typecheck
 
       - name: Build
-        run: pnpm -r build
+        run: pnpm run build
 
       - name: Test
-        run: pnpm -r test
+        run: pnpm run test
 
       - name: Lint
-        run: pnpm -r lint
+        run: pnpm run lint
