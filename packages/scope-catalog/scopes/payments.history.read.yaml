@@ -1,0 +1,28 @@
+id: payments.history.read
+version: 1.0.0
+label: Read past transactions
+description: Peer can read your payment history for the past N days.
+category: payments
+risk: medium
+parameters:
+  - name: days_back
+    type: Integer
+    required: true
+    default: 30
+    validation: "1..365"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == PaymentHistory::"self"
+  ) when {
+    context.query_window_days <= {{days_back}}
+  };
+consent_text_template: "Read payment history for the past {{days_back}} days."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: false

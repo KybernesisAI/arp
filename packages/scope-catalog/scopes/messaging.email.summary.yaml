@@ -1,0 +1,26 @@
+id: messaging.email.summary
+version: 1.0.0
+label: Email summaries only
+description: Peer receives only summaries of your email threads, never the raw content.
+category: messaging
+risk: medium
+parameters:
+  - name: label_filter
+    type: AttributeList
+    required: false
+    default: []
+    validation: "label-or-folder-name"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"summarize",
+    resource == Email
+  );
+consent_text_template: "Share email summaries (never raw content){{#if label_filter}} for labels: {{label_filter_display}}{{/if}}."
+obligations_forced:
+  - type: summarize_only
+    params:
+      max_words: 250
+implies: []
+conflicts_with: []
+step_up_required: false

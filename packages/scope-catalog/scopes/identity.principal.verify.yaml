@@ -1,0 +1,19 @@
+id: identity.principal.verify
+version: 1.0.0
+label: Verify owner binding
+description: Peer can fetch and verify your representation VC, confirming which human principal your agent represents.
+category: identity
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"verify_principal",
+    resource == Principal::"self"
+  );
+consent_text_template: "Let Peer verify who your agent represents."
+obligations_forced: []
+implies:
+  - identity.card.read
+conflicts_with: []
+step_up_required: false

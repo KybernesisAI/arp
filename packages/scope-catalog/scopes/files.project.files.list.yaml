@@ -1,0 +1,22 @@
+id: files.project.files.list
+version: 1.0.0
+label: List files in a project
+description: Peer can list the file names in a specific project, not their contents.
+category: files
+risk: low
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"list",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "List files in project {{project_id}}."
+obligations_forced: []
+implies:
+  - files.project.metadata.read
+conflicts_with: []
+step_up_required: false

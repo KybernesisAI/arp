@@ -1,0 +1,18 @@
+id: work.status.read
+version: 1.0.0
+label: Current work status
+description: Peer can see your current work status (available, busy, out-of-office).
+category: work
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == WorkStatus::"self"
+  );
+consent_text_template: "Share your current work status (available/busy/OOO)."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

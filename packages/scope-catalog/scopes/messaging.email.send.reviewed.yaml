@@ -1,0 +1,36 @@
+id: messaging.email.send.reviewed
+version: 1.0.0
+label: Send email (after your review)
+description: Peer drafts emails on your behalf; each send requires your one-tap approval before going out.
+category: messaging
+risk: high
+parameters:
+  - name: recipient_allowlist
+    type: EmailList
+    required: false
+    default: []
+    validation: "rfc5322-or-domain-glob"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"send_email",
+    resource == Email::"outbox"
+  ) when {
+    {{#if recipient_allowlist}}
+    context.recipient_matches_allowlist({{recipient_allowlist_json}})
+    {{else}}
+    true
+    {{/if}}
+  };
+consent_text_template: "Draft and (with your approval) send emails{{#if recipient_allowlist}} to: {{recipient_allowlist_display}}{{/if}}."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - messaging.email.draft.compose
+conflicts_with: []
+step_up_required: true

@@ -1,0 +1,22 @@
+id: tasks.status.update
+version: 1.0.0
+label: Update task status
+description: Peer can update the status (open/in-progress/done) of tasks in a project.
+category: tasks
+risk: medium
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"update_status",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "Update task status in {{project_id}}."
+obligations_forced: []
+implies:
+  - tasks.read
+conflicts_with: []
+step_up_required: false

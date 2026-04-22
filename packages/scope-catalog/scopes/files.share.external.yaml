@@ -1,0 +1,39 @@
+id: files.share.external
+version: 1.0.0
+label: Share files outside circle
+description: Peer can share files from a project with an external recipient allowlist.
+category: files
+risk: critical
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: recipient_allowlist
+    type: EmailList
+    required: true
+    validation: "rfc5322-or-domain-glob"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"share_external",
+    resource in Project::"{{project_id}}"
+  ) when {
+    context.recipient_matches_allowlist({{recipient_allowlist_json}})
+  };
+consent_text_template: "Share files from {{project_id}} externally to: {{recipient_allowlist_display}}."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+  - type: insert_watermark
+    params: {}
+implies: []
+conflicts_with:
+  - files.project.files.delete
+tier_gate: self_xyz.verified_human
+step_up_required: true

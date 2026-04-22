@@ -1,0 +1,21 @@
+id: tasks.list
+version: 1.0.0
+label: List tasks
+description: Peer can list tasks within a project.
+category: tasks
+risk: low
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"list",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "List tasks in project {{project_id}}."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

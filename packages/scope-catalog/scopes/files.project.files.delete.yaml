@@ -1,0 +1,31 @@
+id: files.project.files.delete
+version: 1.0.0
+label: Delete files
+description: Peer can delete files in a specific project.
+category: files
+risk: critical
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"delete",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "Delete files in project {{project_id}} (destructive)."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies: []
+conflicts_with:
+  - files.share.external
+tier_gate: self_xyz.verified_human
+step_up_required: true

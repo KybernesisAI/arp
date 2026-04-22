@@ -1,0 +1,21 @@
+id: files.project.metadata.read
+version: 1.0.0
+label: Read project metadata
+description: Peer can read a specific project's metadata (name, description, tags), not its files.
+category: files
+risk: low
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read_metadata",
+    resource == Project::"{{project_id}}"
+  );
+consent_text_template: "Read metadata for project {{project_id}}."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

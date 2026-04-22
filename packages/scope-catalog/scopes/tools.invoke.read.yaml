@@ -1,0 +1,28 @@
+id: tools.invoke.read
+version: 1.0.0
+label: Invoke read-only tools
+description: Peer can invoke read-only (no-side-effect) tools on your MCP server, restricted to an allowlist.
+category: tools
+risk: medium
+parameters:
+  - name: tool_allowlist
+    type: ToolIDList
+    required: true
+    validation: "at-least-one"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"invoke_tool",
+    resource == Tool
+  ) when {
+    resource.id in {{tool_allowlist_json}} &&
+    resource.readonly == true
+  };
+consent_text_template: "Invoke these read-only tools on your behalf: {{tool_allowlist_display}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: false

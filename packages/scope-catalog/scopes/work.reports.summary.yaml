@@ -1,0 +1,29 @@
+id: work.reports.summary
+version: 1.0.0
+label: Generate status summary
+description: Peer can ask your agent to generate a status summary for a bounded time period.
+category: work
+risk: medium
+parameters:
+  - name: period
+    type: Enum
+    required: true
+    default: "week"
+    validation: ["day", "week", "month", "quarter"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"summarize",
+    resource == WorkReport::"self"
+  ) when {
+    context.period == "{{period}}"
+  };
+consent_text_template: "Generate a {{period}} work status summary."
+obligations_forced:
+  - type: summarize_only
+    params:
+      max_words: 1000
+implies:
+  - work.status.read
+conflicts_with: []
+step_up_required: false

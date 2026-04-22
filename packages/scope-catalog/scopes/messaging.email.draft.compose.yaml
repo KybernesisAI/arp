@@ -1,0 +1,23 @@
+id: messaging.email.draft.compose
+version: 1.0.0
+label: Compose drafts (no send)
+description: Peer can compose email drafts in your drafts folder without sending them.
+category: messaging
+risk: medium
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"compose_draft",
+    resource == Email::"drafts"
+  );
+  forbid (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"send_email",
+    resource
+  );
+consent_text_template: "Compose email drafts for you to review (no sending)."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

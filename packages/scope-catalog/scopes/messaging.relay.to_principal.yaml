@@ -1,0 +1,22 @@
+id: messaging.relay.to_principal
+version: 1.0.0
+label: Relay message to owner
+description: Peer can ask your agent to relay a short message to you (the principal).
+category: messaging
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"relay_to_principal",
+    resource == Principal::"self"
+  );
+consent_text_template: "Let Peer send you short relayed messages."
+obligations_forced:
+  - type: rate_limit
+    params:
+      window: hour
+      max: 10
+implies: []
+conflicts_with: []
+step_up_required: false

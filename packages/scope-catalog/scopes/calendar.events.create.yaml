@@ -1,0 +1,31 @@
+id: calendar.events.create
+version: 1.0.0
+label: Create events directly
+description: Peer can create calendar events on your primary calendar without extra confirmation, up to a daily cap.
+category: calendar
+risk: high
+parameters:
+  - name: max_per_day
+    type: Integer
+    required: true
+    default: 5
+    validation: "1..50"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"create_event",
+    resource == Calendar::"primary"
+  ) when {
+    context.events_created_today < {{max_per_day}}
+  };
+consent_text_template: "Create calendar events directly, up to {{max_per_day}} per day."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies:
+  - calendar.availability.read
+conflicts_with: []
+step_up_required: true

@@ -1,0 +1,21 @@
+id: contacts.introduce
+version: 1.0.0
+label: Request contact introduction
+description: Peer can ask you to introduce them to one of your contacts.
+category: contacts
+risk: medium
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_contact_introduction",
+    resource == Contact
+  );
+consent_text_template: "Let Peer ask you for introductions to your contacts."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 86400
+implies: []
+conflicts_with: []
+step_up_required: false

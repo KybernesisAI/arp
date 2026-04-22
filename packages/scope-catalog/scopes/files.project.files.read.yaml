@@ -1,0 +1,35 @@
+id: files.project.files.read
+version: 1.0.0
+label: Read file contents
+description: Peer can read the contents of files in a specific project.
+category: files
+risk: medium
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: max_size_mb
+    type: Integer
+    required: true
+    default: 10
+    validation: "1..100"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action in [Action::"read", Action::"list"],
+    resource in Project::"{{project_id}}"
+  ) when {
+    resource.size_bytes <= {{max_size_mb}} * 1048576 &&
+    !resource.tags.contains("confidential") &&
+    !resource.tags.contains("do-not-share")
+  };
+consent_text_template: "Read files in {{project.name}} (up to {{max_size_mb}} MB each; excludes items tagged confidential)."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - files.project.files.list
+  - files.project.metadata.read
+conflicts_with: []
+step_up_required: false

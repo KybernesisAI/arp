@@ -1,0 +1,30 @@
+id: files.project.files.summarize
+version: 1.0.0
+label: Summaries only (derive)
+description: Peer receives model-generated summaries of files in a project, never the raw contents.
+category: files
+risk: low
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: max_output_words
+    type: Integer
+    required: true
+    default: 2000
+    validation: "100..10000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"summarize",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "Summarize files in project {{project_id}} (up to {{max_output_words}} words)."
+obligations_forced:
+  - type: summarize_only
+    params:
+      max_words: "{{max_output_words}}"
+implies:
+  - files.project.files.read
+conflicts_with: []
+step_up_required: false

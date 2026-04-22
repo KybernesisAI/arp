@@ -1,0 +1,37 @@
+id: payments.authorize.capped
+version: 1.0.0
+label: Authorize payments up to a cap
+description: Peer can trigger x402 payments up to the per-transaction and rolling 30-day caps you set.
+category: payments
+risk: high
+parameters:
+  - name: max_per_txn_usd
+    type: Decimal
+    required: true
+    default: 5
+    validation: "0.01..1000"
+  - name: max_per_30d_usd
+    type: Decimal
+    required: true
+    default: 50
+    validation: "0.01..10000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"authorize_payment",
+    resource == Wallet::"primary"
+  ) when {
+    context.quoted_price_usd <= {{max_per_txn_usd}} &&
+    context.spend_last_30d_usd + context.quoted_price_usd <= {{max_per_30d_usd}}
+  };
+consent_text_template: "Pay up to ${{max_per_txn_usd}} per request, ${{max_per_30d_usd}} total per 30 days."
+obligations_forced:
+  - type: notify_principal
+    params: {}
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+tier_gate: self_xyz.verified_human
+step_up_required: true

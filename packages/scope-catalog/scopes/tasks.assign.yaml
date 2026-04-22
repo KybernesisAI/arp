@@ -1,0 +1,27 @@
+id: tasks.assign
+version: 1.0.0
+label: Assign tasks to humans
+description: Peer can assign tasks in a project to specific people.
+category: tasks
+risk: high
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"assign",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "Assign tasks to people in project {{project_id}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies:
+  - tasks.read
+conflicts_with: []
+step_up_required: true

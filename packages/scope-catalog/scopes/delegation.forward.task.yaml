@@ -1,0 +1,36 @@
+id: delegation.forward.task
+version: 1.0.0
+label: Forward task to another agent
+description: Peer can re-delegate a task to a third agent, with automatically attenuated scopes.
+category: delegation
+risk: high
+parameters:
+  - name: agent_allowlist
+    type: AgentDIDList
+    required: true
+    validation: "at-least-one"
+  - name: scope_attenuation
+    type: Enum
+    required: true
+    default: "read_only"
+    validation: ["read_only", "same_scopes", "custom"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"redelegate",
+    resource == Connection::"self"
+  ) when {
+    context.delegate_target in {{agent_allowlist_json}} &&
+    context.attenuation_mode == "{{scope_attenuation}}"
+  };
+consent_text_template: "Allow Peer to forward tasks to: {{agent_allowlist_display}}. Forwarded tasks get {{scope_attenuation_human}} access."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies: []
+conflicts_with: []
+tier_gate: self_xyz.verified_human
+step_up_required: true

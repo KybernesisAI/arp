@@ -1,0 +1,26 @@
+id: contacts.search
+version: 1.0.0
+label: Look up contacts
+description: Peer can search your contacts and receive only the attributes you specify.
+category: contacts
+risk: medium
+parameters:
+  - name: attribute_allowlist
+    type: AttributeList
+    required: true
+    default: ["name", "email"]
+    validation: ["name", "email", "phone", "title", "company", "linkedin", "twitter", "notes"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"search_contacts",
+    resource == Contact
+  );
+consent_text_template: "Search your contacts and see these fields: {{attribute_allowlist_display}}."
+obligations_forced:
+  - type: redact_fields_except
+    params:
+      allowlist: "{{attribute_allowlist_json}}"
+implies: []
+conflicts_with: []
+step_up_required: false
