@@ -1,0 +1,24 @@
+id: identity.introduction.request
+version: 1.0.0
+label: Request introduction
+description: Peer can ask your agent to introduce them to another agent you know.
+category: identity
+risk: medium
+parameters:
+  - name: to_agent
+    type: AgentDID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_introduction",
+    resource == Agent::"{{to_agent}}"
+  );
+consent_text_template: "Introduce Peer to {{to_agent}}."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 86400
+implies: []
+conflicts_with: []
+step_up_required: false

@@ -1,0 +1,21 @@
+id: connection.rescope.request
+version: 1.0.0
+label: Request new scopes
+description: Peer can ask you to add or adjust scopes on this connection (subject to your approval).
+category: identity
+risk: medium
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_rescope",
+    resource == Connection::"self"
+  );
+consent_text_template: "Allow Peer to propose new scopes on this connection."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+implies: []
+conflicts_with: []
+step_up_required: false

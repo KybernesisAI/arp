@@ -1,0 +1,50 @@
+{
+  "ARP": {
+    "entityTypes": {
+      "Agent": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "owner_did": { "type": "String" },
+            "agent_name": { "type": "String" },
+            "connection_id": { "type": "String" }
+          }
+        }
+      },
+      "Project": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "classification": { "type": "String" },
+            "tags": { "type": "Set", "element": { "type": "String" } }
+          }
+        }
+      },
+      "Document": {
+        "memberOfTypes": ["Project"],
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "classification": { "type": "String" },
+            "tags": { "type": "Set", "element": { "type": "String" } },
+            "data_categories": { "type": "Set", "element": { "type": "String" } }
+          }
+        }
+      }
+    },
+    "actions": {
+      "read": {
+        "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document", "Project"] }
+      },
+      "list": {
+        "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Project"] }
+      },
+      "summarize": {
+        "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document", "Project"] }
+      },
+      "share_external": {
+        "appliesTo": { "principalTypes": ["Agent"], "resourceTypes": ["Document"] }
+      }
+    }
+  }
+}

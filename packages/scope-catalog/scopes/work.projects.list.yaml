@@ -1,0 +1,18 @@
+id: work.projects.list
+version: 1.0.0
+label: Current active projects
+description: Peer can see the list of projects you're actively working on (names only).
+category: work
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"list",
+    resource == WorkProjects::"self"
+  );
+consent_text_template: "Share the list of your active projects."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

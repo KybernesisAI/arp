@@ -1,0 +1,34 @@
+id: files.project.files.write
+version: 1.0.0
+label: Create/modify files
+description: Peer can create and modify files in a specific project, up to a maximum size per file.
+category: files
+risk: high
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: max_size_mb
+    type: Integer
+    required: true
+    default: 10
+    validation: "1..100"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action in [Action::"write", Action::"update"],
+    resource in Project::"{{project_id}}"
+  ) when {
+    context.written_size_bytes <= {{max_size_mb}} * 1048576
+  };
+consent_text_template: "Create or modify files in {{project_id}} (up to {{max_size_mb}} MB each)."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies:
+  - files.project.files.read
+conflicts_with: []
+step_up_required: true

@@ -1,0 +1,22 @@
+id: tasks.read
+version: 1.0.0
+label: Read task details
+description: Peer can read details (title, status, assignee, due) of tasks within a project.
+category: tasks
+risk: low
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource in Project::"{{project_id}}"
+  );
+consent_text_template: "Read task details in project {{project_id}}."
+obligations_forced: []
+implies:
+  - tasks.list
+conflicts_with: []
+step_up_required: false

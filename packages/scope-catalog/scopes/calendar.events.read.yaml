@@ -1,0 +1,38 @@
+id: calendar.events.read
+version: 1.0.0
+label: Read event details
+description: Peer can read the details of calendar events within a time window.
+category: calendar
+risk: medium
+parameters:
+  - name: window_days
+    type: Integer
+    required: true
+    default: 30
+    validation: "1..365"
+  - name: include_private
+    type: Enum
+    required: false
+    default: "no"
+    validation: ["yes", "no"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == Calendar::"primary"
+  ) when {
+    context.query_window_days <= {{window_days}}
+    {{#if include_private_flag}}
+    {{else}}
+    && !resource.tags.contains("private")
+    {{/if}}
+  };
+consent_text_template: "Read event details for the next {{window_days}} days."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - calendar.availability.read
+conflicts_with: []
+step_up_required: false

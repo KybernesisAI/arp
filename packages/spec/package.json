@@ -1,0 +1,49 @@
+{
+  "name": "@kybernesis/arp-spec",
+  "version": "0.1.0",
+  "description": "ARP shared contract: Zod schemas, JSON Schemas (draft 2020-12), and protocol constants.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/spec"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./json-schema/*": "./json-schema/*.json",
+    "./cedar-schema.json": "./src/cedar-schema.json"
+  },
+  "files": [
+    "dist",
+    "json-schema",
+    "src/cedar-schema.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup && node ./scripts/emit-json-schema.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cedar-policy/cedar-wasm": "^3.2.4",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "zod-to-json-schema": "^3.24.1"
+  }
+}

@@ -1,0 +1,18 @@
+id: payments.quote.request
+version: 1.0.0
+label: Request a price quote
+description: Peer can request a price quote for an action or purchase (quote only, no payment).
+category: payments
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_quote",
+    resource == Wallet::"primary"
+  );
+consent_text_template: "Let Peer request a price quote (no payment)."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

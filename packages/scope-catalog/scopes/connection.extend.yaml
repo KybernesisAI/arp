@@ -1,0 +1,28 @@
+id: connection.extend
+version: 1.0.0
+label: Extend connection expiry
+description: Peer can request that you extend this connection's expiry by a bounded number of days.
+category: identity
+risk: medium
+parameters:
+  - name: days
+    type: Integer
+    required: true
+    default: 30
+    validation: "1..365"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"extend_connection",
+    resource == Connection::"self"
+  ) when {
+    context.requested_extension_days <= {{days}}
+  };
+consent_text_template: "Allow Peer to request a connection extension up to {{days}} days."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+implies: []
+conflicts_with: []
+step_up_required: false

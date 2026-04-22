@@ -1,0 +1,25 @@
+id: notes.read
+version: 1.0.0
+label: Read notes
+description: Peer can read full note contents in a specific collection.
+category: notes
+risk: medium
+parameters:
+  - name: collection_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource in Collection::"{{collection_id}}"
+  );
+consent_text_template: "Read notes in collection {{collection_id}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - notes.search
+conflicts_with: []
+step_up_required: false

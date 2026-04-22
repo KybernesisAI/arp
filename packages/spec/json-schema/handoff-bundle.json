@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/handoff-bundle/v0.1.json",
+  "title": "handoff-bundle",
+  "type": "object",
+  "properties": {
+    "agent_did": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Agent DID (did:web:<sld>.agent)"
+    },
+    "principal_did": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
+      "description": "Bound principal DID"
+    },
+    "public_key_multibase": {
+      "type": "string",
+      "pattern": "^z[1-9A-HJ-NP-Za-km-z]{40,}$"
+    },
+    "well_known_urls": {
+      "type": "object",
+      "properties": {
+        "did": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL of /.well-known/did.json"
+        },
+        "agent_card": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL of /.well-known/agent-card.json"
+        },
+        "arp": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL of /.well-known/arp.json"
+        }
+      },
+      "required": [
+        "did",
+        "agent_card",
+        "arp"
+      ],
+      "additionalProperties": false
+    },
+    "dns_records_published": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "A",
+          "AAAA",
+          "_arp TXT",
+          "_did TXT",
+          "_didcomm TXT",
+          "_revocation TXT",
+          "_principal TXT"
+        ]
+      },
+      "minItems": 1
+    },
+    "cert_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ACME cert expiry (ISO 8601)"
+    },
+    "bootstrap_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short-lived JWT scoped to the arp-sdk takeover (exp 15 min)"
+    }
+  },
+  "required": [
+    "agent_did",
+    "principal_did",
+    "public_key_multibase",
+    "well_known_urls",
+    "dns_records_published",
+    "cert_expires_at",
+    "bootstrap_token"
+  ],
+  "additionalProperties": false
+}

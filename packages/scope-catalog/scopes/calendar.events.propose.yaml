@@ -1,0 +1,35 @@
+id: calendar.events.propose
+version: 1.0.0
+label: Propose a meeting
+description: Peer can propose a meeting. Creates a tentative event pending your confirmation.
+category: calendar
+risk: medium
+parameters:
+  - name: max_attendees
+    type: Integer
+    required: true
+    default: 10
+    validation: "1..50"
+  - name: max_duration_min
+    type: Integer
+    required: true
+    default: 60
+    validation: "15..480"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"propose_meeting",
+    resource == Calendar::"primary"
+  ) when {
+    context.proposed_attendee_count <= {{max_attendees}} &&
+    context.proposed_duration_min <= {{max_duration_min}}
+  };
+consent_text_template: "Propose meetings (up to {{max_attendees}} people, {{max_duration_min}} minutes). You confirm before it's booked."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 86400
+implies:
+  - calendar.availability.read
+conflicts_with: []
+step_up_required: false

@@ -1,0 +1,30 @@
+id: contacts.share
+version: 1.0.0
+label: Share a contact card
+description: Peer can ask you to share a contact's vCard to an allowlisted recipient.
+category: contacts
+risk: high
+parameters:
+  - name: recipient_allowlist
+    type: EmailList
+    required: true
+    validation: "rfc5322-or-domain-glob"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"share_external",
+    resource == Contact
+  ) when {
+    context.recipient_matches_allowlist({{recipient_allowlist_json}})
+  };
+consent_text_template: "Share contact cards externally to: {{recipient_allowlist_display}}."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: true

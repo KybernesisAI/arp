@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/scope-catalog/v0.1.json",
+  "title": "scope-catalog",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Catalog version (e.g. \"v1\")"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checksum": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "calendar",
+              "messaging",
+              "files",
+              "contacts",
+              "tasks",
+              "notes",
+              "payments",
+              "work",
+              "credentials",
+              "tools",
+              "delegation",
+              "location",
+              "health"
+            ]
+          },
+          "risk": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "Integer",
+                    "Decimal",
+                    "Duration",
+                    "ProjectID",
+                    "AgentDID",
+                    "AgentDIDList",
+                    "ToolIDList",
+                    "AttributeList",
+                    "EmailList",
+                    "IANATimezone",
+                    "Enum",
+                    "Timezone"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "default": {
+                  "description": "Default value; type must match `type`"
+                },
+                "validation": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Validation spec — regex, range string (e.g. \"1..90\"), or enum values array"
+                }
+              },
+              "required": [
+                "name",
+                "type",
+                "required"
+              ],
+              "additionalProperties": false
+            },
+            "default": []
+          },
+          "cedar_template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Handlebars-templated Cedar policy source"
+          },
+          "consent_text_template": {
+            "type": "string",
+            "minLength": 1
+          },
+          "obligations_forced": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "default": {}
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            "default": []
+          },
+          "implies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "conflicts_with": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "tier_gate": {
+            "type": "string",
+            "description": "Minimum VC type required (e.g. \"self_xyz.verified_human\")"
+          },
+          "step_up_required": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "label",
+          "description",
+          "category",
+          "risk",
+          "cedar_template",
+          "consent_text_template"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "version",
+    "updated_at",
+    "scope_count",
+    "checksum",
+    "scopes"
+  ],
+  "additionalProperties": false
+}

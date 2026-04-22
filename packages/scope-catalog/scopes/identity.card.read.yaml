@@ -1,0 +1,18 @@
+id: identity.card.read
+version: 1.0.0
+label: Read agent card
+description: Allow the peer agent to fetch your agent card (name, supported protocols, public endpoints).
+category: identity
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == AgentCard::"self"
+  );
+consent_text_template: "See your public agent card."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false

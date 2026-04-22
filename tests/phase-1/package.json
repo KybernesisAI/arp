@@ -1,0 +1,22 @@
+{
+  "name": "@kybernesis/arp-phase-1-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build": "echo 'no build for acceptance tests' && exit 0"
+  },
+  "dependencies": {
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-templates": "workspace:*",
+    "@kybernesis/arp-scope-catalog": "workspace:*"
+  },
+  "devDependencies": {
+    "@cedar-policy/cedar-wasm": "^3.2.4",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

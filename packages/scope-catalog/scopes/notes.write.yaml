@@ -1,0 +1,32 @@
+id: notes.write
+version: 1.0.0
+label: Create/update notes
+description: Peer can create and update notes in a collection, up to a daily cap.
+category: notes
+risk: medium
+parameters:
+  - name: collection_id
+    type: ProjectID
+    required: true
+  - name: max_per_day
+    type: Integer
+    required: true
+    default: 100
+    validation: "1..1000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action in [Action::"write", Action::"update"],
+    resource in Collection::"{{collection_id}}"
+  ) when {
+    context.notes_written_today < {{max_per_day}}
+  };
+consent_text_template: "Create/update notes in {{collection_id}} (up to {{max_per_day}}/day)."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - notes.read
+conflicts_with: []
+step_up_required: false

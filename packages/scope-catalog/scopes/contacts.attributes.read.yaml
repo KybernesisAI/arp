@@ -1,0 +1,25 @@
+id: contacts.attributes.read
+version: 1.0.0
+label: Read specific contact attributes
+description: Peer can read specific attribute fields (e.g., phone, title) on contacts you've identified.
+category: contacts
+risk: medium
+parameters:
+  - name: attributes
+    type: AttributeList
+    required: true
+    validation: ["name", "email", "phone", "title", "company", "linkedin", "twitter", "notes"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == Contact
+  );
+consent_text_template: "Read these contact attributes: {{attributes_display}}."
+obligations_forced:
+  - type: redact_fields_except
+    params:
+      allowlist: "{{attributes_json}}"
+implies: []
+conflicts_with: []
+step_up_required: false

@@ -1,0 +1,29 @@
+id: messaging.email.thread.read
+version: 1.0.0
+label: Read email threads
+description: Peer can read the full contents of email threads matching optional label filters.
+category: messaging
+risk: high
+parameters:
+  - name: label_filter
+    type: AttributeList
+    required: false
+    default: []
+    validation: "label-or-folder-name"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == Email
+  ) {{#if label_filter}}when {
+    resource.labels.containsAny({{label_filter_json}})
+  }{{/if}};
+consent_text_template: "Read email thread contents{{#if label_filter}} for labels: {{label_filter_display}}{{/if}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - messaging.email.summary
+conflicts_with: []
+step_up_required: true

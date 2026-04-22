@@ -1,0 +1,1536 @@
+[
+  {
+    "id": "calendar.availability.read",
+    "version": "1.0.0",
+    "label": "Check availability (free/busy only)",
+    "description": "Peer can see when you're free or busy, but no event titles, attendees, or details.",
+    "category": "calendar",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "days_ahead",
+        "type": "Integer",
+        "required": true,
+        "default": 14,
+        "validation": "1..90"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"check_availability\",\n  resource == Calendar::\"primary\"\n) when {\n  context.query_window_days <= {{days_ahead}}\n};\nforbid (\n  principal == Agent::\"{{audience_did}}\",\n  action,\n  resource == Calendar::\"primary\"\n) when {\n  action != Action::\"check_availability\"\n};\n",
+    "consent_text_template": "Check your free/busy (no details) up to {{days_ahead}} days ahead.",
+    "obligations_forced": [
+      {
+        "type": "redact_fields",
+        "params": {
+          "fields": [
+            "event.title",
+            "event.attendees",
+            "event.description",
+            "event.location"
+          ]
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "calendar.events.cancel",
+    "version": "1.0.0",
+    "label": "Cancel events",
+    "description": "Peer can cancel calendar events on your behalf.",
+    "category": "calendar",
+    "risk": "high",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"cancel_event\",\n  resource == Calendar::\"primary\"\n);\n",
+    "consent_text_template": "Cancel calendar events on your behalf.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [
+      "calendar.events.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "calendar.events.create",
+    "version": "1.0.0",
+    "label": "Create events directly",
+    "description": "Peer can create calendar events on your primary calendar without extra confirmation, up to a daily cap.",
+    "category": "calendar",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "max_per_day",
+        "type": "Integer",
+        "required": true,
+        "default": 5,
+        "validation": "1..50"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"create_event\",\n  resource == Calendar::\"primary\"\n) when {\n  context.events_created_today < {{max_per_day}}\n};\n",
+    "consent_text_template": "Create calendar events directly, up to {{max_per_day}} per day.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [
+      "calendar.availability.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "calendar.events.modify",
+    "version": "1.0.0",
+    "label": "Modify existing events",
+    "description": "Peer can modify existing calendar events (reschedule, update details).",
+    "category": "calendar",
+    "risk": "high",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"modify_event\",\n  resource == Calendar::\"primary\"\n);\n",
+    "consent_text_template": "Modify existing calendar events on your behalf.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [
+      "calendar.events.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "calendar.events.propose",
+    "version": "1.0.0",
+    "label": "Propose a meeting",
+    "description": "Peer can propose a meeting. Creates a tentative event pending your confirmation.",
+    "category": "calendar",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "max_attendees",
+        "type": "Integer",
+        "required": true,
+        "default": 10,
+        "validation": "1..50"
+      },
+      {
+        "name": "max_duration_min",
+        "type": "Integer",
+        "required": true,
+        "default": 60,
+        "validation": "15..480"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"propose_meeting\",\n  resource == Calendar::\"primary\"\n) when {\n  context.proposed_attendee_count <= {{max_attendees}} &&\n  context.proposed_duration_min <= {{max_duration_min}}\n};\n",
+    "consent_text_template": "Propose meetings (up to {{max_attendees}} people, {{max_duration_min}} minutes). You confirm before it's booked.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 86400
+        }
+      }
+    ],
+    "implies": [
+      "calendar.availability.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "calendar.events.read",
+    "version": "1.0.0",
+    "label": "Read event details",
+    "description": "Peer can read the details of calendar events within a time window.",
+    "category": "calendar",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "window_days",
+        "type": "Integer",
+        "required": true,
+        "default": 30,
+        "validation": "1..365"
+      },
+      {
+        "name": "include_private",
+        "type": "Enum",
+        "required": false,
+        "default": "no",
+        "validation": [
+          "yes",
+          "no"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == Calendar::\"primary\"\n) when {\n  context.query_window_days <= {{window_days}}\n  {{#if include_private_flag}}\n  {{else}}\n  && !resource.tags.contains(\"private\")\n  {{/if}}\n};\n",
+    "consent_text_template": "Read event details for the next {{window_days}} days.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "calendar.availability.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "connection.extend",
+    "version": "1.0.0",
+    "label": "Extend connection expiry",
+    "description": "Peer can request that you extend this connection's expiry by a bounded number of days.",
+    "category": "identity",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "days",
+        "type": "Integer",
+        "required": true,
+        "default": 30,
+        "validation": "1..365"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"extend_connection\",\n  resource == Connection::\"self\"\n) when {\n  context.requested_extension_days <= {{days}}\n};\n",
+    "consent_text_template": "Allow Peer to request a connection extension up to {{days}} days.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "connection.rescope.request",
+    "version": "1.0.0",
+    "label": "Request new scopes",
+    "description": "Peer can ask you to add or adjust scopes on this connection (subject to your approval).",
+    "category": "identity",
+    "risk": "medium",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_rescope\",\n  resource == Connection::\"self\"\n);\n",
+    "consent_text_template": "Allow Peer to propose new scopes on this connection.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "contacts.attributes.read",
+    "version": "1.0.0",
+    "label": "Read specific contact attributes",
+    "description": "Peer can read specific attribute fields (e.g., phone, title) on contacts you've identified.",
+    "category": "contacts",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "attributes",
+        "type": "AttributeList",
+        "required": true,
+        "validation": [
+          "name",
+          "email",
+          "phone",
+          "title",
+          "company",
+          "linkedin",
+          "twitter",
+          "notes"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == Contact\n);\n",
+    "consent_text_template": "Read these contact attributes: {{attributes_display}}.",
+    "obligations_forced": [
+      {
+        "type": "redact_fields_except",
+        "params": {
+          "allowlist": "{{attributes_json}}"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "contacts.introduce",
+    "version": "1.0.0",
+    "label": "Request contact introduction",
+    "description": "Peer can ask you to introduce them to one of your contacts.",
+    "category": "contacts",
+    "risk": "medium",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_contact_introduction\",\n  resource == Contact\n);\n",
+    "consent_text_template": "Let Peer ask you for introductions to your contacts.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 86400
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "contacts.search",
+    "version": "1.0.0",
+    "label": "Look up contacts",
+    "description": "Peer can search your contacts and receive only the attributes you specify.",
+    "category": "contacts",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "attribute_allowlist",
+        "type": "AttributeList",
+        "required": true,
+        "default": [
+          "name",
+          "email"
+        ],
+        "validation": [
+          "name",
+          "email",
+          "phone",
+          "title",
+          "company",
+          "linkedin",
+          "twitter",
+          "notes"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"search_contacts\",\n  resource == Contact\n);\n",
+    "consent_text_template": "Search your contacts and see these fields: {{attribute_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "redact_fields_except",
+        "params": {
+          "allowlist": "{{attribute_allowlist_json}}"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "contacts.share",
+    "version": "1.0.0",
+    "label": "Share a contact card",
+    "description": "Peer can ask you to share a contact's vCard to an allowlisted recipient.",
+    "category": "contacts",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "recipient_allowlist",
+        "type": "EmailList",
+        "required": true,
+        "validation": "rfc5322-or-domain-glob"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"share_external\",\n  resource == Contact\n) when {\n  context.recipient_matches_allowlist({{recipient_allowlist_json}})\n};\n",
+    "consent_text_template": "Share contact cards externally to: {{recipient_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "credentials.present.request",
+    "version": "1.0.0",
+    "label": "Request specific VCs",
+    "description": "Peer can ask your agent to present specific Verifiable Credentials (full disclosure, not ZK).",
+    "category": "credentials",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "required_vcs",
+        "type": "AttributeList",
+        "required": true,
+        "validation": "vc-type-id"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"present_vc\",\n  resource == Credential\n) when {\n  resource.type in {{required_vcs_json}}\n};\n",
+    "consent_text_template": "Present these credentials: {{required_vcs_display}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "log_zk_disclosure",
+        "params": {}
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "credentials.proof.zk.request",
+    "version": "1.0.0",
+    "label": "Request ZK proof of an attribute",
+    "description": "Peer can ask your agent to present a zero-knowledge proof (via Self.xyz) of a single attribute without revealing the underlying credential.",
+    "category": "credentials",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "attribute",
+        "type": "Enum",
+        "required": true,
+        "validation": [
+          "over_18",
+          "over_21",
+          "us_resident",
+          "verified_human",
+          "country"
+        ]
+      },
+      {
+        "name": "predicate",
+        "type": "Enum",
+        "required": false,
+        "default": "eq",
+        "validation": [
+          "eq",
+          "gte",
+          "lte",
+          "in"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_zk_proof\",\n  resource == Credential::\"{{attribute}}\"\n) when {\n  context.predicate == \"{{predicate}}\"\n};\n",
+    "consent_text_template": "Prove to Peer, without revealing details, that you are {{attribute_human}}.",
+    "obligations_forced": [
+      {
+        "type": "log_zk_disclosure",
+        "params": {}
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "delegation.forward.task",
+    "version": "1.0.0",
+    "label": "Forward task to another agent",
+    "description": "Peer can re-delegate a task to a third agent, with automatically attenuated scopes.",
+    "category": "delegation",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "agent_allowlist",
+        "type": "AgentDIDList",
+        "required": true,
+        "validation": "at-least-one"
+      },
+      {
+        "name": "scope_attenuation",
+        "type": "Enum",
+        "required": true,
+        "default": "read_only",
+        "validation": [
+          "read_only",
+          "same_scopes",
+          "custom"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"redelegate\",\n  resource == Connection::\"self\"\n) when {\n  context.delegate_target in {{agent_allowlist_json}} &&\n  context.attenuation_mode == \"{{scope_attenuation}}\"\n};\n",
+    "consent_text_template": "Allow Peer to forward tasks to: {{agent_allowlist_display}}. Forwarded tasks get {{scope_attenuation_human}} access.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "tier_gate": "self_xyz.verified_human",
+    "step_up_required": true
+  },
+  {
+    "id": "files.project.files.delete",
+    "version": "1.0.0",
+    "label": "Delete files",
+    "description": "Peer can delete files in a specific project.",
+    "category": "files",
+    "risk": "critical",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"delete\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Delete files in project {{project_id}} (destructive).",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [
+      "files.share.external"
+    ],
+    "tier_gate": "self_xyz.verified_human",
+    "step_up_required": true
+  },
+  {
+    "id": "files.project.files.list",
+    "version": "1.0.0",
+    "label": "List files in a project",
+    "description": "Peer can list the file names in a specific project, not their contents.",
+    "category": "files",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"list\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "List files in project {{project_id}}.",
+    "obligations_forced": [],
+    "implies": [
+      "files.project.metadata.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "files.project.files.read",
+    "version": "1.0.0",
+    "label": "Read file contents",
+    "description": "Peer can read the contents of files in a specific project.",
+    "category": "files",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_size_mb",
+        "type": "Integer",
+        "required": true,
+        "default": 10,
+        "validation": "1..100"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action in [Action::\"read\", Action::\"list\"],\n  resource in Project::\"{{project_id}}\"\n) when {\n  resource.size_bytes <= {{max_size_mb}} * 1048576 &&\n  !resource.tags.contains(\"confidential\") &&\n  !resource.tags.contains(\"do-not-share\")\n};\n",
+    "consent_text_template": "Read files in {{project.name}} (up to {{max_size_mb}} MB each; excludes items tagged confidential).",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "files.project.files.list",
+      "files.project.metadata.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "files.project.files.summarize",
+    "version": "1.0.0",
+    "label": "Summaries only (derive)",
+    "description": "Peer receives model-generated summaries of files in a project, never the raw contents.",
+    "category": "files",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_output_words",
+        "type": "Integer",
+        "required": true,
+        "default": 2000,
+        "validation": "100..10000"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"summarize\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Summarize files in project {{project_id}} (up to {{max_output_words}} words).",
+    "obligations_forced": [
+      {
+        "type": "summarize_only",
+        "params": {
+          "max_words": "{{max_output_words}}"
+        }
+      }
+    ],
+    "implies": [
+      "files.project.files.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "files.project.files.write",
+    "version": "1.0.0",
+    "label": "Create/modify files",
+    "description": "Peer can create and modify files in a specific project, up to a maximum size per file.",
+    "category": "files",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_size_mb",
+        "type": "Integer",
+        "required": true,
+        "default": 10,
+        "validation": "1..100"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action in [Action::\"write\", Action::\"update\"],\n  resource in Project::\"{{project_id}}\"\n) when {\n  context.written_size_bytes <= {{max_size_mb}} * 1048576\n};\n",
+    "consent_text_template": "Create or modify files in {{project_id}} (up to {{max_size_mb}} MB each).",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [
+      "files.project.files.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "files.project.metadata.read",
+    "version": "1.0.0",
+    "label": "Read project metadata",
+    "description": "Peer can read a specific project's metadata (name, description, tags), not its files.",
+    "category": "files",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read_metadata\",\n  resource == Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Read metadata for project {{project_id}}.",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "files.projects.list",
+    "version": "1.0.0",
+    "label": "List projects",
+    "description": "Peer can list project names and IDs from your project registry.",
+    "category": "files",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"list\",\n  resource == ProjectRegistry::\"self\"\n);\n",
+    "consent_text_template": "See the list of your projects (names + IDs only).",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "files.share.external",
+    "version": "1.0.0",
+    "label": "Share files outside circle",
+    "description": "Peer can share files from a project with an external recipient allowlist.",
+    "category": "files",
+    "risk": "critical",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "recipient_allowlist",
+        "type": "EmailList",
+        "required": true,
+        "validation": "rfc5322-or-domain-glob"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"share_external\",\n  resource in Project::\"{{project_id}}\"\n) when {\n  context.recipient_matches_allowlist({{recipient_allowlist_json}})\n};\n",
+    "consent_text_template": "Share files from {{project_id}} externally to: {{recipient_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      },
+      {
+        "type": "insert_watermark",
+        "params": {}
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [
+      "files.project.files.delete"
+    ],
+    "tier_gate": "self_xyz.verified_human",
+    "step_up_required": true
+  },
+  {
+    "id": "identity.card.read",
+    "version": "1.0.0",
+    "label": "Read agent card",
+    "description": "Allow the peer agent to fetch your agent card (name, supported protocols, public endpoints).",
+    "category": "identity",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == AgentCard::\"self\"\n);\n",
+    "consent_text_template": "See your public agent card.",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "identity.introduction.request",
+    "version": "1.0.0",
+    "label": "Request introduction",
+    "description": "Peer can ask your agent to introduce them to another agent you know.",
+    "category": "identity",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "to_agent",
+        "type": "AgentDID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_introduction\",\n  resource == Agent::\"{{to_agent}}\"\n);\n",
+    "consent_text_template": "Introduce Peer to {{to_agent}}.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 86400
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "identity.principal.verify",
+    "version": "1.0.0",
+    "label": "Verify owner binding",
+    "description": "Peer can fetch and verify your representation VC, confirming which human principal your agent represents.",
+    "category": "identity",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"verify_principal\",\n  resource == Principal::\"self\"\n);\n",
+    "consent_text_template": "Let Peer verify who your agent represents.",
+    "obligations_forced": [],
+    "implies": [
+      "identity.card.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "knowledge.query",
+    "version": "1.0.0",
+    "label": "Query knowledge base",
+    "description": "Peer can query a specific knowledge base and receive token-bounded answers.",
+    "category": "notes",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "kb_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_tokens",
+        "type": "Integer",
+        "required": true,
+        "default": 8000,
+        "validation": "100..50000"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"query\",\n  resource == KnowledgeBase::\"{{kb_id}}\"\n) when {\n  context.requested_tokens <= {{max_tokens}}\n};\n",
+    "consent_text_template": "Query knowledge base {{kb_id}} (up to {{max_tokens}} tokens/response).",
+    "obligations_forced": [
+      {
+        "type": "summarize_only",
+        "params": {
+          "max_words": "{{max_tokens}}"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "messaging.chat.send",
+    "version": "1.0.0",
+    "label": "Send chat message",
+    "description": "Peer can send chat messages on your behalf within an allowlisted set of channels.",
+    "category": "messaging",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "channel_allowlist",
+        "type": "AttributeList",
+        "required": true,
+        "validation": "at-least-one"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"send_chat\",\n  resource == ChatChannel\n) when {\n  resource.id in {{channel_allowlist_json}}\n};\n",
+    "consent_text_template": "Send chat messages on your behalf in: {{channel_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "messaging.email.draft.compose",
+    "version": "1.0.0",
+    "label": "Compose drafts (no send)",
+    "description": "Peer can compose email drafts in your drafts folder without sending them.",
+    "category": "messaging",
+    "risk": "medium",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"compose_draft\",\n  resource == Email::\"drafts\"\n);\nforbid (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"send_email\",\n  resource\n);\n",
+    "consent_text_template": "Compose email drafts for you to review (no sending).",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "messaging.email.send.reviewed",
+    "version": "1.0.0",
+    "label": "Send email (after your review)",
+    "description": "Peer drafts emails on your behalf; each send requires your one-tap approval before going out.",
+    "category": "messaging",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "recipient_allowlist",
+        "type": "EmailList",
+        "required": false,
+        "default": [],
+        "validation": "rfc5322-or-domain-glob"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"send_email\",\n  resource == Email::\"outbox\"\n) when {\n  {{#if recipient_allowlist}}\n  context.recipient_matches_allowlist({{recipient_allowlist_json}})\n  {{else}}\n  true\n  {{/if}}\n};\n",
+    "consent_text_template": "Draft and (with your approval) send emails{{#if recipient_allowlist}} to: {{recipient_allowlist_display}}{{/if}}.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "messaging.email.draft.compose"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "messaging.email.summary",
+    "version": "1.0.0",
+    "label": "Email summaries only",
+    "description": "Peer receives only summaries of your email threads, never the raw content.",
+    "category": "messaging",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "label_filter",
+        "type": "AttributeList",
+        "required": false,
+        "default": [],
+        "validation": "label-or-folder-name"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"summarize\",\n  resource == Email\n);\n",
+    "consent_text_template": "Share email summaries (never raw content){{#if label_filter}} for labels: {{label_filter_display}}{{/if}}.",
+    "obligations_forced": [
+      {
+        "type": "summarize_only",
+        "params": {
+          "max_words": 250
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "messaging.email.thread.read",
+    "version": "1.0.0",
+    "label": "Read email threads",
+    "description": "Peer can read the full contents of email threads matching optional label filters.",
+    "category": "messaging",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "label_filter",
+        "type": "AttributeList",
+        "required": false,
+        "default": [],
+        "validation": "label-or-folder-name"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == Email\n) {{#if label_filter}}when {\n  resource.labels.containsAny({{label_filter_json}})\n}{{/if}};\n",
+    "consent_text_template": "Read email thread contents{{#if label_filter}} for labels: {{label_filter_display}}{{/if}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "messaging.email.summary"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "messaging.relay.to_principal",
+    "version": "1.0.0",
+    "label": "Relay message to owner",
+    "description": "Peer can ask your agent to relay a short message to you (the principal).",
+    "category": "messaging",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"relay_to_principal\",\n  resource == Principal::\"self\"\n);\n",
+    "consent_text_template": "Let Peer send you short relayed messages.",
+    "obligations_forced": [
+      {
+        "type": "rate_limit",
+        "params": {
+          "window": "hour",
+          "max": 10
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "notes.read",
+    "version": "1.0.0",
+    "label": "Read notes",
+    "description": "Peer can read full note contents in a specific collection.",
+    "category": "notes",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "collection_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource in Collection::\"{{collection_id}}\"\n);\n",
+    "consent_text_template": "Read notes in collection {{collection_id}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "notes.search"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "notes.search",
+    "version": "1.0.0",
+    "label": "Search notes",
+    "description": "Peer can search notes within a collection and receive title+snippet matches.",
+    "category": "notes",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "collection_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"search\",\n  resource in Collection::\"{{collection_id}}\"\n);\n",
+    "consent_text_template": "Search notes in collection {{collection_id}}.",
+    "obligations_forced": [
+      {
+        "type": "summarize_only",
+        "params": {
+          "max_words": 100
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "notes.write",
+    "version": "1.0.0",
+    "label": "Create/update notes",
+    "description": "Peer can create and update notes in a collection, up to a daily cap.",
+    "category": "notes",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "collection_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_per_day",
+        "type": "Integer",
+        "required": true,
+        "default": 100,
+        "validation": "1..1000"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action in [Action::\"write\", Action::\"update\"],\n  resource in Collection::\"{{collection_id}}\"\n) when {\n  context.notes_written_today < {{max_per_day}}\n};\n",
+    "consent_text_template": "Create/update notes in {{collection_id}} (up to {{max_per_day}}/day).",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [
+      "notes.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "payments.authorize.capped",
+    "version": "1.0.0",
+    "label": "Authorize payments up to a cap",
+    "description": "Peer can trigger x402 payments up to the per-transaction and rolling 30-day caps you set.",
+    "category": "payments",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "max_per_txn_usd",
+        "type": "Decimal",
+        "required": true,
+        "default": 5,
+        "validation": "0.01..1000"
+      },
+      {
+        "name": "max_per_30d_usd",
+        "type": "Decimal",
+        "required": true,
+        "default": 50,
+        "validation": "0.01..10000"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"authorize_payment\",\n  resource == Wallet::\"primary\"\n) when {\n  context.quoted_price_usd <= {{max_per_txn_usd}} &&\n  context.spend_last_30d_usd + context.quoted_price_usd <= {{max_per_30d_usd}}\n};\n",
+    "consent_text_template": "Pay up to ${{max_per_txn_usd}} per request, ${{max_per_30d_usd}} total per 30 days.",
+    "obligations_forced": [
+      {
+        "type": "notify_principal",
+        "params": {}
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "tier_gate": "self_xyz.verified_human",
+    "step_up_required": true
+  },
+  {
+    "id": "payments.history.read",
+    "version": "1.0.0",
+    "label": "Read past transactions",
+    "description": "Peer can read your payment history for the past N days.",
+    "category": "payments",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "days_back",
+        "type": "Integer",
+        "required": true,
+        "default": 30,
+        "validation": "1..365"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == PaymentHistory::\"self\"\n) when {\n  context.query_window_days <= {{days_back}}\n};\n",
+    "consent_text_template": "Read payment history for the past {{days_back}} days.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "payments.quote.request",
+    "version": "1.0.0",
+    "label": "Request a price quote",
+    "description": "Peer can request a price quote for an action or purchase (quote only, no payment).",
+    "category": "payments",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_quote\",\n  resource == Wallet::\"primary\"\n);\n",
+    "consent_text_template": "Let Peer request a price quote (no payment).",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "payments.refund.request",
+    "version": "1.0.0",
+    "label": "Request refund",
+    "description": "Peer can request a refund against a prior payment.",
+    "category": "payments",
+    "risk": "medium",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"request_refund\",\n  resource == Payment\n);\n",
+    "consent_text_template": "Let Peer request a refund on a prior payment.",
+    "obligations_forced": [
+      {
+        "type": "require_principal_confirmation",
+        "params": {
+          "max_age_seconds": 0
+        }
+      },
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "tasks.assign",
+    "version": "1.0.0",
+    "label": "Assign tasks to humans",
+    "description": "Peer can assign tasks in a project to specific people.",
+    "category": "tasks",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"assign\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Assign tasks to people in project {{project_id}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "notify_principal",
+        "params": {}
+      }
+    ],
+    "implies": [
+      "tasks.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "tasks.create",
+    "version": "1.0.0",
+    "label": "Create tasks",
+    "description": "Peer can create tasks in a project, up to a daily cap.",
+    "category": "tasks",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      },
+      {
+        "name": "max_per_day",
+        "type": "Integer",
+        "required": true,
+        "default": 50,
+        "validation": "1..500"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"create\",\n  resource in Project::\"{{project_id}}\"\n) when {\n  context.tasks_created_today < {{max_per_day}}\n};\n",
+    "consent_text_template": "Create tasks in {{project_id}} (up to {{max_per_day}}/day).",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "tasks.list",
+    "version": "1.0.0",
+    "label": "List tasks",
+    "description": "Peer can list tasks within a project.",
+    "category": "tasks",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"list\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "List tasks in project {{project_id}}.",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "tasks.read",
+    "version": "1.0.0",
+    "label": "Read task details",
+    "description": "Peer can read details (title, status, assignee, due) of tasks within a project.",
+    "category": "tasks",
+    "risk": "low",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Read task details in project {{project_id}}.",
+    "obligations_forced": [],
+    "implies": [
+      "tasks.list"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "tasks.status.update",
+    "version": "1.0.0",
+    "label": "Update task status",
+    "description": "Peer can update the status (open/in-progress/done) of tasks in a project.",
+    "category": "tasks",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "project_id",
+        "type": "ProjectID",
+        "required": true
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"update_status\",\n  resource in Project::\"{{project_id}}\"\n);\n",
+    "consent_text_template": "Update task status in {{project_id}}.",
+    "obligations_forced": [],
+    "implies": [
+      "tasks.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "tools.invoke.mutating",
+    "version": "1.0.0",
+    "label": "Invoke tools with side effects",
+    "description": "Peer can invoke specific tools on your MCP server that cause changes (not just reads).",
+    "category": "tools",
+    "risk": "high",
+    "parameters": [
+      {
+        "name": "tool_allowlist",
+        "type": "ToolIDList",
+        "required": true,
+        "validation": "at-least-one"
+      },
+      {
+        "name": "max_per_day",
+        "type": "Integer",
+        "required": true,
+        "default": 20,
+        "validation": "1..1000"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"invoke_tool\",\n  resource == Tool\n) when {\n  resource.id in {{tool_allowlist_json}} &&\n  context.requests_last_day <= {{max_per_day}}\n};\n",
+    "consent_text_template": "Use these tools on your behalf (max {{max_per_day}}/day): {{tool_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      },
+      {
+        "type": "rate_limit",
+        "params": {
+          "window": "day",
+          "max": "{{max_per_day}}"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": true
+  },
+  {
+    "id": "tools.invoke.read",
+    "version": "1.0.0",
+    "label": "Invoke read-only tools",
+    "description": "Peer can invoke read-only (no-side-effect) tools on your MCP server, restricted to an allowlist.",
+    "category": "tools",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "tool_allowlist",
+        "type": "ToolIDList",
+        "required": true,
+        "validation": "at-least-one"
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"invoke_tool\",\n  resource == Tool\n) when {\n  resource.id in {{tool_allowlist_json}} &&\n  resource.readonly == true\n};\n",
+    "consent_text_template": "Invoke these read-only tools on your behalf: {{tool_allowlist_display}}.",
+    "obligations_forced": [
+      {
+        "type": "audit_level",
+        "params": {
+          "level": "verbose"
+        }
+      }
+    ],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "work.projects.list",
+    "version": "1.0.0",
+    "label": "Current active projects",
+    "description": "Peer can see the list of projects you're actively working on (names only).",
+    "category": "work",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"list\",\n  resource == WorkProjects::\"self\"\n);\n",
+    "consent_text_template": "Share the list of your active projects.",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "work.reports.summary",
+    "version": "1.0.0",
+    "label": "Generate status summary",
+    "description": "Peer can ask your agent to generate a status summary for a bounded time period.",
+    "category": "work",
+    "risk": "medium",
+    "parameters": [
+      {
+        "name": "period",
+        "type": "Enum",
+        "required": true,
+        "default": "week",
+        "validation": [
+          "day",
+          "week",
+          "month",
+          "quarter"
+        ]
+      }
+    ],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"summarize\",\n  resource == WorkReport::\"self\"\n) when {\n  context.period == \"{{period}}\"\n};\n",
+    "consent_text_template": "Generate a {{period}} work status summary.",
+    "obligations_forced": [
+      {
+        "type": "summarize_only",
+        "params": {
+          "max_words": 1000
+        }
+      }
+    ],
+    "implies": [
+      "work.status.read"
+    ],
+    "conflicts_with": [],
+    "step_up_required": false
+  },
+  {
+    "id": "work.status.read",
+    "version": "1.0.0",
+    "label": "Current work status",
+    "description": "Peer can see your current work status (available, busy, out-of-office).",
+    "category": "work",
+    "risk": "low",
+    "parameters": [],
+    "cedar_template": "permit (\n  principal == Agent::\"{{audience_did}}\",\n  action == Action::\"read\",\n  resource == WorkStatus::\"self\"\n);\n",
+    "consent_text_template": "Share your current work status (available/busy/OOO).",
+    "obligations_forced": [],
+    "implies": [],
+    "conflicts_with": [],
+    "step_up_required": false
+  }
+]

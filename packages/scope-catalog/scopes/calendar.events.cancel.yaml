@@ -1,0 +1,24 @@
+id: calendar.events.cancel
+version: 1.0.0
+label: Cancel events
+description: Peer can cancel calendar events on your behalf.
+category: calendar
+risk: high
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"cancel_event",
+    resource == Calendar::"primary"
+  );
+consent_text_template: "Cancel calendar events on your behalf."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies:
+  - calendar.events.read
+conflicts_with: []
+step_up_required: true

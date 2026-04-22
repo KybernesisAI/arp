@@ -1,0 +1,27 @@
+id: messaging.chat.send
+version: 1.0.0
+label: Send chat message
+description: Peer can send chat messages on your behalf within an allowlisted set of channels.
+category: messaging
+risk: medium
+parameters:
+  - name: channel_allowlist
+    type: AttributeList
+    required: true
+    validation: "at-least-one"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"send_chat",
+    resource == ChatChannel
+  ) when {
+    resource.id in {{channel_allowlist_json}}
+  };
+consent_text_template: "Send chat messages on your behalf in: {{channel_allowlist_display}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: false

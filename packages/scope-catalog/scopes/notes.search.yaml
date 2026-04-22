@@ -1,0 +1,24 @@
+id: notes.search
+version: 1.0.0
+label: Search notes
+description: Peer can search notes within a collection and receive title+snippet matches.
+category: notes
+risk: medium
+parameters:
+  - name: collection_id
+    type: ProjectID
+    required: true
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"search",
+    resource in Collection::"{{collection_id}}"
+  );
+consent_text_template: "Search notes in collection {{collection_id}}."
+obligations_forced:
+  - type: summarize_only
+    params:
+      max_words: 100
+implies: []
+conflicts_with: []
+step_up_required: false

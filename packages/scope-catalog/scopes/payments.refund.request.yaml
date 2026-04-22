@@ -1,0 +1,24 @@
+id: payments.refund.request
+version: 1.0.0
+label: Request refund
+description: Peer can request a refund against a prior payment.
+category: payments
+risk: medium
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_refund",
+    resource == Payment
+  );
+consent_text_template: "Let Peer request a refund on a prior payment."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: false

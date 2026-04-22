@@ -1,0 +1,31 @@
+id: knowledge.query
+version: 1.0.0
+label: Query knowledge base
+description: Peer can query a specific knowledge base and receive token-bounded answers.
+category: notes
+risk: medium
+parameters:
+  - name: kb_id
+    type: ProjectID
+    required: true
+  - name: max_tokens
+    type: Integer
+    required: true
+    default: 8000
+    validation: "100..50000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"query",
+    resource == KnowledgeBase::"{{kb_id}}"
+  ) when {
+    context.requested_tokens <= {{max_tokens}}
+  };
+consent_text_template: "Query knowledge base {{kb_id}} (up to {{max_tokens}} tokens/response)."
+obligations_forced:
+  - type: summarize_only
+    params:
+      max_words: "{{max_tokens}}"
+implies: []
+conflicts_with: []
+step_up_required: false

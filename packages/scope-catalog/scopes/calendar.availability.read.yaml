@@ -1,0 +1,35 @@
+id: calendar.availability.read
+version: 1.0.0
+label: Check availability (free/busy only)
+description: Peer can see when you're free or busy, but no event titles, attendees, or details.
+category: calendar
+risk: low
+parameters:
+  - name: days_ahead
+    type: Integer
+    required: true
+    default: 14
+    validation: "1..90"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"check_availability",
+    resource == Calendar::"primary"
+  ) when {
+    context.query_window_days <= {{days_ahead}}
+  };
+  forbid (
+    principal == Agent::"{{audience_did}}",
+    action,
+    resource == Calendar::"primary"
+  ) when {
+    action != Action::"check_availability"
+  };
+consent_text_template: "Check your free/busy (no details) up to {{days_ahead}} days ahead."
+obligations_forced:
+  - type: redact_fields
+    params:
+      fields: ["event.title", "event.attendees", "event.description", "event.location"]
+implies: []
+conflicts_with: []
+step_up_required: false

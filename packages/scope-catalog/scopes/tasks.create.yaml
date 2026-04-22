@@ -1,0 +1,31 @@
+id: tasks.create
+version: 1.0.0
+label: Create tasks
+description: Peer can create tasks in a project, up to a daily cap.
+category: tasks
+risk: medium
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: max_per_day
+    type: Integer
+    required: true
+    default: 50
+    validation: "1..500"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"create",
+    resource in Project::"{{project_id}}"
+  ) when {
+    context.tasks_created_today < {{max_per_day}}
+  };
+consent_text_template: "Create tasks in {{project_id}} (up to {{max_per_day}}/day)."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: false
