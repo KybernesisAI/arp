@@ -48,6 +48,15 @@ importers:
         specifier: ^2.0.0
         version: 2.1.0
 
+  packages/pdp:
+    dependencies:
+      '@cedar-policy/cedar-wasm':
+        specifier: ^3.2.4
+        version: 3.4.1
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../spec
+
   packages/registry:
     dependencies:
       '@kybernesis/arp-spec':
