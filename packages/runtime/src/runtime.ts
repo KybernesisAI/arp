@@ -65,11 +65,27 @@ export interface RuntimeOptions {
   now?: () => number;
 }
 
+export interface StopOptions {
+  /**
+   * Maximum time (ms) to wait for in-flight requests to complete before the
+   * server is force-closed. Default: 5000 (matches Phase 3 §8 SIGTERM grace).
+   */
+  graceMs?: number;
+}
+
 export interface Runtime {
   /** Start the HTTP server on the given port. Returns when listening. */
   start(port: number, hostname?: string): Promise<{ port: number; hostname: string }>;
-  /** Graceful shutdown. */
-  stop(): Promise<void>;
+  /**
+   * Graceful shutdown. Flips into drain mode (new non-health requests get
+   * 503), waits up to `graceMs` for in-flight requests to complete, then
+   * closes the server, transport, and registry.
+   */
+  stop(options?: StopOptions): Promise<void>;
+  /** True once `stop()` has been invoked and we are refusing new traffic. */
+  isDraining(): boolean;
+  /** Current count of in-flight HTTP requests. */
+  inFlightCount(): number;
   /** Register (or seed) a connection. */
   addConnection(token: ConnectionToken, tokenJws?: string): Promise<ConnectionRecord>;
   /** Revoke a connection and add to the revocation list. */
@@ -296,14 +312,36 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
   const agentCardJson = JSON.stringify(wellKnown.agentCard);
   const arpJsonPayload = JSON.stringify(wellKnown.arpJson);
 
-  app.get('/health', (c) =>
-    c.json({
+  let draining = false;
+  let inFlight = 0;
+
+  app.use('*', async (c, next) => {
+    // Health is always served — load balancers still need to see us during drain.
+    if (c.req.path === '/health') return next();
+    if (draining) {
+      return c.json({ error: 'draining' }, 503);
+    }
+    inFlight += 1;
+    try {
+      await next();
+    } finally {
+      inFlight -= 1;
+    }
+  });
+
+  app.get('/health', async (c) => {
+    const connections = await registry.listConnections();
+    return c.json({
       ok: true,
       version: opts.config.scopeCatalogVersion,
       did: opts.config.did,
       uptime_ms: now() - bootedAt,
-    }),
-  );
+      cert_fingerprint: opts.config.tlsFingerprint,
+      connections_count: connections.length,
+      audit_seq: auditSeqTotal(),
+      draining,
+    });
+  });
 
   app.get('/.well-known/did.json', (c) =>
     c.newResponse(didDocumentJson, 200, wellKnownHeaders()),
@@ -374,7 +412,26 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     return serverInfo;
   }
 
-  async function stop() {
+  async function stop(options: StopOptions = {}) {
+    const graceMs = options.graceMs ?? 5000;
+    draining = true;
+
+    // Wait for a 50 ms quiet period with zero in-flight requests, or until
+    // graceMs has elapsed. This covers two cases:
+    //   1) Lots of in-flight requests at SIGTERM time — we wait for them to
+    //      drain through the Hono middleware.
+    //   2) A burst of fetches fired immediately before stop() was called but
+    //      whose TCP sockets haven't yet reached the middleware — we give
+    //      them up to one polling interval to arrive, then drain normally.
+    const deadline = Date.now() + graceMs;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const before = inFlight;
+      await sleep(50);
+      if (before === 0 && inFlight === 0) break;
+      if (Date.now() >= deadline) break;
+    }
+
     if (server) {
       await new Promise<void>((resolve) => server!.close(() => resolve()));
       server = null;
@@ -384,6 +441,16 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     for (const log of auditLogs.values()) {
       void log;
     }
+  }
+
+  function sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function auditSeqTotal(): number {
+    let total = 0;
+    for (const log of auditLogs.values()) total += log.size;
+    return total;
   }
 
   /* ------------------------ Connection ops -------------------- */
@@ -404,6 +471,8 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
   return {
     start,
     stop,
+    isDraining: () => draining,
+    inFlightCount: () => inFlight,
     addConnection,
     revokeConnection,
     pdp,
