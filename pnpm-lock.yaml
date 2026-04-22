@@ -39,6 +39,30 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.17)
 
+  apps/runtime-bin:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-tls':
+        specifier: workspace:*
+        version: link:../../packages/tls
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+
   packages/audit:
     dependencies:
       '@kybernesis/arp-spec':
@@ -212,6 +236,34 @@ importers:
       ajv-formats:
         specifier: ^3.0.1
         version: 3.0.1(ajv@8.18.0)
+
+  tests/phase-2:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-tls':
+        specifier: workspace:*
+        version: link:../../packages/tls
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+    devDependencies:
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
 
 packages:
 
