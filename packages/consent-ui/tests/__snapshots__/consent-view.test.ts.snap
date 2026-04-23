@@ -1,0 +1,365 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.executive_assistant.v1 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Requires your confirmation (within 1d).",
+    "Requires your explicit confirmation each time.",
+    "Responses are summarized (max 100 words).",
+    "Responses are summarized (max 1000 words).",
+    "Responses are summarized (max 250 words).",
+    "You will be notified after each qualifying request.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Executive assistant.",
+  "risk": "high",
+  "willBeAbleTo": [
+    "Check your free/busy (no details) up to 14 days ahead.",
+    "Compose email drafts for you to review (no sending).",
+    "Create tasks in <project_id> (up to 50/day).",
+    "Create/update notes in <collection_id> (up to 100/day).",
+    "Draft and (with your approval) send emails.",
+    "Generate a week work status summary.",
+    "List tasks in project <project_id>.",
+    "Modify existing calendar events on your behalf.",
+    "Propose meetings (up to 10 people, 60 minutes). You confirm before it's booked.",
+    "Read notes in collection <collection_id>.",
+    "Read task details in project <project_id>.",
+    "Search notes in collection <collection_id>.",
+    "Search your contacts and see these fields: name, email.",
+    "Share email summaries (never raw content).",
+    "Share your current work status (available/busy/OOO).",
+    "Update task status in <project_id>.",
+  ],
+  "willNotBeAbleTo": [
+    "See any fields other than: name, email.",
+    "See event.title, event.attendees, event.description, event.location in any response.",
+  ],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.procurement_agent.v1 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Rate-limited.",
+    "You will be notified after each qualifying request.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Procurement agent.",
+  "risk": "high",
+  "willBeAbleTo": [
+    "Let Peer request a price quote (no payment).",
+    "Let Peer send you short relayed messages.",
+    "Pay up to $25 per request, $200 total per 30 days.",
+    "Read payment history for the past 90 days.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.project_collaboration.v1 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses are summarized (max 100 words).",
+    "Responses are summarized (max 2000 words).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project collaboration.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "List tasks in project <project_id>.",
+    "Read files in <project_id> (up to 25 MB each; excludes items tagged confidential).",
+    "Read metadata for project <project_id>.",
+    "Read notes in collection <collection_id>.",
+    "Read task details in project <project_id>.",
+    "Search notes in collection <collection_id>.",
+    "See the list of your projects (names + IDs only).",
+    "Summarize files in project <project_id> (up to 2000 words).",
+    "Update task status in <project_id>.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.research_agent.v1 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses are summarized (max 100 words).",
+    "Responses are summarized (max 2000 words).",
+    "Responses are summarized (max 8000 words).",
+    "ZK proof disclosures are logged.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Research agent.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Prove to Peer, without revealing details, that you are a verified human.",
+    "Query knowledge base <kb_id> (up to 8000 tokens/response).",
+    "Read files in <project_id> (up to 25 MB each; excludes items tagged confidential).",
+    "Read notes in collection <collection_id>.",
+    "Search notes in collection <collection_id>.",
+    "See the list of your projects (names + IDs only).",
+    "Summarize files in project <project_id> (up to 2000 words).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.scheduling_assistant.v1 1`] = `
+{
+  "conditions": [
+    "Rate-limited.",
+    "Requires your confirmation (within 1d).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Scheduling assistant.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Check your free/busy (no details) up to 14 days ahead.",
+    "Let Peer send you short relayed messages.",
+    "Propose meetings (up to 10 people, 60 minutes). You confirm before it's booked.",
+    "Search your contacts and see these fields: name, email.",
+  ],
+  "willNotBeAbleTo": [
+    "See any fields other than: name, email.",
+    "See event.title, event.attendees, event.description, event.location in any response.",
+  ],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > example-1-minimal 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project Alpha.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 25 MB each; excludes items tagged confidential).",
+    "See the list of your projects (names + IDs only).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > example-2-scoped 1`] = `
+{
+  "conditions": [
+    "Access limited to weekdays, 09:00–17:00 America/New_York.",
+    "Audit log detail: verbose.",
+    "Max $5 per request.",
+    "Max $50 spend per 30d.",
+    "Responses are summarized (max 2000 words).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project Alpha.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Check your free/busy (no details) up to 14 days ahead.",
+    "Read files in alpha (up to 25 MB each; excludes items tagged confidential).",
+    "Summarize files in project alpha (up to 2000 words).",
+  ],
+  "willNotBeAbleTo": [
+    "See client.name, client.email in any response.",
+    "See event.title, event.attendees, event.description, event.location in any response.",
+  ],
+  "willProve": [
+    "Over 18",
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > example-3-advanced-obligations 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Rate-limited to 60 requests per hour.",
+    "Requires your re-consent (within 5m) for: Ghost is requesting export of multiple files",
+    "Responses are summarized (max 2000 words).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project Alpha.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 25 MB each; excludes items tagged confidential).",
+    "Summarize files in project alpha (up to 2000 words).",
+  ],
+  "willNotBeAbleTo": [
+    "See client.name, client.email, client.phone in any response.",
+  ],
+  "willProve": [
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-attribute-gated-sharing 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Requires your explicit confirmation each time.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Cross-border disclosure.",
+  "risk": "high",
+  "willBeAbleTo": [
+    "Share contact cards externally to: vendor@example.com.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [
+    "Over 18",
+    "US resident",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-blast-radius-clamp 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses are summarized (max 1000 words).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Research agent (size-clamped).",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 10 MB each; excludes items tagged confidential).",
+    "Summarize files in project alpha (up to 1000 words).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-no-onward-sharing 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses carry a traceable watermark.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Privileged read, no onward share.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 10 MB each; excludes items tagged confidential).",
+  ],
+  "willNotBeAbleTo": [
+    "Re-share responses with another agent.",
+  ],
+  "willProve": [
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-purpose-binding 1`] = `
+{
+  "conditions": [
+    "Requires your confirmation (within 1d).",
+    "You will be notified after each qualifying request.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Scheduling assistant.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Check your free/busy (no details) up to 14 days ahead.",
+    "Propose meetings (up to 10 people, 60 minutes). You confirm before it's booked.",
+  ],
+  "willNotBeAbleTo": [
+    "See event.title, event.attendees, event.description, event.location in any response.",
+  ],
+  "willProve": [],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-reputation-gate 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses are summarized (max 4000 words).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Vetted research agent.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Query knowledge base alpha (up to 4000 tokens/response).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-spending-ratchet 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Max $25 per request.",
+    "Max $50 spend per 30d.",
+    "You will be notified after each qualifying request.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Procurement with tight caps.",
+  "risk": "high",
+  "willBeAbleTo": [
+    "Pay up to $25 per request, $50 total per 30 days.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-step-up-consent 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Requires your explicit confirmation each time.",
+    "Requires your re-consent (within 5m) for: Bulk export to external recipient",
+    "Responses carry a traceable watermark.",
+    "You will be notified after each qualifying request.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project Alpha bulk export.",
+  "risk": "critical",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 25 MB each; excludes items tagged confidential).",
+    "Share files from alpha externally to: external@example.com.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [
+    "Verified human",
+  ],
+}
+`;
+
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-time-bounded-access 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+    "Responses expire after 90d (sticky TTL).",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Project Alpha.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 10 MB each; excludes items tagged confidential).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;

@@ -1,0 +1,43 @@
+{
+  "name": "@kybernesis/arp-consent-ui",
+  "version": "0.1.0",
+  "description": "Render ARP Connection Tokens + Pairing Proposals into plain-English consent views.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/consent-ui"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-pairing": "workspace:*",
+    "@kybernesis/arp-scope-catalog": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "handlebars": "^4.7.8"
+  },
+  "devDependencies": {}
+}
