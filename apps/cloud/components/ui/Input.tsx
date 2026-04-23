@@ -2,21 +2,12 @@ import type * as React from 'react';
 import { forwardRef } from 'react';
 import { cn } from './lib/cn';
 
+const fieldClass =
+  'block w-full border border-rule bg-paper-2 px-3.5 py-3 text-body-sm text-ink placeholder:text-muted placeholder:uppercase placeholder:tracking-[0.08em] placeholder:text-[12px] transition-colors duration-fast ease-arp focus-visible:outline-none focus-visible:border-signal-blue disabled:opacity-50 disabled:cursor-not-allowed';
+
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...props }, ref) {
-    return (
-      <input
-        ref={ref}
-        className={cn(
-          'block w-full rounded-md border border-border bg-surface-elevated px-3 py-2 text-body-sm text-foreground-primary placeholder:text-foreground-subtle',
-          'transition-colors duration-ease-out ease-out-snap',
-          'focus-visible:outline-none focus-visible:border-accent-500 focus-visible:ring-2 focus-visible:ring-accent-500/40',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          className,
-        )}
-        {...props}
-      />
-    );
+    return <input ref={ref} className={cn(fieldClass, className)} {...props} />;
   },
 );
 
@@ -27,13 +18,7 @@ export const Textarea = forwardRef<
   return (
     <textarea
       ref={ref}
-      className={cn(
-        'block w-full rounded-md border border-border bg-surface-elevated px-3 py-2 text-body-sm text-foreground-primary placeholder:text-foreground-subtle font-mono',
-        'transition-colors duration-ease-out ease-out-snap',
-        'focus-visible:outline-none focus-visible:border-accent-500 focus-visible:ring-2 focus-visible:ring-accent-500/40',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        className,
-      )}
+      className={cn(fieldClass, 'font-mono min-h-[120px]', className)}
       {...props}
     />
   );
@@ -46,7 +31,10 @@ export function Label({
 }: React.LabelHTMLAttributes<HTMLLabelElement>): React.JSX.Element {
   return (
     <label
-      className={cn('block text-body-sm text-foreground-muted mb-2', className)}
+      className={cn(
+        'block font-mono text-kicker uppercase tracking-[0.14em] text-muted mb-2',
+        className,
+      )}
       {...props}
     >
       {children}
@@ -60,7 +48,13 @@ export function FieldHint({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>): React.JSX.Element {
   return (
-    <p className={cn('mt-1 text-caption text-foreground-subtle', className)} {...props}>
+    <p
+      className={cn(
+        'mt-1.5 font-mono text-kicker uppercase tracking-[0.1em] text-muted',
+        className,
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -72,7 +66,13 @@ export function FieldError({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>): React.JSX.Element {
   return (
-    <p className={cn('mt-1 text-caption text-danger-500', className)} {...props}>
+    <p
+      className={cn(
+        'mt-1.5 font-mono text-kicker uppercase tracking-[0.1em] text-signal-red',
+        className,
+      )}
+      {...props}
+    >
       {children}
     </p>
   );

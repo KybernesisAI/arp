@@ -1,21 +1,24 @@
 import type * as React from 'react';
-import { Card } from './Card';
-import { ButtonLink } from './Button';
 import { cn } from './lib/cn';
+import { ButtonLink } from './Button';
 
 export type PricingCardProps = {
+  tier: string;
   name: string;
   price: string;
+  /** Small period text — e.g. `/ mo`. */
   cadence?: string;
   description: string;
   features: string[];
   ctaLabel: string;
   ctaHref: string;
   highlighted?: boolean;
+  popularLabel?: string;
   footnote?: string;
 };
 
 export function PricingCard({
+  tier,
   name,
   price,
   cadence,
@@ -24,53 +27,96 @@ export function PricingCard({
   ctaLabel,
   ctaHref,
   highlighted = false,
+  popularLabel = 'Most popular',
   footnote,
 }: PricingCardProps): React.JSX.Element {
   return (
-    <Card
-      tone={highlighted ? 'elevated' : 'raised'}
+    <div
       className={cn(
-        'relative flex flex-col p-8 h-full',
-        highlighted && 'ring-1 ring-accent-500/60 shadow-sm',
+        'relative flex flex-col gap-3 p-7 min-h-[460px]',
+        highlighted ? 'bg-signal-blue text-white' : 'bg-paper text-ink',
       )}
     >
       {highlighted && (
-        <span className="absolute -top-3 left-6 rounded-full bg-accent-500 px-3 py-1 text-caption font-semibold text-white">
-          Recommended
+        <span className="absolute top-0 right-0 bg-signal-yellow text-ink font-mono text-kicker uppercase px-3 py-1.5 border-l border-b border-ink">
+          {popularLabel}
         </span>
       )}
-      <div className="mb-6">
-        <h3 className="text-h3 font-semibold text-foreground-primary">{name}</h3>
-        <p className="mt-2 text-body-sm text-foreground-muted">{description}</p>
+      <div
+        className={cn(
+          'font-mono text-kicker uppercase',
+          highlighted ? 'text-white/85' : 'text-muted',
+        )}
+      >
+        {tier}
       </div>
-      <div className="mb-6">
-        <div className="flex items-baseline gap-1">
-          <span className="text-display-md font-bold text-foreground-primary">{price}</span>
-          {cadence && (
-            <span className="text-body-sm text-foreground-muted">{cadence}</span>
-          )}
-        </div>
-        {footnote && <p className="mt-1 text-caption text-foreground-subtle">{footnote}</p>}
+      <h3 className="text-[2rem] font-display font-medium tracking-[-0.015em] leading-none">
+        {name}
+      </h3>
+      <div className="flex items-baseline gap-2 mt-2">
+        <span className="text-[3.5rem] font-display font-medium tracking-[-0.03em] leading-none">
+          {price}
+        </span>
+        {cadence && (
+          <span
+            className={cn(
+              'font-mono text-body-sm',
+              highlighted ? 'text-white/80' : 'text-muted',
+            )}
+          >
+            {cadence}
+          </span>
+        )}
       </div>
-      <ul className="mb-8 flex-1 space-y-3 text-body-sm text-foreground-secondary">
+      <p
+        className={cn(
+          'text-body-sm mt-1',
+          highlighted ? 'text-white/85' : 'text-ink-2',
+        )}
+      >
+        {description}
+      </p>
+      <ul className="mt-4 flex-1 list-none p-0 m-0">
         {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-3">
+          <li
+            key={feature}
+            className={cn(
+              'grid grid-cols-[18px_1fr] gap-2 items-baseline py-2 text-body-sm border-b',
+              highlighted ? 'border-white/25' : 'border-rule/30',
+            )}
+          >
             <span
+              className={cn(
+                'font-mono',
+                highlighted ? 'text-white/70' : 'text-muted',
+              )}
               aria-hidden="true"
-              className="mt-[0.45rem] inline-block h-1.5 w-1.5 flex-none rounded-full bg-accent-400"
-            />
+            >
+              ›
+            </span>
             <span>{feature}</span>
           </li>
         ))}
       </ul>
+      {footnote && (
+        <p
+          className={cn(
+            'text-kicker font-mono uppercase mt-3',
+            highlighted ? 'text-white/70' : 'text-muted',
+          )}
+        >
+          {footnote}
+        </p>
+      )}
       <ButtonLink
         href={ctaHref}
-        variant={highlighted ? 'primary' : 'secondary'}
+        variant={highlighted ? 'accent' : 'default'}
         size="md"
-        className="w-full justify-center"
+        arrow
+        className="mt-6 w-full justify-between"
       >
         {ctaLabel}
       </ButtonLink>
-    </Card>
+    </div>
   );
 }

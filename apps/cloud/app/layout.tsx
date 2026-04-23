@@ -4,19 +4,20 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ARP',
-  description: 'Agent Relationship Protocol — the communication + permissions layer for agent-to-agent interaction.',
+  title: 'ARP — The secure network for AI agents',
+  description:
+    'ARP is the connection layer for agentic software. Give your agent a home. Keep the keys. Stay in control.',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#f1ede4',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" data-theme="light" data-density="tight">
       <body>{children}</body>
     </html>
   );

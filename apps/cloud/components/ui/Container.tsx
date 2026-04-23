@@ -1,23 +1,11 @@
 import type * as React from 'react';
 import { cn } from './lib/cn';
 
-type Width = 'sm' | 'md' | 'lg' | 'xl' | 'wide';
-
-const widthMap: Record<Width, string> = {
-  sm: 'max-w-container-sm',
-  md: 'max-w-container-md',
-  lg: 'max-w-container-lg',
-  xl: 'max-w-container-xl',
-  wide: 'max-w-container-wide',
-};
-
 export type ContainerProps = React.HTMLAttributes<HTMLDivElement> & {
-  width?: Width;
   as?: keyof React.JSX.IntrinsicElements;
 };
 
 export function Container({
-  width = 'lg',
   as: As = 'div',
   className,
   children,
@@ -26,10 +14,22 @@ export function Container({
   const Component = As as React.ElementType;
   return (
     <Component
-      className={cn('mx-auto w-full px-6 sm:px-6 lg:px-8', widthMap[width], className)}
+      className={cn('mx-auto w-full max-w-page px-8', className)}
       {...props}
     >
       {children}
     </Component>
+  );
+}
+
+export function Grid12({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
+  return (
+    <div className={cn('grid grid-cols-12 gap-4', className)} {...props}>
+      {children}
+    </div>
   );
 }

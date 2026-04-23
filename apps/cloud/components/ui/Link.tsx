@@ -4,24 +4,21 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './lib/cn';
 
 export const linkVariants = cva(
-  'inline-flex items-center gap-1 transition-colors duration-ease-out ease-out-snap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-sm',
+  'inline-flex items-center gap-1.5 transition-colors duration-fast ease-arp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper',
   {
     variants: {
       variant: {
-        default: 'text-accent-400 hover:text-accent-300',
-        muted: 'text-foreground-muted hover:text-foreground-primary',
-        subtle: 'text-foreground-subtle hover:text-foreground-muted',
-        unstyled: 'text-inherit',
-      },
-      underline: {
-        always: 'underline underline-offset-4',
-        hover: 'hover:underline underline-offset-4',
-        never: 'no-underline',
+        inline: 'text-ink border-b border-transparent hover:border-ink',
+        plain: 'text-ink hover:text-signal-blue',
+        muted: 'text-muted hover:text-ink',
+        accent: 'text-signal-blue hover:text-ink',
+        mono: 'font-mono text-[11px] uppercase tracking-[0.14em] text-ink border-b border-current pb-1',
+        navlink:
+          'font-mono text-[11px] uppercase tracking-[0.1em] text-ink border-b border-transparent hover:border-ink pb-1',
       },
     },
     defaultVariants: {
-      variant: 'default',
-      underline: 'hover',
+      variant: 'inline',
     },
   },
 );
@@ -36,7 +33,6 @@ type BaseLinkProps = VariantProps<typeof linkVariants> & {
 export function Link({
   href,
   variant,
-  underline,
   className,
   external,
   children,
@@ -47,7 +43,7 @@ export function Link({
     return (
       <a
         href={href}
-        className={cn(linkVariants({ variant, underline }), className)}
+        className={cn(linkVariants({ variant }), className)}
         target="_blank"
         rel="noopener noreferrer"
         {...rest}
@@ -57,11 +53,7 @@ export function Link({
     );
   }
   return (
-    <NextLink
-      href={href}
-      className={cn(linkVariants({ variant, underline }), className)}
-      {...rest}
-    >
+    <NextLink href={href} className={cn(linkVariants({ variant }), className)} {...rest}>
       {children}
     </NextLink>
   );

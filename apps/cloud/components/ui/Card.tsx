@@ -1,20 +1,27 @@
 import type * as React from 'react';
 import { cn } from './lib/cn';
 
+/**
+ * Flat, hard-edged block. Use inside a rule-gap grid (see `CardMatrix`) to
+ * assemble the editorial matrix look.
+ */
 export type CardProps = React.HTMLAttributes<HTMLDivElement> & {
-  tone?: 'raised' | 'elevated' | 'transparent';
-  interactive?: boolean;
+  tone?: 'paper' | 'paper-2' | 'ink' | 'blue' | 'yellow' | 'red';
+  padded?: boolean;
 };
 
 const toneMap: Record<NonNullable<CardProps['tone']>, string> = {
-  raised: 'bg-surface-raised',
-  elevated: 'bg-surface-elevated',
-  transparent: 'bg-transparent',
+  paper: 'bg-paper text-ink',
+  'paper-2': 'bg-paper-2 text-ink',
+  ink: 'bg-ink text-paper',
+  blue: 'bg-signal-blue text-white',
+  yellow: 'bg-signal-yellow text-ink',
+  red: 'bg-signal-red text-white',
 };
 
 export function Card({
-  tone = 'elevated',
-  interactive = false,
+  tone = 'paper',
+  padded = true,
   className,
   children,
   ...props
@@ -22,10 +29,9 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border-subtle shadow-ring',
+        'relative flex flex-col gap-3 border-0',
+        padded && 'p-6 md:p-7',
         toneMap[tone],
-        interactive &&
-          'transition-colors duration-ease-out ease-out-snap hover:border-border hover:shadow-sm',
         className,
       )}
       {...props}
@@ -35,38 +41,22 @@ export function Card({
   );
 }
 
-export function CardHeader({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
-  return (
-    <div className={cn('px-6 pt-6 pb-2', className)} {...props}>
-      {children}
-    </div>
-  );
-}
-
-export function CardBody({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
-  return (
-    <div className={cn('px-6 py-4', className)} {...props}>
-      {children}
-    </div>
-  );
-}
-
-export function CardFooter({
+/**
+ * Rule-matrix grid wrapper. Uses `bg-rule` + `gap-px` so each cell gap
+ * becomes a visible 1 px hairline — the cards inside set their own
+ * background.
+ */
+export function CardMatrix({
   className,
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
   return (
     <div
-      className={cn('px-6 pt-2 pb-6 border-t border-border-subtle mt-4', className)}
+      className={cn(
+        'grid bg-rule gap-px border border-rule',
+        className,
+      )}
       {...props}
     >
       {children}

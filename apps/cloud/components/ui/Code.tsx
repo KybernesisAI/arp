@@ -9,7 +9,7 @@ export function Code({
   return (
     <code
       className={cn(
-        'rounded-sm bg-surface-elevated px-1.5 py-0.5 text-[0.85em] font-mono text-foreground-primary border border-border-subtle',
+        'bg-paper-2 px-1.5 py-0.5 text-[0.88em] font-mono text-ink border border-rule/40',
         className,
       )}
       {...props}
@@ -27,7 +27,7 @@ export function Pre({
   return (
     <pre
       className={cn(
-        'rounded-lg border border-border-subtle bg-surface-raised p-4 text-body-sm font-mono text-foreground-primary overflow-x-auto whitespace-pre-wrap break-all',
+        'bg-paper-2 border border-rule p-4 text-body-sm font-mono text-ink overflow-x-auto whitespace-pre-wrap break-words',
         className,
       )}
       {...props}

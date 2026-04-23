@@ -1,207 +1,197 @@
 # ARP Design System — v0 (Phase 8.75)
 
-**Status:** v0 scaffold. Tokens and components are locked in `apps/cloud/tailwind.config.ts` + `apps/cloud/app/globals.css` + `apps/cloud/components/ui/*`.
+**Status:** v0, shipped with Phase 8.75. Token source of truth is
+`apps/cloud/tailwind.config.ts` + `apps/cloud/app/globals.css`. Components live
+at `apps/cloud/components/ui/*`.
 
-**Audience:** Phase 9 executors wiring the spec site (`spec.arp.run`), docs site (`docs.arp.run`), and status page (`status.arp.run`) — they must theme against this system so the public surface area feels coherent. Also authors of future in-app surfaces in `apps/cloud`.
+**Audience:** Phase 9 executors wiring the spec site (`spec.arp.run`), docs
+site (`docs.arp.run`), and status page (`status.arp.run`) — they must theme
+against this system so the public surface is coherent. Also authors of future
+in-app surfaces in `apps/cloud`.
 
-**Source:** dark-default palette aligned with the existing `apps/cloud` aesthetic (slate-900 / slate-50 / blue-500 range) and conventions shared across modern protocol-layer tools (Linear, Vercel, Railway, Plain). A richer design file was not accessible during this phase (see Conservative calls), so the tokens below are a deliberate minimal set — sized for the public landing surfaces and restyled authenticated dashboard, not for a full design-tool export.
+**Aesthetic:** Swiss / editorial. Paper background, ink foreground, hard
+edges (no rounded corners), 12-column grid with visible 1 px hairlines,
+monospace uppercase kickers + plate numbers, Space Grotesk display,
+Instrument Sans body, JetBrains Mono for micro-copy and codes. Two signal
+colors (blue + red) carry emphasis; yellow is the underline/highlight; green
+is reserved for status indicators. Light default; dark theme is additive.
 
 ---
 
 ## 1. Design principles
 
-1. **Calm surface, loud truth.** The UI is quiet; the content and the agent-owner's decisions are the foreground. No decorative gradients, no stock photography, no emoji.
-2. **Dark-first, accessible always.** The dark palette is the default because ARP is an infrastructure product that operators run alongside dev tooling. Every foreground/background pair meets WCAG AA.
-3. **One accent, no rainbow.** A single blue accent (`accent-500`) carries CTA, links, and active states. Feedback colors (success / warn / danger) exist but are used sparingly.
-4. **Grids over composition.** Every section aligns to a 12-column grid on the container width. No bespoke offsets.
-5. **Tokens, not values.** Components never hardcode hex or rem. Everything goes through Tailwind theme tokens or CSS custom properties.
+1. **The grid is the content.** Every section sits on a 12-column grid with
+   visible hairline rules. Blocks abut — no floating cards, no drop shadows.
+2. **One dark ink, one paper, one accent at a time.** Within a single
+   section, at most one of blue / red / yellow is in play. Never a rainbow.
+3. **Mono for micro-copy, display for moments.** Plate numbers, kickers,
+   label tags, button chrome, codes — all JetBrains Mono uppercase. Display
+   lines use Space Grotesk 500. Body is Instrument Sans 400.
+4. **No rounded corners.** Radii default to 0 except pills (status dots +
+   tiny inline chips when required — none in v0).
+5. **Tokens, not values.** Components reference theme tokens or CSS vars —
+   never hex.
 
 ---
 
 ## 2. Color palette
 
-All colors referenced in Tailwind as `bg-*` / `text-*` / `border-*` / `ring-*`. Semantic mapping is preferred; raw scale is available for exceptions.
+Colors in CSS vars (see `app/globals.css`) so dark theme is a drop-in
+override. Tailwind maps the same tokens onto utility classes.
 
-### 2.1 Neutral scale (slate-derived)
+### 2.1 Paper + ink (neutrals)
 
-| Token | Hex | Usage |
+| Token | Light (default) | Dark | Role |
+|---|---|---|---|
+| `paper`   | `#f1ede4` | `#0b0b0b` | Page background |
+| `paper-2` | `#e8e3d6` | `#151515` | Subtle inset / card-on-paper |
+| `ink`     | `#0c0c0c` | `#f1ede4` | Primary text + rules |
+| `ink-2`   | `#1a1a1a` | `#e8e3d6` | Secondary text, inverted block copy |
+| `muted`   | `#6b6a62` | `#8a877d` | Tertiary text, mono meta |
+| `rule`    | `#0c0c0c` | `#f1ede4` | 1 px hairline (== `ink`) |
+| `grid`    | `rgba(12,12,12,0.07)` | `rgba(241,237,228,0.07)` | Faint grid overlay |
+
+### 2.2 Signal (accent)
+
+| Token | Hex | Role |
 |---|---|---|
-| `neutral-0`   | `#ffffff` | Pure white — on-accent foreground only |
-| `neutral-50`  | `#f8fafc` | Rarely used; inverted surfaces only |
-| `neutral-100` | `#e2e8f0` | Primary foreground text on dark bg |
-| `neutral-200` | `#cbd5e1` | Body copy, secondary headings |
-| `neutral-300` | `#94a3b8` | Tertiary text, captions |
-| `neutral-400` | `#64748b` | Disabled text, subtle accents |
-| `neutral-500` | `#475569` | Hairline borders |
-| `neutral-600` | `#334155` | Default borders |
-| `neutral-700` | `#1e293b` | Elevated surfaces (cards, modals) |
-| `neutral-800` | `#111827` | Subtle surface tint |
-| `neutral-900` | `#0f172a` | Page background (dark default) |
-| `neutral-950` | `#020617` | Deepest surface (nav shadow base) |
+| `signal-blue`   | `#1536e6` | Primary CTA, one accent block per section, mark |
+| `signal-red`    | `#e8371f` | Emphasis word in titles, one accent block, status-live dot |
+| `signal-yellow` | `#f2c14b` | Typographic underline highlight, featured pill |
+| `signal-green`  | `#0f7a4a` | Trust dots, operational status |
 
-### 2.2 Accent scale (blue)
+Palette variants (exposed but not used in v0 beyond the default): `mono`,
+`warm`, `electric`. Documented for Phase 9 only if marketing pulls the
+palette-swap lever.
 
-| Token | Hex | Usage |
-|---|---|---|
-| `accent-300` | `#93c5fd` | Hover link text on dark bg |
-| `accent-400` | `#60a5fa` | Secondary CTA outline / link default |
-| `accent-500` | `#3b82f6` | Primary CTA background, focus ring |
-| `accent-600` | `#2563eb` | Primary CTA hover |
-| `accent-700` | `#1d4ed8` | Primary CTA active |
-
-### 2.3 Feedback
-
-| Token | Hex | Usage |
-|---|---|---|
-| `success-500` | `#10b981` | Confirmation banners, "operational" status |
-| `warn-500`    | `#f59e0b` | Attention banners, "degraded" status |
-| `danger-500`  | `#ef4444` | Destructive buttons, errors, "down" status |
-
-### 2.4 Semantic aliases (preferred in component code)
-
-Tailwind theme extends set these as pass-through values so components reference meaning, not the palette row.
+### 2.3 Semantic aliases (used in component code)
 
 ```
-bg-surface          → neutral-900
-bg-surface-raised   → neutral-800
-bg-surface-elevated → neutral-700
-bg-inverse          → neutral-50
-text-primary        → neutral-100
-text-secondary      → neutral-200
-text-muted          → neutral-300
-text-subtle         → neutral-400
-text-inverse        → neutral-900
-border-default      → neutral-600
-border-subtle       → neutral-700
-border-strong       → neutral-500
-ring-focus          → accent-500
+bg-paper           → paper
+bg-paper-2         → paper-2
+bg-ink             → ink (inverted blocks)
+text-ink           → ink
+text-ink-2         → ink-2
+text-muted         → muted
+text-paper         → paper (foreground on ink-background blocks)
+border-rule        → rule
+ring-focus         → signal-blue
 ```
 
 ---
 
 ## 3. Typography
 
-### 3.1 Families
+### 3.1 Families (Google Fonts, loaded once)
 
-- **Sans (display + body):** `Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`. Falls back to system UI everywhere so the page boots fast and renders identically if Inter is unavailable.
-- **Mono:** `"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`. Used for DIDs, codes, inline snippets, recovery phrases.
+- **Display — Space Grotesk** (400 / 500 / 600 / 700). Used for hero, plate
+  titles, card headings, price numbers.
+- **Body — Instrument Sans** (400 / 500 / 600 / 700). Used for paragraph
+  body copy, link inline labels, longer text.
+- **Mono — JetBrains Mono** (300 / 400 / 500 / 600). Used for plate numbers,
+  kickers (`// KEY_BENEFITS`), button labels, idx tags, code.
 
-Font loading: `@next/font` or `next/font/google` binding is deferred to Phase 9 (the spec/docs sites pick fonts). For now the stack is pure system-font-first; `Inter` is listed as preferred but optional — the site renders fine without the webfont.
+Fallback stack inside Tailwind `fontFamily` — everything degrades to system
+fonts if webfonts fail to load.
 
 ### 3.2 Scale
 
+Display + headings use Space Grotesk with a tight `-0.02em` letter-spacing.
+Mono kickers sit at 10.5–11 px with `0.14em` letter-spacing, uppercase.
+
 | Token | rem | px | Line-height | Use |
 |---|---|---|---|---|
-| `text-display-xl` | 4.5    | 72 | 1.05 | Rare — landing hero on wide screens only |
-| `text-display-lg` | 3.75   | 60 | 1.1  | Hero headline |
-| `text-display-md` | 3      | 48 | 1.15 | Section hero |
-| `text-h1`         | 2.25   | 36 | 1.2  | Page title |
-| `text-h2`         | 1.875  | 30 | 1.25 | Section heading |
-| `text-h3`         | 1.5    | 24 | 1.3  | Subsection |
-| `text-h4`         | 1.25   | 20 | 1.4  | Card heading |
-| `text-body-lg`    | 1.125  | 18 | 1.6  | Hero subhead, landing body |
-| `text-body`       | 1      | 16 | 1.6  | Default body |
-| `text-body-sm`    | 0.875  | 14 | 1.55 | Secondary body, meta |
-| `text-caption`    | 0.75   | 12 | 1.5  | Labels, footnotes |
-
-Letter-spacing: `-0.02em` on display tokens, `-0.01em` on h1–h3, default on everything else.
-
-Weights: `400` body, `500` UI elements, `600` headings + CTA labels, `700` display.
+| `display-xl` | 7     | 112 | 0.95 | Final CTA big text |
+| `display-lg` | 4     | 64  | 1.02 | Hero headline |
+| `display-md` | 3     | 48  | 1.0  | Controls / dev lede / plate title (large) |
+| `h1`         | 2.75  | 44  | 1.02 | Plate title (standard) |
+| `h2`         | 2.5   | 40  | 1.0  | Problem lede |
+| `h3`         | 1.625 | 26  | 1.05 | Feature card heading |
+| `h4`         | 1.5   | 24  | 1.1  | How step, use case heading |
+| `h5`         | 1.375 | 22  | 1.1  | Controls heading |
+| `body-lg`    | 1.125 | 18  | 1.45 | Hero subhead, controls right |
+| `body`       | 1     | 16  | 1.5  | Default body |
+| `body-sm`    | 0.875 | 14  | 1.45 | Card body, legal strip |
+| `kicker`     | 0.66  | 10.5| 1.2  | Mono kicker / idx / label (uppercase, `0.14em`) |
+| `micro`      | 0.625 | 10  | 1.2  | Mono meter strip text |
 
 ---
 
-## 4. Spacing scale
+## 4. Spacing + grid
 
-Uses Tailwind's default `0 / 0.5 / 1 / 1.5 / 2 / 3 / 4 / 6 / 8 / 10 / 12 / 16 / 20 / 24 / 32` as `0 / 2 / 4 / 6 / 8 / 12 / 16 / 24 / 32 / 40 / 48 / 64 / 80 / 96 / 128` px. Semantic tokens layered on top:
+- **Page:** max-width `1440px`, horizontal padding `32 px` (`px-8`).
+- **Row:** 12 columns, `gap-4` (16 px). Nearly every layout primitive uses
+  `grid-cols-12`.
+- **Section:** `py-section` (`8rem` default, `6rem` compact). Sections are
+  separated by a 1 px `border-rule` top rule.
+- **Plate head:** 12-column row, `pb-6 border-b-rule mb-12`, with plate num
+  in col 1, kicker in cols 2–5, title in cols 6–12.
 
-| Token | Value | Use |
-|---|---|---|
-| `space-inline-xs` | `0.25rem` | icon-to-label |
-| `space-inline-sm` | `0.5rem` | button internal gap |
-| `space-inline-md` | `0.75rem` | default inline gap |
-| `space-stack-xs`  | `0.5rem` | tight vertical |
-| `space-stack-sm`  | `0.75rem` | form fields |
-| `space-stack-md`  | `1.25rem` | default vertical gap |
-| `space-stack-lg`  | `2rem` | section-internal separation |
-| `space-section`   | `6rem` | top/bottom padding on landing sections (mobile: `4rem`) |
-
-Container max-widths (Tailwind `container` + custom):
-- `container-sm` — 640 px
-- `container-md` — 768 px
-- `container-lg` — 1024 px — **default marketing content width**
-- `container-xl` — 1200 px — hero bands
-- `container-wide` — 1440 px — nav bar only
+Exposed Tailwind tokens: `max-w-page = 1440px`; section padding via
+`py-section-tight` / `py-section-loose`.
 
 ---
 
-## 5. Radii + shadows
+## 5. Radii + borders
 
-### 5.1 Radii
-
-| Token | Value | Use |
-|---|---|---|
-| `radius-none` | 0 | segmented controls |
-| `radius-sm` | `0.25rem` | badges, inline chips |
-| `radius-md` | `0.375rem` | default buttons, inputs |
-| `radius-lg` | `0.5rem` | cards, panels |
-| `radius-xl` | `0.75rem` | feature cards, pricing tiles |
-| `radius-2xl` | `1rem` | hero panels |
-| `radius-full` | `9999px` | pills, avatars |
-
-### 5.2 Shadows
-
-Subtle. The dark palette means shadows are mostly inner/outer ring effects, not big drop shadows.
-
-| Token | Value | Use |
-|---|---|---|
-| `shadow-none`   | `none` | default |
-| `shadow-sm`     | `0 1px 2px 0 rgb(0 0 0 / 0.25)` | hover lift on cards |
-| `shadow-md`     | `0 4px 12px -2px rgb(0 0 0 / 0.35)` | modals, dropdowns |
-| `shadow-lg`     | `0 16px 32px -8px rgb(0 0 0 / 0.45)` | floating panels |
-| `shadow-ring`   | `0 0 0 1px rgb(148 163 184 / 0.18)` | hairline surround for elevated surfaces |
-| `shadow-focus`  | `0 0 0 2px rgb(59 130 246 / 0.6)` | focus ring |
+- **Radius:** `0` everywhere. A `radius-dot` (`9999px`) exists for status
+  pulse dots and ticker trust marks, nothing else.
+- **Borders:** 1 px solid `rule` (= ink). Hairline grids between cards are
+  achieved by setting the grid container `background: rule` and the
+  children `background: paper` with `gap: 0` — every column gap becomes a
+  visible 1 px rule.
+- **Focus ring:** 2 px `signal-blue` on keyboard focus, no offset, hard.
+- **No drop shadows.** Component lift comes from color contrast and the
+  hairline grid.
 
 ---
 
 ## 6. Motion
 
-Keep movement short and purposeful. Default transition: `150ms cubic-bezier(0.16, 1, 0.3, 1)` (ease-out snap).
+Animation is understated. The reference document uses one `420ms` out-curve
+for reveals and a ticker.
 
 | Token | Duration | Curve | Use |
 |---|---|---|---|
-| `motion-snap` | 100 ms | linear | button press |
-| `motion-ease-out` | 150 ms | `cubic-bezier(0.16, 1, 0.3, 1)` | hover, focus |
-| `motion-ease-in-out` | 200 ms | `cubic-bezier(0.4, 0, 0.2, 1)` | dropdowns, collapses |
-| `motion-smooth` | 300 ms | `cubic-bezier(0.22, 1, 0.36, 1)` | page transitions |
+| `motion-fast` | 160 ms | `cubic-bezier(0.2, 0.7, 0.2, 1)` | Button hover, link underline |
+| `motion-std`  | 420 ms | `cubic-bezier(0.2, 0.7, 0.2, 1)` | Reveal on scroll, section fade-up |
+| `motion-pulse`| 1600 ms| steps / ease | Live-dot pulse (CSS keyframe) |
 
-Honor `prefers-reduced-motion: reduce` globally — `globals.css` sets `transition: none !important; animation: none !important;` inside the media query.
+`prefers-reduced-motion: reduce` is honored globally.
 
 ---
 
 ## 7. Component inventory (v0)
 
-All under `apps/cloud/components/ui/`. Every component is surface-agnostic — no knowledge of whether it's rendering on the project, cloud, or app surface.
+Every component under `apps/cloud/components/ui/` is surface-agnostic. No
+component references a hostname — layouts assemble them.
 
 | Component | Exports | Notes |
 |---|---|---|
-| `Button` | `Button`, `buttonVariants` | Variants: `primary`, `secondary`, `ghost`, `link`, `danger`. Sizes: `sm`, `md`, `lg`. Built on `cva`. |
-| `Link` | `Link` | Wraps Next.js `Link`; variants: `default`, `muted`, `external`. External links get `rel="noopener"`. |
-| `Container` | `Container` | Max-width aware (`sm`/`md`/`lg`/`xl`/`wide`). Horizontal padding built in. |
-| `Section` | `Section` | Vertical rhythm helper; applies `space-section` top/bottom padding + optional `tone` (`surface` / `surface-raised`). |
-| `Card` | `Card`, `CardHeader`, `CardBody`, `CardFooter` | Raised surface with radius-xl + ring. |
-| `FeatureCard` | `FeatureCard` | Composition over `Card` for benefits grid items. Icon slot + heading + body. Icon slot is optional (no default emoji/svg set). |
-| `PricingCard` | `PricingCard` | Tier name + price + bullet list + CTA. Supports `highlighted` boolean. |
-| `Hero` | `Hero`, `HeroEyebrow`, `HeroHeadline`, `HeroSubhead`, `HeroCTA` | Compositional primitives; surfaces assemble their own heroes. |
-| `Nav` | `Nav`, `NavItem`, `NavCta` | Sticky header with theme-aware background. Surface passes items + CTA. |
-| `Footer` | `Footer`, `FooterColumn`, `FooterLink` | Multi-column footer. Surface passes columns. |
-| `Badge` | `Badge` | Pill with variants `neutral`, `success`, `warn`, `danger`, `accent`. |
-| `Input` | `Input`, `Label`, `FieldHint`, `FieldError` | Basic form primitives used by onboarding. |
-| `Divider` | `Divider` | 1-px rule, `subtle` / `default` tones. |
-| `Code` | `Code` | Inline monospace chip for DIDs, identifiers. |
+| `Button` / `ButtonLink` | `Button`, `ButtonLink`, `buttonVariants` | Hard-edged, mono uppercase label + arrow. Variants: `primary` (blue), `default` (paper→ink hover), `ghost`, `inverse` (for ink blocks). Sizes `sm` / `md`. |
+| `Link` | `Link`, `linkVariants` | Underline-by-border variant uses a 1 px border-bottom (no text-decoration) for the editorial look. |
+| `PlateHead` | `PlateHead` | Editorial section header. Props: `plateNum`, `kicker`, `title`, optional `titleEmphasis`. |
+| `Section` | `Section` | Vertical rhythm + top rule + optional `tone` (`paper`, `paper-2`, `ink`). |
+| `Container` | `Container` | Max-width `page` + `px-8`. |
+| `Grid12` | `Grid12` | 12-column grid helper with gap 4. |
+| `Card` | `Card` | Flat, hard-edged block. Used inside a grid to form a rule-separated matrix. |
+| `FeatureCard` | `FeatureCard` | `idx`, `category`, `title`, `body`, `tone` (`paper` / `blue` / `yellow` / `red` / `ink`). Includes an `icon` slot rendered as an `IconShape`. |
+| `PricingCard` | `PricingCard` | Tier, price, bullet list, CTA. `highlighted` ⇒ blue background + yellow popular flag. |
+| `Hero` | `Hero`, `HeroTitle`, `HeroSub`, `HeroCTA`, `HeroMeta`, `EyebrowTag` | Editorial hero with pulse dot. |
+| `Nav` | `Nav`, `BrandMark` | Sticky, ticker slot, mono uppercase links, CTA pill. |
+| `Footer` | `Footer`, `FooterNewsletter` | Newsletter row, columns grid, legal strip. |
+| `Badge` | `Badge` | Small mono-uppercase pill. `tone` = `muted` / `ink` / `blue` / `red` / `yellow`. |
+| `Ticker` | `Ticker` | Horizontal marquee for the nav (SSR-safe). |
+| `Input` | `Input`, `Textarea`, `Label`, `FieldHint`, `FieldError` | Form primitives — hard edges, `paper-2` inset. |
+| `Code` / `Pre` | `Code`, `Pre` | Mono, `paper-2` inset. |
+| `IconShape` | `IconShape` | Four abstract geometric "icons" (square-in-square, 3x3 dot grid, bars, chevron) used on feature cards as decorative marks. |
+| `Dot` | `Dot` | Small status dot; `tone` = `red` (pulse) / `green` (solid) / `yellow`. |
 
-Variant handling: `class-variance-authority` for `Button` / `Badge` / `Link`. Class composition: `clsx` + `tailwind-merge` (exported from `components/ui/lib/cn.ts`).
+Variant handling: `class-variance-authority` on `Button`, `Link`, `Badge`,
+`FeatureCard`, `Section`. Class composition: `clsx` + `tailwind-merge`.
 
-**Hard rule:** No hex/rgb values inside components. Every color reference goes through a Tailwind utility or a CSS custom property exposed in `globals.css`. `grep -rn "#[0-9a-f]\{6\}" apps/cloud/components/ui/` must return empty.
+Hard rule: no hex / rgb values inside components. `grep -rn "#[0-9a-f]\{6\}"
+apps/cloud/components/ui/` must return empty.
 
 ---
 
@@ -209,48 +199,79 @@ Variant handling: `class-variance-authority` for `Button` / `Badge` / `Link`. Cl
 
 The three hostnames each get their own layout that composes the primitives:
 
-| Surface | Layout | Nav palette | Footer palette | Default tone |
+| Surface | Layout | Nav | Footer | Default tone |
 |---|---|---|---|---|
-| `arp.run` (project) | `app/project/layout.tsx` | `bg-surface`, `text-primary` links | Multi-column (Protocol / Resources / Community) | `bg-surface` |
-| `cloud.arp.run` (cloud marketing) | `app/cloud/layout.tsx` | `bg-surface`, accent CTA | Multi-column (Product / Company / Resources / Legal placeholders) | `bg-surface`; alternating sections use `bg-surface-raised` |
-| `app.arp.run` (authenticated) | existing `app/layout.tsx` + per-route layouts | Minimal top bar (wordmark + user menu placeholder) | Slim legal strip | `bg-surface` |
+| `arp.run` (project) | `app/project/layout.tsx` | `Nav` with mono links + "Try ARP Cloud" CTA; ticker disabled | Full editorial `Footer` | `paper` |
+| `cloud.arp.run` (cloud marketing) | `app/cloud/layout.tsx` | `Nav` with ticker + "Get started" CTA | Full editorial `Footer` with newsletter | `paper`, sections alternate with `paper-2` or `ink` for emphasis |
+| `app.arp.run` (authenticated) | root `app/layout.tsx` + `components/app/AppShell` wrapper | Slim top bar (brand + dashboard / billing / sign-out placeholder) | Single-line legal strip | `paper` |
 
-Nav sticky behavior: all three use `sticky top-0` with `backdrop-blur` + translucent `bg-surface/80`.
+Hero on project + cloud is the canonical editorial hero with meta row +
+plate labels. Authenticated surface has no hero — it shows data.
 
 ---
 
 ## 9. Copy + voice guardrails
 
-Phase 8.75 ships **placeholder copy only**. The design system assumes:
+Phase 8.75 ships **placeholder copy**. Final copy lands at Phase 9.
 
-- No DID, DIDComm, keypair, crypto, or Self.xyz references in user-facing marketing copy (project + cloud surfaces). Those terms belong in dev-facing docs (Phase 9 spec + docs sites).
-- Outcome-oriented wording: "your key never leaves your device," "nothing happens without your approval," "see every action your agent takes."
-- Pricing tiers include `[TBD]` markers on all numbers — a human sets real pricing at launch.
-- No emoji anywhere in markup or copy.
-- Marks for placeholders: `[TBD]` for content and `{{value}}` for numeric values so they are greppable before launch.
+- No DID, DIDComm, keypair, crypto, or Self.xyz in user-facing marketing.
+  Protocol-layer terminology belongs on `spec.arp.run` / `docs.arp.run`
+  (Phase 9).
+- Outcome-oriented: "give your agent a home," "stay in control," "revoke
+  instantly."
+- Pricing numbers are placeholders (`{{TBD}}`) or match the reference
+  document's values (`$0`, `$49`) only as design-stubs — real numbers land
+  at Phase 9.
+- No emoji.
+- Placeholder markers: `[TBD]` for content, `{{value}}` for numeric values.
 
 ---
 
 ## 10. Handoff to Phase 9
 
-The Phase 9 spec site + docs site + status page must match this system. Minimum requirements:
+Phase 9 spec / docs / status sites must match this system. Minimum:
 
-1. Re-use the same Tailwind token set. Copy `tailwind.config.ts` + `globals.css` into each app, or (preferred if time) extract to a private `@kybernesis/arp-ui` package — noted as post-launch follow-up in §14 of `CLAUDE.md`.
-2. Nav + Footer components on `spec.arp.run` and `docs.arp.run` should link cross-site back to `arp.run` and `cloud.arp.run`.
-3. Fumadocs theme variables should map onto these tokens (Fumadocs supports CSS-variable theming — use that to avoid forking its components).
-4. The status page (`status.arp.run`) uses the `success-500` / `warn-500` / `danger-500` feedback palette for status dots.
-5. Code blocks in docs inherit the `Code` primitive's monospace stack + `bg-surface-raised` background.
+1. Copy `tailwind.config.ts` + `globals.css` into each app, or (preferred
+   if time) extract to a shared `@kybernesis/arp-ui` package — tracked in
+   `CLAUDE.md §14`.
+2. Fumadocs theme variables should map onto these tokens (Fumadocs
+   supports CSS-variable theming — use that).
+3. Code blocks in docs inherit the `Code` / `Pre` primitive styling —
+   JetBrains Mono, `paper-2` background, hard-edged border.
+4. Status page uses `signal-green` (operational) / `signal-yellow`
+   (degraded) / `signal-red` (down). Dot component is re-usable.
+5. Nav + Footer on `spec.arp.run` / `docs.arp.run` link cross-site back to
+   `arp.run` and `cloud.arp.run`. Brand mark is identical.
 
 ---
 
 ## 11. Conservative calls (flagged)
 
-1. **Anthropic design file not accessible.** The URL provided in the phase brief (`https://api.anthropic.com/v1/design/h/Asa3liW5Hx3AYL7q_F2kUA?open_file=ARP+Landing.html`) returned HTTP 404 in multiple fetch attempts during Phase 8.75. Tokens in this doc were derived instead from (a) the existing `apps/cloud` slate-900/blue-500 aesthetic, (b) conventions from comparable protocol-layer products, and (c) WCAG AA contrast requirements. If the real design file is recoverable later, retrofit the token values without changing the semantic structure — every component goes through named tokens, so a retheme is localised to `tailwind.config.ts` + `globals.css`.
-2. **Dark-only for v0.** No light-theme implementation in Phase 8.75. CSS variables are wired so a `[data-theme="light"]` override can be dropped in later without touching components. Flagged for Phase 9 if marketing demands a light hero.
-3. **Motion tokens declared, not heavily used.** The scaffold uses `motion-ease-out` for button/hover only. Richer scroll-bound animation is deferred — Phase 9 can opt in per-page without new tokens.
-4. **No font webfont wiring.** `Inter` + `JetBrains Mono` are listed as preferred but system fallbacks carry the full design without a network request. Phase 9 wires `next/font` if + when a real font import is desired.
-5. **No shared UI package.** The design system lives under `apps/cloud/` to stay within the phase brief's hard constraint ("Do not touch `packages/*`"). Extraction to `@kybernesis/arp-ui` is tracked as post-launch cleanup in `CLAUDE.md §14`.
+1. **Design file was delivered as a local HTML mock, not a token export.**
+   Tokens in this doc were extracted by reading the source HTML + CSS in
+   `/Users/ianborders/Downloads/Swiss Design/ARP Landing.html` and mapping
+   them onto Tailwind theme tokens. No alternate palettes (`mono`, `warm`,
+   `electric`) are wired for Phase 8.75 beyond exposing the variables —
+   Phase 9 can flip the palette via a single CSS-var swap.
+2. **Google Fonts imported via `<link>` in `globals.css`**, not via
+   `next/font`. Keeps the import surface minimal and matches the reference
+   document. Phase 9 can migrate to `next/font/google` for self-hosted
+   serving + size budgets if + when it matters.
+3. **Hero diagram in the reference is an SVG with animated packet motion.**
+   For v0 the hero ships a static but typographically faithful version —
+   the animated mediator diagram is a single-component follow-up (`<HeroDiagram>`)
+   marked `[TBD]` in the hero.
+4. **Ticker is server-rendered static** — marquee animation is CSS-only,
+   content is a fixed array. Live data (latency / event count) is a Phase 9
+   wire-in.
+5. **Dark theme is exposed via `[data-theme="dark"]` override** and CSS vars,
+   but layout defaults to `light`. Phase 9 picks whether to enable the
+   toggle.
+6. **No shared UI package.** The design system lives under `apps/cloud/` to
+   respect the phase brief's "do not touch `packages/*`" rule. Extraction
+   to `@kybernesis/arp-ui` is tracked in `CLAUDE.md §14`.
 
 ---
 
-*v0 — shipped with Phase 8.75 (brand + design scaffold). Update on any schema change to `tailwind.config.ts` or `app/globals.css`.*
+*v0 — shipped with Phase 8.75 (brand + design scaffold). Update on any
+schema change to `tailwind.config.ts` or `app/globals.css`.*

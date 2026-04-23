@@ -1,100 +1,101 @@
 import type * as React from 'react';
 import NextLink from 'next/link';
-import { Container } from './Container';
 import { cn } from './lib/cn';
 
+export type NavLink = { label: string; href: string; external?: boolean };
+
 export type NavProps = {
-  brand: React.ReactNode;
-  items?: Array<{ label: string; href: string; external?: boolean }>;
+  /** Optional brand subtitle (e.g. `// arp.run`). */
+  brandSub?: string;
+  links?: NavLink[];
   cta?: React.ReactNode;
+  ticker?: React.ReactNode;
   className?: string;
 };
 
-export function Nav({ brand, items = [], cta, className }: NavProps): React.JSX.Element {
+export function Nav({
+  brandSub,
+  links = [],
+  cta,
+  ticker,
+  className,
+}: NavProps): React.JSX.Element {
   return (
-    <header
+    <nav
       className={cn(
-        'sticky top-0 z-40 border-b border-border-subtle bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/70',
+        'sticky top-0 z-40 bg-paper border-b border-rule',
         className,
       )}
+      aria-label="Primary"
     >
-      <Container width="wide" className="flex h-16 items-center justify-between">
-        <div className="flex items-center gap-8">
-          <NextLink href="/" className="flex items-center gap-2 text-body font-semibold text-foreground-primary">
-            {brand}
-          </NextLink>
-          {items.length > 0 && (
-            <nav className="hidden md:flex items-center gap-6">
-              {items.map((item) => (
-                <NavItem key={`${item.label}-${item.href}`} {...item} />
-              ))}
-            </nav>
+      <div className="mx-auto max-w-page grid grid-cols-12 gap-4 items-center px-8 py-3.5">
+        <NextLink
+          href="/"
+          className="col-span-4 md:col-span-2 flex items-baseline gap-2.5"
+        >
+          <BrandMark />
+          <span className="font-display font-semibold text-[14px] tracking-[0.04em]">
+            ARP
+          </span>
+          {brandSub && (
+            <span className="hidden sm:inline font-mono text-[10.5px] tracking-[0.12em] uppercase text-muted">
+              {brandSub}
+            </span>
           )}
+        </NextLink>
+        {ticker ? (
+          <div className="hidden md:block md:col-span-2 overflow-hidden relative h-[18px] arp-ticker-mask">
+            {ticker}
+          </div>
+        ) : (
+          <div className="hidden md:block md:col-span-2" />
+        )}
+        <div className="col-span-8 md:col-span-8 flex justify-end items-center gap-3.5 flex-wrap font-mono text-[11px] tracking-[0.1em] uppercase">
+          {links.map((link) => (
+            <NavAnchor key={`${link.label}-${link.href}`} {...link} />
+          ))}
+          {cta}
         </div>
-        {cta && <div className="flex items-center gap-3">{cta}</div>}
-      </Container>
-    </header>
+      </div>
+    </nav>
   );
 }
 
-export function NavItem({
-  label,
-  href,
-  external,
-}: {
-  label: string;
-  href: string;
-  external?: boolean;
-}): React.JSX.Element {
+function NavAnchor({ label, href, external }: NavLink): React.JSX.Element {
+  const cls =
+    'py-1.5 border-b border-transparent hover:border-ink transition-colors duration-fast';
   if (external) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-body-sm text-foreground-muted hover:text-foreground-primary transition-colors"
-      >
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
         {label}
       </a>
     );
   }
   return (
-    <NextLink
-      href={href}
-      className="text-body-sm text-foreground-muted hover:text-foreground-primary transition-colors"
-    >
+    <NextLink href={href} className={cls}>
       {label}
     </NextLink>
   );
 }
 
-export function Brand({
-  children,
+/**
+ * Brand mark — a blue square with an inset. Matches the reference design
+ * exactly (no logo image yet).
+ */
+export function BrandMark({
+  size = 18,
   className,
 }: {
-  children: React.ReactNode;
+  size?: number;
   className?: string;
 }): React.JSX.Element {
   return (
-    <span className={cn('inline-flex items-center gap-2', className)}>
-      <BrandMark />
-      <span>{children}</span>
-    </span>
-  );
-}
-
-/**
- * Wordmark glyph — a simple square + accent dot. Placeholder for a real logo
- * wired in Phase 9.
- */
-export function BrandMark(): React.JSX.Element {
-  return (
     <span
       aria-hidden="true"
-      className="relative inline-flex h-6 w-6 items-center justify-center rounded-md bg-accent-500/15 text-accent-400"
+      className={cn('relative inline-block bg-signal-blue translate-y-[3px]', className)}
+      style={{ width: size, height: size }}
     >
-      <span className="absolute inset-1.5 rounded-sm border border-accent-400" />
-      <span className="relative h-1.5 w-1.5 rounded-full bg-accent-400" />
+      <span className="absolute inset-1 bg-paper" />
     </span>
   );
 }
