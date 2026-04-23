@@ -20,10 +20,6 @@ import {
   type DidResolver,
 } from '@kybernesis/arp-pairing';
 import { loadScopesFromDirectory } from '@kybernesis/arp-scope-catalog';
-import {
-  buildMockPresentation,
-  createMockSelfxyzBridge,
-} from '@kybernesis/arp-selfxyz-bridge';
 import { renderProposalConsent } from '@kybernesis/arp-consent-ui';
 
 const SCHEMA = readFileSync(
@@ -282,17 +278,6 @@ describe('phase 4 — end-to-end pairing demo', () => {
     const consent = renderProposalConsent(parsed, catalog);
     expect(consent.willBeAbleTo.length).toBeGreaterThan(0);
     expect(consent.risk).toBe('medium');
-
-    const selfxyz = createMockSelfxyzBridge();
-    const selfxyzPresentation = buildMockPresentation({
-      nonce: 'ceremony-nonce-1',
-      peerDid: 'did:web:ghost.agent',
-      vcs: ['self_xyz.verified_human'],
-    });
-    const vcVerdict = await selfxyz.verifyPresentation(selfxyzPresentation, [
-      'self_xyz.verified_human',
-    ]);
-    expect(vcVerdict.ok).toBe(true);
 
     const { token, proposal: signedProposal } = await countersignProposal({
       proposal: parsed,

@@ -11,7 +11,6 @@ const arpPackages = [
   '@kybernesis/arp-consent-ui',
   '@kybernesis/arp-pairing',
   '@kybernesis/arp-scope-catalog',
-  '@kybernesis/arp-selfxyz-bridge',
   '@kybernesis/arp-spec',
   '@kybernesis/arp-transport',
 ];
