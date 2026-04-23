@@ -4,9 +4,7 @@
 
 **Audience:** future Claude sessions. Also useful to Ian as a "how are we operating" reference.
 
-**Last updated:** 2026-04-24, end of Phase 8 scaffold merge + Milestone A live.
-
-**Phase 8.5 (in flight):** auth + identity shift. See `phase-8-5-auth-identity-shift` branch.
+**Last updated:** 2026-04-24, end of Phase 8.5 merge (Self.xyz → did:key identity shift).
 
 ---
 
@@ -14,6 +12,8 @@
 
 ### Main branch
 ```
+3c157fb Phase 8.5: Self.xyz demotion + did:key primary identity + terminology sweep (#14)
+46c4e7e docs: log Milestone A (cloud.arp.run live) + phase 8 scaffold merge (PR #12) (#13)
 e6e3877 docs: add mobile-app-stub pointing at arp-mobile separate repo [phase-8/task-0] (#12)
 d2f78b2 chore(gitignore): exclude packages/cloud-db/migrate-once.mjs
 4c505ac fix(cloud-db): add Neon HTTP driver for production, select via DATABASE_URL (#11)
@@ -44,9 +44,10 @@ c2aa88d docs(headless): TLD-integration parallel-build brief + card-bridging ana
 6. **Phase 6 — SDKs + Adapters.** `@kybernesis/arp-sdk` + Python scaffold. Five required adapters: KyberBot, OpenClaw, Hermes-Agent, NanoClaw, LangGraph. `@kybernesis/arp-create-adapter` CLI. Claude Code adapter-authoring skill.
 7. **Phase 7 — ARP Cloud.** `@kybernesis/arp-cloud-db` (branded `TenantId` + `TenantDb`), `@kybernesis/arp-cloud-runtime` (multi-tenant dispatch), `@kybernesis/arp-cloud-client` (outbound WebSocket + reconnect), `apps/cloud-gateway`, `apps/cloud` (Next.js UI + Stripe billing). Tenant isolation: 5 × 4 adversarial scenarios, zero leaks. Stripe webhook idempotency. **Post-merge drain fix (PR #10):** `server.getConnections()` now joins `inFlight` in the quiescence loop to close the TCP-accept-queue race that re-flared on CI. **Neon HTTP driver (PR #11):** `apps/cloud/lib/db.ts` selects Neon when `DATABASE_URL` is set, PGlite otherwise — unblocks Milestone A.
 8. **Phase 8 — Mobile scaffold.** Expo SDK 52 + RN 0.76.3 owner app in a separate repo at `github.com/KybernesisAI/arp-mobile` (private). All routes from phase brief §3, principal-DID login (Ed25519 → Secure Enclave/Keystore), HNS DoH resolver, biometric gate per risk tier, QR scan, pair flow, push registration, Maestro E2E flow, store-listing drafts. 53 files / ~2,700 lines. Gates green: typecheck, jest 18/18, eslint, `expo prebuild` for both platforms. Monorepo side: `docs/mobile-app-stub.md` pointer only (PR #12). **Scope: scaffold only — no App Store / Play Store submissions; public launch is Phase 10.** Conservative calls: (1) scope-catalog + SDK inlined as portable subsets, swap at Phase 9 publish; (2) DID-pinned TLS bridge deferred to Phase 9; (3) `/api/push/register` cloud-side endpoint deferred — mobile tolerates 404; (4) jest uses ts-jest + node env (not jest-expo) for pnpm-hoisting compatibility.
+9. **Phase 8.5 — Auth & Identity Shift.** Deleted `@kybernesis/arp-selfxyz-bridge` (500-LOC placeholder, never wired). Primary principal identity is now a browser-held `did:key` Ed25519 keypair (localStorage; 12-word recovery phrase). Additive `did:key` resolver support + relaxed `DidDocumentSchema` (service + principal optional on terminal did:key docs) + new `@kybernesis/arp-transport/browser` subpath for client-safe helpers (Next.js client bundles can't pull the root transport entry which drags SQLite + fs). Consent-UI now provider-agnostic (generic `prettyPrint` of VC type ids + optional overrides map). Spec v2.1 amendment at `docs/ARP-tld-integration-spec-v2.1.md` documents the two-option owner-binding UX (Option A "Use ARP Cloud account" redirect; Option B "Generate now (advanced)" browser-side). Mobile handoff note at `docs/ARP-phase-8-5-mobile-repo-changes.md` — docs-only edits to apply in a future `arp-mobile` session. 9 commits, 73 files, all gates green. Phase 8.5 observations for Phase 9: (1) localStorage key + phrase storage is interim; WebAuthn/passkey is Phase 9+ polish; (2) seed-KDF is 16-byte entropy padded; HKDF migration needs an identity-rotation UX plan; (3) v2.1 spec references `arp.cloud/onboard` + `/internal/registrar/bind` endpoints that ship in Phase 9.
 
 ### Phases remaining
-- **Phase 9 — Headless Integration + Public Launch.** Domain wiring (Milestone A already wired `arp.run`/`cloud.arp.run`/`app.arp.run`), spec site, npm `latest` promotion, Headless compliance co-sign, publish `@kybernesis/arp-*` packages so `arp-mobile` can switch from inlined subsets to real deps, cloud-side `/api/push/register` endpoint.
+- **Phase 9 — Headless Integration + Public Launch.** Domain wiring (Milestone A already wired `arp.run`/`cloud.arp.run`/`app.arp.run`), spec site, npm `latest` promotion, Headless compliance co-sign, publish `@kybernesis/arp-*` packages so `arp-mobile` can switch from inlined subsets to real deps, cloud-side `/api/push/register` endpoint, `arp.cloud/onboard` + `/internal/registrar/bind` endpoints per v2.1 spec, WebAuthn / passkey UX upgrade, HKDF seed-derivation migration + identity-rotation plan, 3 new testkit probes (principal-identity-method, no-selfxyz-prompt, representation-jwt-signer-binding).
 - **Phase 10 — Mobile public launch.** iOS App Store + Google Play Store submissions. Prereq: Phase 9 ships. Apple Dev account + EAS credentials + Play Console setup required.
 
 ### Domain decision (logged)
