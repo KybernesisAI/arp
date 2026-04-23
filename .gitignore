@@ -50,3 +50,6 @@ apps/cloud/.next/
 apps/cloud/out/
 apps/cloud/tsconfig.tsbuildinfo
 .vercel
+
+# Ad-hoc one-time migration script (generated, not tracked)
+packages/cloud-db/migrate-once.mjs
