@@ -244,11 +244,21 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
       context: mapped.context ?? {},
     });
 
+    // The Connection Token carries the static per-connection obligations
+    // compiled from the bundle catalog (redact_fields, rate_limit, etc.).
+    // The PDP's `decision.obligations` is for future dynamic obligation
+    // policies (not yet wired). For every allowed message, both sources
+    // apply, so combine them for audit and outbound reply purposes.
+    const effectiveObligations = [
+      ...(record.token.obligations ?? []),
+      ...decision.obligations,
+    ];
+
     auditFor(connectionId).append({
       msg_id: msg.id,
       decision: decision.decision,
       policies_fired: decision.policies_fired,
-      obligations: decision.obligations,
+      obligations: effectiveObligations,
       ...(decision.reasons.length > 0 ? { reason: decision.reasons.join('; ') } : {}),
     });
 
@@ -266,7 +276,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
         connectionId,
         decision: {
           decision: decision.decision,
-          obligations: decision.obligations,
+          obligations: effectiveObligations,
           policies_fired: decision.policies_fired,
         },
         memory: {
@@ -286,7 +296,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
       body: {
         connection_id: connectionId,
         decision: 'allow',
-        obligations: decision.obligations,
+        obligations: effectiveObligations,
         result: dispatchResult.reply ?? { ok: true },
       },
     });
