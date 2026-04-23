@@ -1,0 +1,29 @@
+{
+  "name": "@kybernesis/arp-phase-7-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build": "echo 'no build for acceptance tests' && exit 0"
+  },
+  "dependencies": {
+    "@kybernesis/arp-cloud-client": "workspace:*",
+    "@kybernesis/arp-cloud-db": "workspace:*",
+    "@kybernesis/arp-cloud-gateway": "workspace:*",
+    "@kybernesis/arp-cloud-runtime": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}

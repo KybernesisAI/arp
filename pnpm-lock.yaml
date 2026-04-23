@@ -1054,6 +1054,49 @@ importers:
         specifier: ^2.2.3
         version: 2.3.0
 
+  tests/phase-7:
+    dependencies:
+      '@kybernesis/arp-cloud-client':
+        specifier: workspace:*
+        version: link:../../packages/cloud-client
+      '@kybernesis/arp-cloud-db':
+        specifier: workspace:*
+        version: link:../../packages/cloud-db
+      '@kybernesis/arp-cloud-gateway':
+        specifier: workspace:*
+        version: link:../../apps/cloud-gateway
+      '@kybernesis/arp-cloud-runtime':
+        specifier: workspace:*
+        version: link:../../packages/cloud-runtime
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../../packages/pdp
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
