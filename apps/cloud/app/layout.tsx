@@ -1,10 +1,11 @@
 import type * as React from 'react';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ARP Cloud',
-  description: 'Hosted ARP runtime — multi-tenant agent-to-agent coordination.',
+  title: 'ARP',
+  description: 'Agent Relationship Protocol — the communication + permissions layer for agent-to-agent interaction.',
 };
 
 export const viewport: Viewport = {
@@ -15,10 +16,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', backgroundColor: '#0f172a', color: '#e2e8f0' }}>
-        {children}
-      </body>
+    <html lang="en" className="dark">
+      <body>{children}</body>
     </html>
   );
 }
