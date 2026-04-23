@@ -1,0 +1,52 @@
+{
+  "name": "@kybernesis/arp-testkit",
+  "version": "0.1.0",
+  "description": "ARP compliance testkit — 8 probes + CLI that audit any .agent domain's ARP implementation.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/testkit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "arp-testkit": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-pairing": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-scope-catalog": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-templates": "workspace:*",
+    "@kybernesis/arp-tls": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0"
+  }
+}
