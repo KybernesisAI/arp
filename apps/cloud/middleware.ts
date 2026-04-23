@@ -59,7 +59,7 @@ export function middleware(req: NextRequest): NextResponse {
 }
 
 export function surfaceForHost(host: string): Surface {
-  const bare = stripPort(host);
+  const bare = stripPort(host).toLowerCase();
   if (PROJECT_HOSTS.has(bare)) return 'project';
   if (CLOUD_HOSTS.has(bare)) return 'cloud';
   if (APP_HOSTS.has(bare)) return 'app';

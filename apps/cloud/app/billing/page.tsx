@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS } from '@kybernesis/arp-cloud-db';
 import BillingButtons from './BillingButtons';
+import { AppShell } from '@/components/app/AppShell';
+import { Badge, PlateHead } from '@/components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,40 +18,62 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
     throw err;
   }
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <h1 style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>Billing</h1>
-      <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
-        Current plan: <strong>{tenant.plan}</strong> · status: {tenant.status}
-      </p>
-      <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+    <AppShell>
+      <PlateHead
+        plateNum="B.00"
+        kicker={`// BILLING · ${tenant.plan.toUpperCase()} · ${tenant.status.toUpperCase()}`}
+        title="Billing"
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-rule border border-rule">
         {(['free', 'pro', 'team'] as const).map((plan) => {
           const limits = PLAN_LIMITS[plan];
           const isCurrent = tenant.plan === plan;
+          const bgCls = isCurrent ? 'bg-signal-blue text-white' : 'bg-paper text-ink';
+          const mutedCls = isCurrent ? 'text-white/85' : 'text-muted';
           return (
-            <div
-              key={plan}
-              style={{
-                padding: '1.5rem',
-                backgroundColor: isCurrent ? '#1e40af' : '#1e293b',
-                borderRadius: '0.5rem',
-                border: '1px solid #334155',
-              }}
-            >
-              <h2 style={{ marginTop: 0, textTransform: 'capitalize' }}>{plan}</h2>
-              <p style={{ fontSize: '1.25rem', margin: '0.5rem 0' }}>
-                {limits.monthlyPriceCents === 0 ? 'Free' : `$${limits.monthlyPriceCents / 100}/mo`}
-              </p>
-              <ul style={{ color: '#cbd5e1', fontSize: '0.875rem', paddingLeft: '1.25rem' }}>
-                <li>{limits.maxAgents ?? '∞'} agents</li>
-                <li>{limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'} inbound msgs/month</li>
+            <div key={plan} className={`${bgCls} p-7 min-h-[260px] flex flex-col gap-3`}>
+              <div className={`font-mono text-kicker uppercase ${mutedCls}`}>
+                TIER · {plan.toUpperCase()}
+              </div>
+              <h3 className="font-display font-medium text-[2rem] leading-none">
+                {plan.charAt(0).toUpperCase() + plan.slice(1)}
+              </h3>
+              <div className="font-display font-medium text-[2.5rem] leading-none tracking-[-0.02em]">
+                {limits.monthlyPriceCents === 0 ? 'Free' : `$${limits.monthlyPriceCents / 100}`}
+                {limits.monthlyPriceCents > 0 && (
+                  <span
+                    className={`ml-2 font-mono text-body-sm ${mutedCls}`}
+                  >
+                    / mo
+                  </span>
+                )}
+              </div>
+              <ul
+                className={`list-none p-0 m-0 text-body-sm ${
+                  isCurrent ? 'text-white/90' : 'text-ink-2'
+                }`}
+              >
+                <li className="flex items-baseline gap-2 py-1">
+                  <span className={isCurrent ? 'text-white/70' : 'text-muted'}>›</span>
+                  {limits.maxAgents ?? '∞'} agents
+                </li>
+                <li className="flex items-baseline gap-2 py-1">
+                  <span className={isCurrent ? 'text-white/70' : 'text-muted'}>›</span>
+                  {limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'} inbound msgs / mo
+                </li>
               </ul>
-              {isCurrent && <p style={{ color: '#93c5fd', marginTop: '0.75rem' }}>Current</p>}
+              {isCurrent && (
+                <div className="mt-auto">
+                  <Badge tone="yellow">Current plan</Badge>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
       <BillingButtons currentPlan={tenant.plan} />
-    </main>
+    </AppShell>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
+import { Button, FieldError } from '@/components/ui';
 
 export default function BillingButtons({ currentPlan }: { currentPlan: string }): React.JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
@@ -31,26 +32,19 @@ export default function BillingButtons({ currentPlan }: { currentPlan: string })
   }
 
   return (
-    <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+    <div className="mt-8 flex flex-wrap items-center gap-3">
       {(['pro', 'team'] as const).map((plan) => (
-        <button
+        <Button
           key={plan}
+          variant={currentPlan === plan ? 'ghost' : 'primary'}
+          arrow
           onClick={() => void checkout(plan)}
           disabled={busy !== null || currentPlan === plan}
-          style={{
-            padding: '0.75rem 1.25rem',
-            border: 'none',
-            borderRadius: '0.375rem',
-            backgroundColor: currentPlan === plan ? '#334155' : '#3b82f6',
-            color: '#0f172a',
-            fontWeight: 600,
-            cursor: currentPlan === plan ? 'default' : 'pointer',
-          }}
         >
           {busy === plan ? 'Redirecting…' : `Upgrade to ${plan}`}
-        </button>
+        </Button>
       ))}
-      {error && <p style={{ color: '#f87171' }}>{error}</p>}
+      {error && <FieldError className="m-0">{error}</FieldError>}
     </div>
   );
 }

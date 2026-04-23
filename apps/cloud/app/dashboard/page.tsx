@@ -1,8 +1,17 @@
 import type * as React from 'react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS } from '@kybernesis/arp-cloud-db';
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  Code,
+  Dot,
+  Link,
+  PlateHead,
+} from '@/components/ui';
+import { AppShell } from '@/components/app/AppShell';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,39 +28,57 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS];
 
   return (
-    <main style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>Dashboard</h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-            {tenant.principalDid} · plan: <strong>{tenant.plan}</strong> · status: {tenant.status}
-          </p>
-        </div>
-        <Link href="/billing" style={linkStyle}>
-          Billing
-        </Link>
-      </header>
+    <AppShell>
+      <PlateHead
+        plateNum="D.00"
+        kicker={`// TENANT · ${tenant.plan.toUpperCase()} · ${tenant.status.toUpperCase()}`}
+        title="Dashboard"
+      />
 
-      <section style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Agents ({agents.length})</h2>
+      <div className="grid grid-cols-12 gap-4 mb-10">
+        <div className="col-span-12 md:col-span-8">
+          <div className="font-mono text-kicker uppercase text-muted">// PRINCIPAL</div>
+          <Code className="mt-2 text-[13px] break-all">{tenant.principalDid}</Code>
+        </div>
+        <div className="col-span-12 md:col-span-4 md:text-right">
+          <ButtonLink href="/billing" variant="default" size="sm" arrow>
+            Billing
+          </ButtonLink>
+        </div>
+      </div>
+
+      <section className="mb-10">
+        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+          <h2 className="font-display font-medium text-h3">
+            Agents <span className="text-muted font-mono text-body-sm ml-2">{agents.length}</span>
+          </h2>
+          <Link href="/onboarding" variant="mono">
+            Provision agent →
+          </Link>
+        </header>
         {agents.length === 0 ? (
-          <p style={{ color: '#94a3b8' }}>
-            No agents yet.{' '}
-            <Link href="/onboarding" style={linkStyle}>
-              Provision one
-            </Link>
-            .
-          </p>
+          <Card tone="paper-2" padded>
+            <p className="text-body text-ink-2">
+              No agents yet. <Link href="/onboarding">Provision one</Link> to get started.
+            </p>
+          </Card>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ul className="list-none p-0 m-0 border-t border-rule">
             {agents.map((a) => (
-              <li key={a.did} style={{ padding: '0.75rem 0', borderTop: '1px solid #334155' }}>
-                <Link href={`/agent/${encodeURIComponent(a.did)}`} style={linkStyle}>
-                  {a.name}
-                </Link>{' '}
-                — <code>{a.did}</code>
-                <div style={{ color: '#94a3b8', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                  last seen: {a.lastSeenAt ? new Date(a.lastSeenAt).toLocaleString() : 'never'}
+              <li
+                key={a.did}
+                className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline"
+              >
+                <div className="col-span-12 md:col-span-3">
+                  <Link href={`/agent/${encodeURIComponent(a.did)}`} variant="plain">
+                    <span className="font-display font-medium text-h5">{a.name}</span>
+                  </Link>
+                </div>
+                <div className="col-span-12 md:col-span-6 text-body-sm text-ink-2 break-all">
+                  <Code>{a.did}</Code>
+                </div>
+                <div className="col-span-12 md:col-span-3 md:text-right font-mono text-kicker uppercase text-muted">
+                  LAST SEEN · {a.lastSeenAt ? new Date(a.lastSeenAt).toLocaleString() : 'NEVER'}
                 </div>
               </li>
             ))}
@@ -59,14 +86,47 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         )}
       </section>
 
-      <section style={{ ...cardStyle, marginTop: '1rem' }}>
-        <h2 style={{ marginTop: 0 }}>Plan quotas</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-          Agents: {agents.length} / {limits.maxAgents ?? '∞'} · inbound msgs/month cap:{' '}
-          {limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'}
-        </p>
+      <section>
+        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+          <h2 className="font-display font-medium text-h3">Plan quotas</h2>
+          <Badge tone="blue">{tenant.plan.toUpperCase()}</Badge>
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-rule border border-rule">
+          <QuotaCell
+            label="AGENTS"
+            value={`${agents.length} / ${limits.maxAgents ?? '∞'}`}
+          />
+          <QuotaCell
+            label="INBOUND MSGS / MONTH"
+            value={limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'}
+          />
+          <QuotaCell
+            label="STATUS"
+            value={
+              <span className="inline-flex items-center gap-2">
+                <Dot tone={tenant.status === 'active' ? 'green' : 'yellow'} />
+                {tenant.status.toUpperCase()}
+              </span>
+            }
+          />
+        </div>
       </section>
-    </main>
+    </AppShell>
+  );
+}
+
+function QuotaCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="bg-paper p-6">
+      <div className="font-mono text-kicker uppercase text-muted">{label}</div>
+      <div className="mt-2 font-display font-medium text-h3">{value}</div>
+    </div>
   );
 }
 
@@ -84,11 +144,3 @@ async function loadState() {
     })),
   };
 }
-
-const cardStyle = {
-  padding: '1.5rem',
-  backgroundColor: '#1e293b',
-  borderRadius: '0.5rem',
-  border: '1px solid #334155',
-};
-const linkStyle = { color: '#60a5fa', textDecoration: 'none' };
