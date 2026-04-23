@@ -4,7 +4,7 @@
 
 **Audience:** future Claude sessions. Also useful to Ian as a "how are we operating" reference.
 
-**Last updated:** 2026-04-23, end of Phase 6.
+**Last updated:** 2026-04-24, end of Phase 8 scaffold merge + Milestone A live.
 
 ---
 
@@ -12,8 +12,13 @@
 
 ### Main branch
 ```
-889ef05 fix(runtime): wait for TCP-level connection drain, not just app-level inFlight (#10)
-eeec5bf Phase 7: ARP Cloud — multi-tenant runtime + cloud-client + Next.js UI + Stripe billing + tenant isolation (#9)
+e6e3877 docs: add mobile-app-stub pointing at arp-mobile separate repo [phase-8/task-0] (#12)
+d2f78b2 chore(gitignore): exclude packages/cloud-db/migrate-once.mjs
+4c505ac fix(cloud-db): add Neon HTTP driver for production, select via DATABASE_URL (#11)
+1e49c6e chore(vercel): gitignore .vercel project link directory
+58995d2 docs: bump CLAUDE.md + handoff for phase 7 merge + drain fix (PR #9 + #10)
+889ef05 fix(runtime): wait for TCP-level connection drain (#10)
+eeec5bf Phase 7: ARP Cloud (#9)
 53fe9da docs: CLAUDE.md + ARP-session-handoff.md (operating model + state at end of phase 6)
 1e2defe Phase 6: SDKs + Framework Adapters (#8)
 a7e6a20 Phase 5: Reference Agents + Compliance Testkit (#7)
@@ -35,14 +40,25 @@ c2aa88d docs(headless): TLD-integration parallel-build brief + card-bridging ana
 4. **Phase 4 — Pairing + Owner App.** `@kybernesis/arp-pairing`, `-consent-ui`, `-selfxyz-bridge`. `apps/owner-app` Next.js 16 App Router. Runtime `/admin/*` bearer-gated API. End-to-end pairing demo.
 5. **Phase 5 — Reference Agents + Testkit (local scope).** `@kybernesis/arp-testkit` with all 8 probes + CLI. `samantha-reference` and `ghost-reference` agent configs (not deployed — deferred to Phase 5B when infra is ready). Nightly compliance workflow (dormant). Review-pass fix: `record.token.obligations` now merges into audit entries + outbound replies.
 6. **Phase 6 — SDKs + Adapters.** `@kybernesis/arp-sdk` + Python scaffold. Five required adapters: KyberBot, OpenClaw, Hermes-Agent, NanoClaw, LangGraph. `@kybernesis/arp-create-adapter` CLI. Claude Code adapter-authoring skill.
-7. **Phase 7 — ARP Cloud.** `@kybernesis/arp-cloud-db` (branded `TenantId` + `TenantDb`), `@kybernesis/arp-cloud-runtime` (multi-tenant dispatch), `@kybernesis/arp-cloud-client` (outbound WebSocket + reconnect), `apps/cloud-gateway`, `apps/cloud` (Next.js UI + Stripe billing). Tenant isolation: 5 × 4 adversarial scenarios, zero leaks. Stripe webhook idempotency. **Post-merge drain fix (PR #10):** `server.getConnections()` now joins `inFlight` in the quiescence loop to close the TCP-accept-queue race that re-flared on CI.
+7. **Phase 7 — ARP Cloud.** `@kybernesis/arp-cloud-db` (branded `TenantId` + `TenantDb`), `@kybernesis/arp-cloud-runtime` (multi-tenant dispatch), `@kybernesis/arp-cloud-client` (outbound WebSocket + reconnect), `apps/cloud-gateway`, `apps/cloud` (Next.js UI + Stripe billing). Tenant isolation: 5 × 4 adversarial scenarios, zero leaks. Stripe webhook idempotency. **Post-merge drain fix (PR #10):** `server.getConnections()` now joins `inFlight` in the quiescence loop to close the TCP-accept-queue race that re-flared on CI. **Neon HTTP driver (PR #11):** `apps/cloud/lib/db.ts` selects Neon when `DATABASE_URL` is set, PGlite otherwise — unblocks Milestone A.
+8. **Phase 8 — Mobile scaffold.** Expo SDK 52 + RN 0.76.3 owner app in a separate repo at `github.com/KybernesisAI/arp-mobile` (private). All routes from phase brief §3, principal-DID login (Ed25519 → Secure Enclave/Keystore), HNS DoH resolver, biometric gate per risk tier, QR scan, pair flow, push registration, Maestro E2E flow, store-listing drafts. 53 files / ~2,700 lines. Gates green: typecheck, jest 18/18, eslint, `expo prebuild` for both platforms. Monorepo side: `docs/mobile-app-stub.md` pointer only (PR #12). **Scope: scaffold only — no App Store / Play Store submissions; public launch is Phase 10.** Conservative calls: (1) scope-catalog + SDK inlined as portable subsets, swap at Phase 9 publish; (2) DID-pinned TLS bridge deferred to Phase 9; (3) `/api/push/register` cloud-side endpoint deferred — mobile tolerates 404; (4) jest uses ts-jest + node env (not jest-expo) for pnpm-hoisting compatibility.
 
 ### Phases remaining
-- **Phase 8 — Mobile Apps.** iOS + Android via Expo/React Native, biometric consent, QR pairing, push.
-- **Phase 9 — Headless Integration + Public Launch.** Domain wiring (user picked `arp.run`), spec site, mobile store submissions, npm `latest` promotion, Headless compliance co-sign.
+- **Phase 9 — Headless Integration + Public Launch.** Domain wiring (Milestone A already wired `arp.run`/`cloud.arp.run`/`app.arp.run`), spec site, npm `latest` promotion, Headless compliance co-sign, publish `@kybernesis/arp-*` packages so `arp-mobile` can switch from inlined subsets to real deps, cloud-side `/api/push/register` endpoint.
+- **Phase 10 — Mobile public launch.** iOS App Store + Google Play Store submissions. Prereq: Phase 9 ships. Apple Dev account + EAS credentials + Play Console setup required.
 
 ### Domain decision (logged)
-User registered **`arp.run`** on 2026-04-23. Phase 7 is domain-agnostic (all Vercel preview URLs + env vars). Phase 9 wires `cloud.arp.run`, `app.arp.run`, `spec.arp.run`, `docs.arp.run` to the Vercel project. Branding remains "ARP" — user considered "Dispatch" as a product brand on top of ARP-the-protocol but committed to ARP branding for now. Can revisit at Phase 9 launch prep.
+User registered **`arp.run`** on 2026-04-23. Milestone A wired `arp.run`, `cloud.arp.run`, `app.arp.run` to the Vercel project. Phase 9 still owns `spec.arp.run` + `docs.arp.run`. Branding remains "ARP" — user considered "Dispatch" as a product brand on top of ARP-the-protocol but committed to ARP branding for now. Can revisit at Phase 9 launch prep.
+
+### Milestone A — ARP Cloud live (staging, 2026-04-23/24)
+- Vercel project `arp-cloud` in `ian-darkstarvccs-projects` team (Pro plan)
+- Root Directory `apps/cloud`, framework Next.js, `DATABASE_URL` + 15 other Postgres vars auto-injected from attached Neon (`arp-cloud-dev`)
+- Stripe sandbox wired (test keys in Vercel env, webhook endpoint registered at `cloud.arp.run/api/webhooks/stripe`, `whsec_...` as sensitive env var)
+- Custom domains attached + verified: `arp.run`, `cloud.arp.run`, `app.arp.run`. Vercel manages DNS now.
+- Deployment Protection (free-tier): `all_except_custom_domains` — Vercel deployment URLs require Vercel login; custom domains remain public. User is on Pro and can flip to "All Deployments" via dashboard when ready to gate custom domains (API rejected the toggle with `invalid_sso_protection`; dashboard path works).
+- One-time migration applied to Neon (23 statements → 9 tables: agents, audit_entries, connections, messages, principal_sessions, revocations, stripe_events, tenants, usage_counters). Script at `packages/cloud-db/migrate-once.mjs` (gitignored).
+- Phase 7 conservative call #1 closed: PR #11 added `@kybernesis/arp-cloud-db/neon` HTTP driver (via `@neondatabase/serverless` + `drizzle-orm/neon-http`). `apps/cloud/lib/db.ts` selects Neon when `DATABASE_URL` is set, PGlite otherwise. Closed Milestone-A-breaking 500 on webhook POSTs that was caused by PGlite trying to `readFileSync(migrations)` inside Vercel's read-only serverless bundle.
+- Webhook path verified: `curl -X POST cloud.arp.run/api/webhooks/stripe -H 'Stripe-Signature: fake'` returns `400 bad_signature` (expected — signature check now reachable; previously crashed before it got there).
 
 ### Deferred
 - **Phase 5B** — live deployment of reference agents on real `.agent` domains + real VPSes. Blocked on Option A decision (no user testing until 7-9 ship).
