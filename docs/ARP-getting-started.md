@@ -27,7 +27,6 @@ Some phases can't start without these in place. Front-load them.
 | **Apple Developer account** ($99/yr) | 8 | iOS builds |
 | **Google Play Console** ($25 one-time) | 8 | Android builds |
 | **Firebase project (FCM)** | 8 | Android push |
-| **Self.xyz developer access** (staging key minimum) | 4 | VC presentation integration |
 | **Headless Domains API access** | 9 | Programmatic registration |
 | **Cloudflare account** (free tier ok) | Various | DNS + Tunnel for local testing |
 
@@ -177,9 +176,9 @@ Adjust the constraints block per phase as needed (e.g., for phase 9 launch you'l
 **Deliverable:** PR #3
 
 ### Phase 4 — Pairing + Owner App
-**Prereqs:** Phase 3 merged, Self.xyz staging key acquired
+**Prereqs:** Phase 3 merged
 **Opener:** standard + phase-4 doc + `ARP-policy-examples.md` + `ARP-scope-catalog-v1.md`
-**Human intervention:** set up Self.xyz staging access, provide credentials via `.env.local` (never commit)
+**Human intervention:** none. Owner-app login uses a browser-held `did:key` principal keypair (generated client-side on first visit; signatures auto-issued — no pasting). See `ARP-phase-8-5-auth-identity-shift.md` for the identity model.
 **Acceptance:** end-to-end pairing demo passes
 **Duration:** 3–4 sessions
 **Deliverable:** PR #4

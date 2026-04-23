@@ -44,11 +44,11 @@ This is a Headless-proprietary shape. ARP's agent card has a different shape (de
 | `agent.name` | `name` | ✓ maps directly |
 | `agent.description` | `description` | ✓ maps directly |
 | `agent.version` | *(agent-version; not the ARP spec version)* | Keep; ARP adds `arp_version: "0.1"` as a separate field |
-| `agent.owner_id` (e.g. `"powerlobster-squad-ianborders"`) | `principal.did` (e.g. `did:web:ian.self.xyz`) | ⚠ Proprietary ID; must resolve to a DID URI |
+| `agent.owner_id` (e.g. `"powerlobster-squad-ianborders"`) | `principal.did` (e.g. `did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp`) | ⚠ Proprietary ID; must resolve to a DID URI |
 | `agent.webhooks.default` | `endpoints.didcomm` | ⚠ Different semantics: webhook = one-way POST; DIDComm = bidirectional signed JWM |
 | `agent.protocols: ["mpp"]` | `accepted_protocols: ["didcomm/v2", "a2a/1.0"]` | ⚠ Different layer; MPP is payments, not transport |
 | `agent.payment_endpoints.mpp` | `payment.x402_enabled` + `payment.pricing_url` | ⚠ x402 is ARP v0; MPP can coexist as an extension |
-| `agent.trust.human_backed: true` | Replaced by Self.xyz VC (cryptographic proof) | ⚠ Boolean → verifiable credential |
+| `agent.trust.human_backed: true` | Replaced by Representation JWT signed by the principal key (any DID method). | ⚠ Boolean → verifiable credential |
 | `agent.trust.attestations` | Optional metadata; could inform `vc_requirements` | 🔄 Soft map |
 | `agent.uptime` | — | Optional; keep as extension |
 | `agent.capabilities` | `supported_scopes` (pinned to catalog version) | 🔄 Different semantics; capabilities are freeform strings, scopes are catalog-constrained |
@@ -74,7 +74,12 @@ Nine items must exist at the domain before an ARP peer can pair with it:
    - `_didcomm.<domain>` — DIDComm endpoint URL + version
    - `_revocation.<domain>` — revocation list URL + poll interval
 8. **DID-pinned TLS cert.** The cert's SHA-256 DER fingerprint lives in the DID doc's `tlsCertificatePin`. No Let's Encrypt dependency for agent-to-agent; peers validate against the pin.
-9. **Principal DID binding via Self.xyz.** The agent's DID doc references a `principal.did` that itself holds verifiable credentials (adult, verified human, country, etc.) issued by Self.xyz.
+9. **Principal DID binding.** The agent's DID document references a `principal.did` attribute pointing at the human owner. In v1, that DID is typically:
+
+   - `did:key:z...` — the user's browser generates the keypair and holds it; the DID is self-describing.
+   - `did:web:arp.cloud:u:<uuid>` — ARP Cloud manages the principal key on the user's behalf (Phase 9+).
+
+   Either method is acceptable. Attribute credentials (age, residency, etc.) are an optional pluggable layer and do not affect the owner-binding cryptography. Self.xyz is no longer a required provider.
 
 ---
 
@@ -88,7 +93,7 @@ Headless keeps their existing card at their existing URL. ARP adds its own set a
 {
   "@context": ["https://www.w3.org/ns/did/v1"],
   "id": "did:web:ian.chatbot",
-  "controller": "did:web:ian.self.xyz",
+  "controller": "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
   "verificationMethod": [{
     "id": "did:web:ian.chatbot#key-1",
     "type": "Ed25519VerificationKey2020",
@@ -111,7 +116,7 @@ Headless keeps their existing card at their existing URL. ARP adds its own set a
     }
   ],
   "principal": {
-    "did": "did:web:ian.self.xyz",
+    "did": "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
     "representationVC": "https://owner.ian.chatbot/.well-known/representation.jwt"
   },
   "tlsCertificatePin": {
@@ -158,6 +163,8 @@ Headless keeps their existing card at their existing URL. ARP adds its own set a
 ```
 
 Everything Headless-proprietary lives under `extensions`. ARP-aware clients use only the top-level keys; Headless-aware clients keep reading their own file at their own URL. No conflict.
+
+The `vc_requirements` entry above shows `self_xyz.verified_human` (illustrative — any VC provider works). ARP's protocol layer treats the string as an opaque VC-type identifier; the attribute credential provider is pluggable.
 
 ---
 

@@ -1,9 +1,11 @@
 # ARP × `.agent` TLD Integration Specification
 
+> **Superseded:** this is v0.1 (April 2026). The current TLD-integration contract is `ARP-tld-integration-spec-v2.md` + the Phase-8.5 amendment `ARP-tld-integration-spec-v2.1.md`. This file is retained for historical context only; do not implement from it.
+
 **Audience:** operators of the Handshake `.agent` TLD (Headless Domains et al.)
 **Purpose:** tell the TLD side exactly what to do so `.agent` domains are natively ARP-compatible.
 **Companion doc:** `ARP-architecture.md`
-**Version:** 0.1 — April 2026
+**Version:** 0.1 — April 2026 (SUPERSEDED by v2 + v2.1)
 
 ---
 

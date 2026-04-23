@@ -6,6 +6,8 @@
 
 **Last updated:** 2026-04-24, end of Phase 8 scaffold merge + Milestone A live.
 
+**Phase 8.5 (in flight):** auth + identity shift. See `phase-8-5-auth-identity-shift` branch.
+
 ---
 
 ## 1. Current state of the build
@@ -393,9 +395,7 @@ These were decided in earlier phases. Do not re-debate without explicit user ask
 - Ask bundled for Phase 9 coordination: Custom DIDComm endpoint URL field in Setup ARP Local flow
 
 ### Self.xyz
-- Optional for v0 pairings — can skip with `required_vcs: []`
-- Integration deferred; placeholder in `@kybernesis/arp-selfxyz-bridge`
-- Real integration at Phase 9 prep
+**Self.xyz** — removed in Phase 8.5. The `@kybernesis/arp-selfxyz-bridge` package has been deleted. Consent UI renders VC type identifiers generically. See `docs/ARP-phase-8-5-auth-identity-shift.md`.
 
 ### Handshake / HNS
 - `.agent` TLD available
@@ -487,7 +487,6 @@ Phase 5 finally killed the `packages/scope-catalog/generated/manifest.json` wall
 │   ├── tls/                                         # @kybernesis/arp-tls
 │   ├── pairing/                                     # @kybernesis/arp-pairing
 │   ├── consent-ui/                                  # @kybernesis/arp-consent-ui
-│   ├── selfxyz-bridge/                              # @kybernesis/arp-selfxyz-bridge
 │   ├── testkit/                                     # @kybernesis/arp-testkit
 │   ├── sdk/                                         # @kybernesis/arp-sdk
 │   ├── create-adapter/                              # @kybernesis/arp-create-adapter

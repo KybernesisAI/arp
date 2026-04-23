@@ -1,5 +1,7 @@
 # ARP × `.agent` TLD Integration — Implementation Spec v0.1
 
+> **Amendment v2.1 (2026-04-24):** see `ARP-tld-integration-spec-v2.1.md` for the Phase-8.5 amendment. Changes are narrow: Self.xyz prompts must be removed; `_principal` TXT values accept any DID method (did:key recommended default); `did:web:<x>.self.xyz` is no longer the recommended principal DID form. DNS record shapes, well-known paths, JSON schemas, and ACME flow are unchanged.
+
 **Reader:** this document is written for an autonomous coding agent. Every requirement is phrased as an executable directive. Where a choice exists, this document picks one and commits to it. Do not ask for clarification — implement as specified. If an instruction conflicts with another, the lower-numbered section wins.
 
 ---

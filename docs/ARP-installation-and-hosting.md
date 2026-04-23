@@ -31,7 +31,7 @@ When a buyer completes registration at `.agent` and ticks "Set up as ARP agent,"
 {
   "arp_version": "0.1",
   "agent_did": "did:web:kyberbot.agent",
-  "principal_did": "did:web:ian.self.xyz",
+  "principal_did": "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
   "keypair": {
     "public_key_multibase": "z6Mk...",
     "private_key_handle": "ref://wallet/key-1"
@@ -81,7 +81,7 @@ All three produce an identical external wire presence. Choose by topology, not b
 ```
 
 **What the buyer does:**
-1. In the owner app, paste the Handoff Bundle (or OAuth into the registrar which hands it over).
+1. Click **Get Started** on `app.arp.run`. Your browser creates your owner identity (did:key, 12-word recovery phrase). If you're migrating an existing sidecar agent, choose **Advanced: migrate existing sidecar** and paste your handoff bundle.
 2. Provide an HTTPS endpoint where their agent accepts requests.
 3. Point `kyberbot.agent` A record at `arp.cloud`'s IP (automatic via registrar API).
 

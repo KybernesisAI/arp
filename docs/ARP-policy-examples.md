@@ -67,7 +67,7 @@ permit (
 ```json
 {
   "connection_id": "conn_7a3f...",
-  "issuer":   "did:web:ian.self.xyz",
+  "issuer":   "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
   "subject":  "did:web:samantha.agent",
   "audience": "did:web:ghost.agent",
   "purpose":  "project:alpha",
@@ -99,7 +99,7 @@ Access windows:
   ☑ Business hours only                 09:00–17:00 [America/New_York ▾]
   ☑ Weekdays only
 
-Counterparty requirements (Self.xyz):
+Counterparty requirements (attribute VCs):
   ☑ Verified human
   ☑ Over 18
   ☐ US resident
@@ -374,7 +374,11 @@ Actions are enumerated from the scope catalog. Core set:
 | `context.thread_id` | string | Conversation thread |
 | `context.turn_number` | int | Nth turn in this thread |
 
-### 6.9 Presented credentials (Self.xyz + others)
+### 6.9 Presented credentials
+
+> **Note (v0.1+):** the `self_xyz.*` prefixes below are illustrative. The PDP treats all VC type identifiers as opaque strings. Any provider-defined VC type works identically — `custom.over_18`, `gov.verified_human`, etc. Self.xyz is no longer a required dependency of the protocol; credentials are pluggable.
+
+The keys in the table below are example VC type identifiers — they render as plain string comparisons inside Cedar `when { ... }` clauses. Replace them with whatever type strings your chosen VC issuer uses; the semantics are identical.
 
 | Variable | Type | Meaning |
 |---|---|---|
@@ -508,7 +512,7 @@ permit (principal, action in [Action::"read"], resource in Project::"alpha")
 when { principal.reputation_score >= 70 };
 ```
 
-### Pattern: Attribute-gated sharing (Self.xyz)
+### Pattern: Attribute-gated sharing (pluggable VC issuer)
 ```cedar
 permit (principal, action == Action::"share_external", resource)
 when {
