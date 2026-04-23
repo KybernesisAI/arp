@@ -1,0 +1,27 @@
+{
+  "name": "@kybernesis/arp-phase-4-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build": "echo 'no build for acceptance tests' && exit 0"
+  },
+  "dependencies": {
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-consent-ui": "workspace:*",
+    "@kybernesis/arp-pairing": "workspace:*",
+    "@kybernesis/arp-registry": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-runtime": "workspace:*",
+    "@kybernesis/arp-scope-catalog": "workspace:*",
+    "@kybernesis/arp-selfxyz-bridge": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*"
+  },
+  "devDependencies": {
+    "@noble/ed25519": "^2.2.3"
+  }
+}
