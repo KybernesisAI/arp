@@ -1,7 +1,15 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { base64urlEncode } from '@kybernesis/arp-transport/browser';
+import {
+  clearPrincipalKey,
+  exportRecoveryPhrase,
+  getOrCreatePrincipalKey,
+  hasPrincipalKey,
+  type PrincipalKey,
+} from '@/lib/principal-key-browser';
 
 interface Challenge {
   nonce: string;
@@ -9,113 +17,316 @@ interface Challenge {
   expiresAt: number;
 }
 
-export function LoginForm({
-  principalDid,
-  next,
-}: {
-  principalDid: string;
-  next: string;
-}) {
-  const router = useRouter();
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [signature, setSignature] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+type Phase = 'loading' | 'onboard' | 'ready';
 
-  const requestChallenge = useCallback(async () => {
+/**
+ * Browser-held principal-key login. On first visit the form generates an
+ * Ed25519 keypair, shows the did:key identifier + one-time recovery phrase,
+ * and waits for the user to acknowledge they've saved it. On return visits
+ * it reads the stored key, requests a challenge, signs it in-browser, and
+ * exchanges the signature for a session — one click, zero pasting.
+ */
+export function LoginForm({ next }: { next: string }) {
+  const router = useRouter();
+
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [principalKey, setPrincipalKey] = useState<PrincipalKey | null>(null);
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  const [phraseRevealed, setPhraseRevealed] = useState(false);
+  const [phraseAck, setPhraseAck] = useState(false);
+  const [phraseCopied, setPhraseCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const exists = await hasPrincipalKey();
+        if (cancelled) return;
+        if (exists) {
+          const key = await getOrCreatePrincipalKey();
+          if (cancelled) return;
+          setPrincipalKey(key);
+          setPhase('ready');
+        } else {
+          setPhase('onboard');
+        }
+      } catch (err) {
+        if (!cancelled) setError(friendlyError(err));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const generate = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/challenge', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ principalDid }),
-      });
-      if (!res.ok) {
-        throw new Error(`challenge failed: ${res.status} ${await res.text()}`);
-      }
-      const body = (await res.json()) as Challenge;
-      setChallenge(body);
+      const key = await getOrCreatePrincipalKey();
+      const phrase = await exportRecoveryPhrase();
+      setPrincipalKey(key);
+      setRecoveryPhrase(phrase);
     } catch (err) {
-      setError((err as Error).message);
+      setError(friendlyError(err));
     } finally {
       setBusy(false);
     }
-  }, [principalDid]);
+  }, []);
 
-  const verify = useCallback(async () => {
-    if (!challenge) return;
+  const revealPhrase = useCallback(async () => {
+    setError(null);
+    try {
+      if (!recoveryPhrase) {
+        const phrase = await exportRecoveryPhrase();
+        setRecoveryPhrase(phrase);
+      }
+      setPhraseRevealed(true);
+    } catch (err) {
+      setError(friendlyError(err));
+    }
+  }, [recoveryPhrase]);
+
+  const copyPhrase = useCallback(async () => {
+    if (!recoveryPhrase) return;
+    try {
+      await navigator.clipboard.writeText(recoveryPhrase);
+      setPhraseCopied(true);
+      setTimeout(() => setPhraseCopied(false), 2_000);
+    } catch {
+      // Clipboard write can fail (permissions, insecure context). The user
+      // can still select + copy the visible text; no error surfaced.
+    }
+  }, [recoveryPhrase]);
+
+  const signIn = useCallback(async () => {
+    if (!principalKey) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/verify', {
+      const challengeRes = await fetch('/api/auth/challenge', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ principalDid: principalKey.did }),
+      });
+      if (!challengeRes.ok) {
+        throw new Error('Could not start sign-in. Please try again.');
+      }
+      const challenge = (await challengeRes.json()) as Challenge;
+
+      const nonceBytes = new TextEncoder().encode(challenge.nonce);
+      const sigBytes = await principalKey.sign(nonceBytes);
+
+      const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          principalDid: principalKey.did,
           nonce: challenge.nonce,
-          signature: signature.trim(),
+          signature: base64urlEncode(sigBytes),
         }),
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || `verify failed: ${res.status}`);
+      if (!verifyRes.ok) {
+        const body = await verifyRes.json().catch(() => null);
+        const code = (body as { error?: string } | null)?.error;
+        throw new Error(verifyErrorMessage(code, verifyRes.status));
       }
+
       router.push(next);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      setError(friendlyError(err));
     } finally {
       setBusy(false);
     }
-  }, [challenge, signature, next, router]);
+  }, [principalKey, next, router]);
 
-  return (
-    <div className="card max-w-xl space-y-4 text-sm">
-      {!challenge && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={requestChallenge}
-          disabled={busy}
-          data-testid="challenge-btn"
-        >
-          {busy ? 'Requesting…' : 'Request challenge'}
-        </button>
-      )}
-      {challenge && (
-        <>
-          <div>
-            <div className="label">Challenge nonce</div>
-            <code
-              className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
-              data-testid="challenge-nonce"
-            >
-              {challenge.nonce}
-            </code>
-          </div>
-          <div>
-            <label className="label" htmlFor="signature">
-              Signature (base64url)
-            </label>
-            <textarea
-              id="signature"
-              className="input h-28 resize-y"
-              value={signature}
-              onChange={(e) => setSignature(e.target.value)}
-              placeholder="Paste the base64url signature over the nonce"
-              data-testid="signature-input"
-            />
-          </div>
+  const resetIdentity = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await clearPrincipalKey();
+      setPrincipalKey(null);
+      setRecoveryPhrase(null);
+      setPhraseRevealed(false);
+      setPhraseAck(false);
+      setPhase('onboard');
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  if (phase === 'loading') {
+    return (
+      <div className="card max-w-xl space-y-2 text-sm" data-testid="login-loading">
+        <p className="text-arp-muted">Loading…</p>
+      </div>
+    );
+  }
+
+  if (phase === 'onboard') {
+    if (!principalKey) {
+      return (
+        <div className="card max-w-xl space-y-4 text-sm">
+          <p className="text-arp-muted">
+            Your identity is generated in this browser and never leaves it.
+            Click below to create it.
+          </p>
           <button
             type="button"
             className="btn btn-primary"
-            onClick={verify}
-            disabled={busy || signature.trim().length === 0}
-            data-testid="verify-btn"
+            onClick={generate}
+            disabled={busy}
+            data-testid="get-started-btn"
           >
-            {busy ? 'Verifying…' : 'Verify + sign in'}
+            {busy ? 'Generating…' : 'Get started'}
           </button>
-        </>
+          {error && (
+            <div className="text-sm text-arp-danger" data-testid="login-error">
+              {error}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="card max-w-xl space-y-4 text-sm">
+        <div>
+          <div className="label">Your agent-owner identity</div>
+          <code
+            className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
+            data-testid="principal-did"
+          >
+            {principalKey.did}
+          </code>
+        </div>
+        <div className="space-y-2">
+          <div className="label">Recovery phrase</div>
+          <p className="text-arp-muted">
+            Save these 12 words somewhere safe. They are the only way to restore
+            your identity if this browser is cleared. We don&apos;t keep a copy.
+          </p>
+          {!phraseRevealed && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={revealPhrase}
+              data-testid="reveal-phrase-btn"
+            >
+              Reveal recovery phrase
+            </button>
+          )}
+          {phraseRevealed && recoveryPhrase && (
+            <div className="space-y-2">
+              <div
+                className="select-all break-words rounded bg-arp-bg px-3 py-2 font-mono text-xs leading-relaxed"
+                data-testid="recovery-phrase"
+              >
+                {recoveryPhrase}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={copyPhrase}
+                data-testid="copy-phrase-btn"
+              >
+                {phraseCopied ? 'Copied' : 'Copy'}
+              </button>
+              <label className="flex items-center gap-2 text-xs text-arp-muted">
+                <input
+                  type="checkbox"
+                  checked={phraseAck}
+                  onChange={(e) => setPhraseAck(e.target.checked)}
+                  data-testid="phrase-ack"
+                />
+                I&apos;ve saved my recovery phrase.
+              </label>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={signIn}
+          disabled={!phraseAck || busy}
+          data-testid="sign-in-btn"
+        >
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+        {error && (
+          <div className="text-sm text-arp-danger" data-testid="login-error">
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // phase === 'ready'
+  return (
+    <div className="card max-w-xl space-y-4 text-sm">
+      {principalKey && (
+        <div>
+          <div className="label">Signed in as</div>
+          <code
+            className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
+            data-testid="principal-did"
+          >
+            {principalKey.did}
+          </code>
+        </div>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={signIn}
+        disabled={busy}
+        data-testid="sign-in-btn"
+      >
+        {busy ? 'Signing in…' : 'Sign in'}
+      </button>
+      <div className="flex items-center gap-4 text-xs text-arp-muted">
+        {!phraseRevealed && (
+          <button
+            type="button"
+            className="underline"
+            onClick={revealPhrase}
+            data-testid="reveal-phrase-btn"
+          >
+            View recovery phrase
+          </button>
+        )}
+        <button
+          type="button"
+          className="underline"
+          onClick={resetIdentity}
+          data-testid="reset-identity-btn"
+        >
+          Start over with a new identity
+        </button>
+      </div>
+      {phraseRevealed && recoveryPhrase && (
+        <div className="space-y-2">
+          <div
+            className="select-all break-words rounded bg-arp-bg px-3 py-2 font-mono text-xs leading-relaxed"
+            data-testid="recovery-phrase"
+          >
+            {recoveryPhrase}
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={copyPhrase}
+            data-testid="copy-phrase-btn"
+          >
+            {phraseCopied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
       )}
       {error && (
         <div className="text-sm text-arp-danger" data-testid="login-error">
@@ -124,4 +335,32 @@ export function LoginForm({
       )}
     </div>
   );
+}
+
+function friendlyError(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    // Known internal codes mapped to human copy.
+    if (err.message === 'invalid_recovery_phrase') {
+      return 'That recovery phrase isn’t valid. Check spelling and word order.';
+    }
+    return err.message;
+  }
+  return 'Something went wrong.';
+}
+
+function verifyErrorMessage(code: string | undefined, status: number): string {
+  switch (code) {
+    case 'unknown_or_expired_nonce':
+      return 'Your sign-in challenge expired. Try again.';
+    case 'signature_verify_failed':
+      return 'Signature didn’t match. Please try again.';
+    case 'principal_not_registered':
+      return 'This identity isn’t recognised by the server.';
+    case 'invalid_signature':
+      return 'The signature was malformed.';
+    case 'bad_request':
+      return 'Sign-in request was malformed.';
+    default:
+      return `Sign-in failed (status ${status}).`;
+  }
 }
