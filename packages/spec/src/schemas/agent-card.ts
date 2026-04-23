@@ -48,7 +48,9 @@ export const AgentCardSchema = z.object({
   payment: PaymentBlockSchema,
   vc_requirements: z
     .array(z.string())
-    .describe('Peer-counterparty VC type IDs required (e.g. "self_xyz.verified_human")'),
+    .describe(
+      'Peer-counterparty VC type IDs required (e.g. "vc_provider.verified_human"). Opaque strings — the PDP does not interpret them.',
+    ),
   policy: PolicyBlockSchema,
 });
 

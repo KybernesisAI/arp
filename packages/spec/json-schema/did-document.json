@@ -125,7 +125,7 @@
         "did": {
           "type": "string",
           "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
-          "description": "The human principal DID (e.g. did:web:ian.self.xyz)"
+          "description": "The human principal DID (e.g. did:key:z6Mk… or did:web:arp.cloud:u:<uuid>)"
         },
         "representationVC": {
           "type": "string",

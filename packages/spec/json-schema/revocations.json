@@ -85,7 +85,7 @@
         "kid": {
           "type": "string",
           "minLength": 1,
-          "description": "Signing key reference (e.g. \"did:web:ian.self.xyz#key-1\")"
+          "description": "Signing key reference (e.g. \"did:key:z6Mk…#key-1\")"
         },
         "value": {
           "type": "string",
