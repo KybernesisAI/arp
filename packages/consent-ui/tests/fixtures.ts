@@ -272,4 +272,20 @@ export const POLICY_EXAMPLES: ConsentScenario[] = [
       requiredVcs: ['self_xyz.verified_human'],
     },
   },
+  {
+    name: 'pattern-generic-vc-provider',
+    input: {
+      ...DEFAULTS,
+      purpose: 'Generic-provider VC rendering',
+      scopeSelections: [
+        {
+          id: 'files.project.files.read',
+          params: { project_id: 'alpha', max_size_mb: 10 },
+        },
+      ],
+      cedarPolicies: [],
+      obligations: [],
+      requiredVcs: ['custom.verified_human'],
+    },
+  },
 ];

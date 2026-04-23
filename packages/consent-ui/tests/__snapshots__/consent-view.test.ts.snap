@@ -175,8 +175,8 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > exa
     "See event.title, event.attendees, event.description, event.location in any response.",
   ],
   "willProve": [
-    "Over 18",
-    "Verified human",
+    "Self xyz · Over 18",
+    "Self xyz · Verified human",
   ],
 }
 `;
@@ -200,7 +200,7 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > exa
     "See client.name, client.email, client.phone in any response.",
   ],
   "willProve": [
-    "Verified human",
+    "Self xyz · Verified human",
   ],
 }
 `;
@@ -219,8 +219,8 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
   ],
   "willNotBeAbleTo": [],
   "willProve": [
-    "Over 18",
-    "US resident",
+    "Self xyz · Over 18",
+    "Self xyz · Us resident",
   ],
 }
 `;
@@ -243,6 +243,24 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
 }
 `;
 
+exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-generic-vc-provider 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Generic-provider VC rendering.",
+  "risk": "medium",
+  "willBeAbleTo": [
+    "Read files in alpha (up to 10 MB each; excludes items tagged confidential).",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [
+    "Custom · Verified human",
+  ],
+}
+`;
+
 exports[`renderConsentView — worked examples from ARP-policy-examples.md > pattern-no-onward-sharing 1`] = `
 {
   "conditions": [
@@ -259,7 +277,7 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
     "Re-share responses with another agent.",
   ],
   "willProve": [
-    "Verified human",
+    "Self xyz · Verified human",
   ],
 }
 `;
@@ -298,7 +316,7 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
   ],
   "willNotBeAbleTo": [],
   "willProve": [
-    "Verified human",
+    "Self xyz · Verified human",
   ],
 }
 `;
@@ -319,7 +337,7 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
   ],
   "willNotBeAbleTo": [],
   "willProve": [
-    "Verified human",
+    "Self xyz · Verified human",
   ],
 }
 `;
@@ -342,7 +360,7 @@ exports[`renderConsentView — worked examples from ARP-policy-examples.md > pat
   ],
   "willNotBeAbleTo": [],
   "willProve": [
-    "Verified human",
+    "Self xyz · Verified human",
   ],
 }
 `;
