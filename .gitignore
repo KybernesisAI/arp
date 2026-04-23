@@ -49,3 +49,4 @@ logs/
 apps/cloud/.next/
 apps/cloud/out/
 apps/cloud/tsconfig.tsbuildinfo
+.vercel
