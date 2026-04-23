@@ -23,6 +23,13 @@ export interface StartOptions {
   scopeCatalogVersion?: string;
   /** Revocations proxy source URL (optional). */
   revocationsProxyUrl?: string;
+  /** Shared secret gating the runtime's `/admin/*` surface. */
+  adminToken?: string;
+  /**
+   * When set, the runtime's owner-app proxy forwards `/owner/*` and any
+   * request whose Host matches `hostSuffixes` to `target`.
+   */
+  ownerApp?: { target: string; hostSuffixes?: string[] };
 }
 
 export interface StartedRuntime {
@@ -73,6 +80,8 @@ export async function startSidecarRuntime(
     ...(opts.revocationsProxyUrl
       ? { revocationsProxy: { sourceUrl: opts.revocationsProxyUrl } }
       : {}),
+    ...(opts.adminToken ? { adminToken: opts.adminToken } : {}),
+    ...(opts.ownerApp ? { ownerApp: opts.ownerApp } : {}),
   });
 
   const hostname = opts.hostname ?? process.env.ARP_HOST ?? '0.0.0.0';
