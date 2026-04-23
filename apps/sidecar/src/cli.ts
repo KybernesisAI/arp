@@ -6,6 +6,7 @@ import { verifyAuditChain } from '@kybernesis/arp-audit';
 import { bootstrap } from './bootstrap.js';
 import { checkHealth } from './health.js';
 import { log } from './log.js';
+import { spawnOwnerApp, type SpawnedOwnerApp } from './owner-app.js';
 import { startSidecarRuntime } from './runtime.js';
 import { installService, uninstallService } from './service-install.js';
 
@@ -60,12 +61,21 @@ program
   .option('--data-dir <path>', 'persistent data directory', DEFAULT_DATA_DIR)
   .option('--port <number>', 'HTTP port', String(DEFAULT_PORT))
   .option('--host <hostname>', 'bind hostname', '0.0.0.0')
+  .option('--owner-app-dir <path>', 'path to the built owner-app standalone bundle')
+  .option('--owner-app-port <number>', 'local port for the owner-app child process', '3080')
+  .option(
+    '--owner-subdomain <host>',
+    'host suffix for owner-subdomain routing (e.g. "ian.samantha.agent")',
+  )
   .action(
     async (opts: {
       handoff: string;
       dataDir: string;
       port: string;
       host: string;
+      ownerAppDir?: string;
+      ownerAppPort?: string;
+      ownerSubdomain?: string;
     }) => {
       const handoffPath = resolve(opts.handoff);
       if (!existsSync(handoffPath)) fail(`handoff not found: ${handoffPath}`);
@@ -74,15 +84,56 @@ program
 
       try {
         const boot = await bootstrap({ handoffPath, dataDir: opts.dataDir });
+
+        const adminToken = process.env.ARP_ADMIN_TOKEN;
+        let ownerApp: SpawnedOwnerApp | null = null;
+
+        if (opts.ownerAppDir) {
+          if (!adminToken) {
+            fail(
+              'ARP_ADMIN_TOKEN must be set when --owner-app-dir is provided (the owner app uses it to call /admin/*).',
+            );
+          }
+          const ownerPort = Number(opts.ownerAppPort ?? 3080);
+          if (!Number.isFinite(ownerPort) || ownerPort <= 0) {
+            fail(`invalid --owner-app-port: ${opts.ownerAppPort}`);
+          }
+          ownerApp = await spawnOwnerApp({
+            dir: resolve(opts.ownerAppDir),
+            port: ownerPort,
+            adminToken: adminToken!,
+            runtimeUrl: `http://127.0.0.1:${port}`,
+            agentDid: boot.handoff.agent_did,
+            principalDid: boot.handoff.principal_did,
+            ownerAppBaseUrl:
+              process.env.ARP_OWNER_APP_BASE_URL ??
+              deriveOwnerBaseUrl(boot.handoff.agent_did, opts.ownerSubdomain),
+            sessionSecret:
+              process.env.ARP_SESSION_SECRET ??
+              'sidecar-default-session-secret-000000000000',
+          });
+        }
+
         const started = await startSidecarRuntime({
           bootstrap: boot,
           dataDir: opts.dataDir,
           port,
           hostname: opts.host,
+          ...(adminToken ? { adminToken } : {}),
+          ...(ownerApp
+            ? {
+                ownerApp: {
+                  target: ownerApp.url,
+                  ...(opts.ownerSubdomain
+                    ? { hostSuffixes: [opts.ownerSubdomain] }
+                    : {}),
+                },
+              }
+            : {}),
         });
 
         process.stdout.write(
-          `arp-sidecar ready did=${boot.handoff.agent_did} port=${started.port} fp=${boot.tlsFingerprint} handoff_version=${boot.handoff.cert_expires_at}\n`,
+          `arp-sidecar ready did=${boot.handoff.agent_did} port=${started.port} fp=${boot.tlsFingerprint} handoff_version=${boot.handoff.cert_expires_at}${ownerApp ? ` owner_app=${ownerApp.url}` : ''}\n`,
         );
 
         registerSignals(async (signal) => {
@@ -93,12 +144,27 @@ program
           } catch (err) {
             log().error({ err: (err as Error).message }, 'stop failed');
           }
+          if (ownerApp) {
+            try {
+              await ownerApp.stop();
+            } catch (err) {
+              log().error({ err: (err as Error).message }, 'owner-app stop failed');
+            }
+          }
         });
       } catch (err) {
         fail((err as Error).message);
       }
     },
   );
+
+function deriveOwnerBaseUrl(agentDid: string, ownerSubdomain?: string): string {
+  const host = agentDid.startsWith('did:web:')
+    ? agentDid.slice('did:web:'.length)
+    : 'owner.agent';
+  if (ownerSubdomain) return `https://${ownerSubdomain}`;
+  return `https://owner.${host}`;
+}
 
 program
   .command('status')

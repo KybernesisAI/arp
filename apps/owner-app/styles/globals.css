@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  @apply bg-arp-bg text-arp-text;
+  min-height: 100vh;
+}
+
+a {
+  @apply text-arp-accent underline underline-offset-2;
+}
+
+button,
+.btn {
+  @apply inline-flex items-center justify-center rounded-md border border-arp-border bg-arp-surface px-3 py-2 text-sm font-medium text-arp-text transition-colors;
+}
+
+button:hover,
+.btn:hover {
+  @apply border-arp-accent;
+}
+
+button:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.btn-primary {
+  @apply border-arp-accent bg-arp-accent text-arp-bg;
+}
+
+.btn-danger {
+  @apply border-arp-danger text-arp-danger;
+}
+
+.card {
+  @apply rounded-lg border border-arp-border bg-arp-surface p-4;
+}
+
+.input {
+  @apply w-full rounded-md border border-arp-border bg-arp-bg px-3 py-2 text-sm text-arp-text focus:border-arp-accent focus:outline-none;
+}
+
+.label {
+  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-arp-muted;
+}
+
+.pill {
+  @apply inline-flex items-center rounded-full border border-arp-border px-2 py-0.5 text-xs text-arp-muted;
+}
