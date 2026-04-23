@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1.7
+#
+# Samantha reference agent image — layered on top of the ARP sidecar base.
+# Replaces the sidecar's default `cli.js` entrypoint with our custom binary
+# that wires the Samantha dispatch handler into the runtime.
+#
+# Build from the repo root:
+#   docker buildx build -f apps/samantha-reference/Dockerfile.compose \
+#     --build-arg SIDECAR_IMAGE=ghcr.io/kybernesisai/sidecar:0.1 \
+#     -t samantha-reference:0.1 .
+#
+# This image is NOT published in Phase 5 (scope-for-this-run). Phase 5B
+# pushes to a registry once real domains + handoff bundles land.
+
+ARG SIDECAR_IMAGE=ghcr.io/kybernesisai/sidecar:0.1
+
+# ---------- build stage ----------
+FROM node:24-alpine AS build
+WORKDIR /build
+
+RUN apk add --no-cache python3 make g++ \
+  && corepack enable
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json turbo.json ./
+COPY .changeset ./.changeset
+COPY packages ./packages
+COPY apps/sidecar/package.json ./apps/sidecar/
+COPY apps/samantha-reference/package.json ./apps/samantha-reference/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages ./packages
+COPY apps/sidecar ./apps/sidecar
+COPY apps/samantha-reference ./apps/samantha-reference
+
+RUN pnpm --filter '@kybernesis/arp-samantha-reference...' run build
+
+RUN pnpm --filter @kybernesis/arp-samantha-reference deploy --prod --legacy /out
+
+
+# ---------- runtime stage ----------
+FROM node:24-alpine
+WORKDIR /app
+
+RUN apk add --no-cache tini curl \
+  && addgroup -S arp && adduser -S -G arp arp \
+  && mkdir -p /config /data \
+  && chown -R arp:arp /app /config /data
+
+COPY --from=build --chown=arp:arp /out /app
+COPY apps/samantha-reference/fixtures /app/fixtures
+
+USER arp
+
+VOLUME ["/config", "/data"]
+EXPOSE 80 443
+
+ENV NODE_ENV=production \
+    ARP_DATA_DIR=/data \
+    ARP_PORT=443 \
+    ARP_HOST=0.0.0.0
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:${ARP_PORT:-443}/health || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "/app/dist/main.js", "--handoff", "/config/handoff.json", "--data-dir", "/data", "--port", "443", "--host", "0.0.0.0"]

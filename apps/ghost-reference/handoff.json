@@ -1,0 +1,20 @@
+{
+  "agent_did": "did:web:ghost.agent",
+  "principal_did": "did:web:nick.self.xyz",
+  "public_key_multibase": "z-REPLACE-WITH-OUTPUT-OF-fixtures/gen-test-handoff.mjs",
+  "well_known_urls": {
+    "did": "https://ghost.agent/.well-known/did.json",
+    "agent_card": "https://ghost.agent/.well-known/agent-card.json",
+    "arp": "https://ghost.agent/.well-known/arp.json"
+  },
+  "dns_records_published": [
+    "A",
+    "_arp TXT",
+    "_did TXT",
+    "_didcomm TXT",
+    "_revocation TXT",
+    "_principal TXT"
+  ],
+  "cert_expires_at": "2035-01-01T00:00:00Z",
+  "bootstrap_token": "placeholder-rotate-before-use"
+}

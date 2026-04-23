@@ -1,0 +1,14 @@
+{
+  "conn_samantha_demo_alpha": {
+    "alpha": {
+      "README.md": "Project Alpha: internal prototype, demo data only.",
+      "notes.md": "Kickoff 2026-04-30. Stakeholders: demo-only fixture."
+    }
+  },
+  "conn_samantha_demo_beta": {
+    "beta": {
+      "README.md": "Project Beta: separate demo project; must NOT leak into Alpha.",
+      "status.md": "Phase 1 complete. Fixture-only content."
+    }
+  }
+}

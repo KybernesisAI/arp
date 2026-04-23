@@ -1,0 +1,44 @@
+{
+  "name": "@kybernesis/arp-samantha-reference",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reference agent `samantha.agent` — minimal runtime using @kybernesis/arp-runtime directly, per-connection KB, three demo tools.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "arp-samantha-reference": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "fixtures"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo 'samantha-reference tests live in tests/phase-5' && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-registry": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-runtime": "workspace:*",
+    "@kybernesis/arp-sidecar": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-tls": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0"
+  }
+}

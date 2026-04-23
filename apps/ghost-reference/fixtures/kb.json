@@ -1,0 +1,14 @@
+{
+  "conn_ghost_demo_alpha": {
+    "alpha": {
+      "README.md": "Ghost side view of Alpha project collab.",
+      "tasks.md": "Ghost task list fixture."
+    }
+  },
+  "conn_ghost_demo_gamma": {
+    "gamma": {
+      "README.md": "Ghost-owned Project Gamma.",
+      "plan.md": "Gamma rollout plan fixture."
+    }
+  }
+}
