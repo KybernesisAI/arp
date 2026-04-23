@@ -351,7 +351,7 @@ export default function ProjectLandingPage(): React.JSX.Element {
               {
                 version: 'V2.1 TLD INTEGRATION',
                 tag: 'LANDED',
-                body: 'did:key primary principal identity. Self.xyz demoted. Headless v2.1 spec shipped.',
+                body: 'Browser-held primary identity. Terminology sweep. Registrar integration spec v2.1 shipped.',
               },
             ].map((entry) => (
               <li
