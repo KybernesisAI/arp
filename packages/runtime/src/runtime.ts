@@ -766,26 +766,38 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     const graceMs = options.graceMs ?? 5000;
     draining = true;
 
-    // Initial settle period: lets the kernel's TCP accept queue flush any
-    // connections that were mid-handshake when stop() was called, so they
-    // reach the Hono middleware (and thus `inFlight`) before we start
-    // polling for quiescence. Without this, on slower runners (CI) a burst
-    // of fetches fired right before stop() can still be in the backlog when
-    // the first quiet-period check reads `inFlight === 0` and breaks —
-    // causing server.close() to reset those pending sockets (the failure
-    // mode caught by the phase-3 shutdown test on GitHub Actions).
-    // Bounded by graceMs/4 so callers with a tight grace still make forward
-    // progress in the quiescence loop.
+    // Settle period: lets the kernel's TCP accept queue flush connections
+    // that were mid-handshake when stop() was called, so they reach the
+    // Hono middleware (and thus `inFlight`) before we start polling.
+    // Bounded by graceMs/4 so tight graces still make forward progress.
     const deadline = Date.now() + graceMs;
     const settleMs = Math.min(200, Math.max(50, Math.floor(graceMs / 4)));
     await sleep(settleMs);
 
-    // Wait for a 50 ms quiet period with zero in-flight requests, or until
-    // graceMs has elapsed.
+    // Close idle keep-alive TCP connections that aren't actively serving a
+    // request — otherwise they'd keep the getConnections() count above 0
+    // and block the quiescence loop until the deadline. Request-bearing
+    // connections stay open; they drain naturally as their handlers finish.
+    closeIdleServerConnections(server);
+
+    // Quiescence loop: wait until BOTH the application-level in-flight
+    // counter AND the kernel-level TCP connection count reach zero, OR
+    // until graceMs elapses.
+    //
+    // Prior versions used only `inFlight` as the signal. That's an
+    // application-level counter, incremented when a request hits the Hono
+    // middleware. On slower runners (GitHub Actions), a burst of fetches
+    // fired right before stop() can still be in the TCP accept queue when
+    // the quiescence loop first sees `inFlight === 0` and breaks —
+    // server.close() then resets those pending sockets, producing fetch
+    // rejections with status 0 (the failure mode seen in PR #5 and again
+    // after the Phase 7 merge). Tracking getConnections() closes that
+    // window because TCP-level connections count from accept() onward,
+    // before the middleware ever runs.
     while (Date.now() < deadline) {
-      const before = inFlight;
+      const tcpCount = await countServerConnections(server);
+      if (inFlight === 0 && tcpCount === 0) break;
       await sleep(50);
-      if (before === 0 && inFlight === 0) break;
     }
 
     if (server) {
@@ -801,6 +813,26 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
 
   function sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function countServerConnections(srv: unknown): Promise<number> {
+    return new Promise((resolve) => {
+      const s = srv as {
+        getConnections?: (cb: (err: Error | null, n: number) => void) => void;
+      } | null;
+      if (s && typeof s.getConnections === 'function') {
+        s.getConnections((err, n) => resolve(err ? 0 : n));
+      } else {
+        resolve(0);
+      }
+    });
+  }
+
+  function closeIdleServerConnections(srv: unknown): void {
+    const s = srv as { closeIdleConnections?: () => void } | null;
+    if (s && typeof s.closeIdleConnections === 'function') {
+      s.closeIdleConnections();
+    }
   }
 
   function auditSeqTotal(): number {
