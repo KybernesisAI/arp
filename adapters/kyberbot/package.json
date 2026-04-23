@@ -1,0 +1,46 @@
+{
+  "name": "@kybernesis/arp-adapter-kyberbot",
+  "version": "0.1.0",
+  "description": "ARP adapter for KyberBot — wraps a KyberBot instance with the five ARP integration points.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "adapters/kyberbot"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "MIGRATION.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-sdk": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "@types/node": "^22.9.0"
+  }
+}
