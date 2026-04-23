@@ -1,0 +1,28 @@
+{
+  "name": "@kybernesis/arp-adapter-skill",
+  "version": "0.1.0",
+  "description": "Claude Code skill for creating conformance-passing ARP framework adapters. Drop into any Claude Code install and ask 'create an ARP adapter for <framework>'.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/arp-adapter-skill"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "files": [
+    "SKILL",
+    "index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "echo 'arp-adapter-skill: no build required' && exit 0",
+    "test": "node ./tests/skill.test.mjs",
+    "typecheck": "echo 'arp-adapter-skill: no TS sources' && exit 0",
+    "lint": "echo 'arp-adapter-skill: no JS sources to lint' && exit 0"
+  }
+}
