@@ -1,0 +1,9 @@
+.next/
+out/
+playwright-report/
+test-results/
+playwright/.cache/
+*.log
+.env
+.env.local
+.env.*.local
