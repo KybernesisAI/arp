@@ -114,8 +114,8 @@ export default function FeaturesPage(): React.JSX.Element {
             <FeatureCard
               idx="F.06 / 09"
               category="TRANSPORT"
-              title="Signed envelopes"
-              description="DIDComm today, A2A-ready tomorrow via the Transport interface. No runtime change when we swap."
+              title="Signed end-to-end"
+              description="Every message is signed and verifiable. Transport is swappable — no runtime change when the wire format evolves."
               tone="paper"
               icon={<IconShape variant="stripe" color="ink" accent="blue" />}
             />
