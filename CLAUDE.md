@@ -72,9 +72,9 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 4 | Pairing + Owner App (Next.js + admin API) | `docs/ARP-phase-4-pairing-owner-app.md` | ✅ merged (PR #6) |
 | 5 | Reference Agents + Testkit (local scope) | `docs/ARP-phase-5-reference-agents-testkit.md` | ✅ merged (PR #7) |
 | 6 | SDKs + 5 required adapters + authoring CLI + skill | `docs/ARP-phase-6-sdks-adapters.md` | ✅ merged (PR #8) |
-| 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ merged (PR #9) + drain fix (PR #10) |
-| 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | **next** |
-| 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | pending |
+| 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ merged (PR #9) + drain fix (PR #10) + Neon HTTP driver (PR #11) |
+| 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | ✅ scaffold merged (PR #12 monorepo pointer; app at `github.com/KybernesisAI/arp-mobile`) — public launch deferred to Phase 10 |
+| 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | **next** |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
 
