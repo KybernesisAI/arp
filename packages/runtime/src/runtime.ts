@@ -416,20 +416,26 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     const graceMs = options.graceMs ?? 5000;
     draining = true;
 
-    // Wait for a 50 ms quiet period with zero in-flight requests, or until
-    // graceMs has elapsed. This covers two cases:
-    //   1) Lots of in-flight requests at SIGTERM time — we wait for them to
-    //      drain through the Hono middleware.
-    //   2) A burst of fetches fired immediately before stop() was called but
-    //      whose TCP sockets haven't yet reached the middleware — we give
-    //      them up to one polling interval to arrive, then drain normally.
+    // Initial settle period: lets the kernel's TCP accept queue flush any
+    // connections that were mid-handshake when stop() was called, so they
+    // reach the Hono middleware (and thus `inFlight`) before we start
+    // polling for quiescence. Without this, on slower runners (CI) a burst
+    // of fetches fired right before stop() can still be in the backlog when
+    // the first quiet-period check reads `inFlight === 0` and breaks —
+    // causing server.close() to reset those pending sockets (the failure
+    // mode caught by the phase-3 shutdown test on GitHub Actions).
+    // Bounded by graceMs/4 so callers with a tight grace still make forward
+    // progress in the quiescence loop.
     const deadline = Date.now() + graceMs;
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    const settleMs = Math.min(200, Math.max(50, Math.floor(graceMs / 4)));
+    await sleep(settleMs);
+
+    // Wait for a 50 ms quiet period with zero in-flight requests, or until
+    // graceMs has elapsed.
+    while (Date.now() < deadline) {
       const before = inFlight;
       await sleep(50);
       if (before === 0 && inFlight === 0) break;
-      if (Date.now() >= deadline) break;
     }
 
     if (server) {
