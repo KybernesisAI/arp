@@ -15,6 +15,8 @@ export { schema } from './db.js';
 export type { CloudDbClient } from './db.js';
 export { createPgliteDb } from './pglite.js';
 export type { PgliteOptions } from './pglite.js';
+export { createNeonDb } from './neon.js';
+export type { NeonOptions } from './neon.js';
 
 // Re-export table handles for cross-tenant admin queries + migrations.
 export {

@@ -32,6 +32,11 @@
       "import": "./dist/pglite.js",
       "require": "./dist/pglite.cjs"
     },
+    "./neon": {
+      "types": "./dist/neon.d.ts",
+      "import": "./dist/neon.js",
+      "require": "./dist/neon.cjs"
+    },
     "./migrations.sql": "./migrations/0001_init.sql"
   },
   "files": [
@@ -47,6 +52,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.15",
+    "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {
