@@ -14,6 +14,16 @@ dist/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
+# Scope catalog generated artifacts — rebuilt from YAML source on every build.
+packages/scope-catalog/generated/
+
+# Owner-app / Next.js build artifacts + e2e state.
+apps/owner-app/.next/
+apps/owner-app/out/
+apps/owner-app/playwright-report/
+apps/owner-app/test-results/
+apps/owner-app/tests/e2e/principals.json
+
 # Env / secrets (never commit)
 .env
 .env.local
