@@ -75,7 +75,7 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ merged (PR #9) + drain fix (PR #10) + Neon HTTP driver (PR #11) |
 | 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | ✅ scaffold merged (PR #12 monorepo pointer; app at `github.com/KybernesisAI/arp-mobile`) — public launch deferred to Phase 10 |
 | 8.5 | Auth & Identity Shift (Self.xyz demotion + did:key + terminology) | `docs/ARP-phase-8-5-auth-identity-shift.md` | ✅ merged (PR #14) |
-| 8.75 | Brand & Design Scaffold (Swiss / editorial system, three-surface middleware, placeholder pages) | design spec: `docs/ARP-design-system.md` | in progress (branch `phase-8-75-brand-scaffold`) |
+| 8.75 | Brand & Design Scaffold (Swiss / editorial system, three-surface middleware, placeholder pages) | design spec: `docs/ARP-design-system.md` | ✅ merged (PR #17) |
 | 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | **next** |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
