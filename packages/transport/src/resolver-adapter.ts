@@ -23,7 +23,9 @@ export function createResolverAdapter(resolver: Resolver): TransportResolver {
       if (!doc.ok) {
         throw transportError('unknown_peer', `resolveDidWeb failed: ${doc.error.message}`);
       }
-      const svc = doc.value.service.find((s) => s.type === 'DIDCommMessaging');
+      // service[] is optional on DidDocument (did:key documents have none);
+      // agents served over did:web publish DIDCommMessaging here.
+      const svc = doc.value.service?.find((s) => s.type === 'DIDCommMessaging');
       if (!svc) {
         throw transportError('unknown_peer', `${did} has no DIDCommMessaging service`);
       }

@@ -1,12 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { startMockRuntime } from './helpers/mock-runtime.js';
-import {
-  publicKeyHex,
-  signUtf8,
-  TEST_PRINCIPAL_DID,
-} from './helpers/test-keys.js';
 
 const MOCK_PORT = Number(process.env.PLAYWRIGHT_RUNTIME_PORT ?? 3031);
 const ADMIN_TOKEN = process.env.ARP_ADMIN_TOKEN ?? 'e2e-admin';
@@ -14,18 +7,6 @@ const ADMIN_TOKEN = process.env.ARP_ADMIN_TOKEN ?? 'e2e-admin';
 let mock: Awaited<ReturnType<typeof startMockRuntime>> | null = null;
 
 test.beforeAll(async () => {
-  // Write the principals.json the dev server picks up via env var.
-  const dir = resolve(process.cwd(), 'tests', 'e2e');
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    resolve(dir, 'principals.json'),
-    JSON.stringify(
-      { [TEST_PRINCIPAL_DID]: { publicKeyHex: await publicKeyHex() } },
-      null,
-      2,
-    ),
-  );
-
   mock = await startMockRuntime({ port: MOCK_PORT, adminToken: ADMIN_TOKEN });
   mock.addConnection({
     connection_id: 'conn_seeded',
@@ -65,36 +46,75 @@ test.afterAll(async () => {
   await mock?.stop();
 });
 
-test('redirects unauthenticated users to login, then signs them in', async ({
+test.beforeEach(async ({ context }) => {
+  // Ensure each test starts with a fresh, key-less browser so the onboarding
+  // flow triggers — localStorage is per-context.
+  await context.clearCookies();
+});
+
+test('first-visit onboarding: generate → save recovery → sign in', async ({
   page,
 }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/login/);
 
-  await page.getByTestId('challenge-btn').click();
-  const nonce = await page.getByTestId('challenge-nonce').textContent();
-  expect(nonce?.trim().length).toBeGreaterThan(0);
+  // No DID input. No signature textarea.
+  await expect(page.locator('[data-testid="challenge-btn"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid="signature-input"]')).toHaveCount(0);
 
-  const signature = await signUtf8(nonce!.trim());
-  await page.getByTestId('signature-input').fill(signature);
-  await page.getByTestId('verify-btn').click();
+  // Click "Get started" → browser generates a did:key.
+  await page.getByTestId('get-started-btn').click();
+  const principalDid = (await page.getByTestId('principal-did').textContent())?.trim() ?? '';
+  expect(principalDid).toMatch(/^did:key:z/);
+
+  // Reveal + acknowledge the recovery phrase.
+  await page.getByTestId('reveal-phrase-btn').click();
+  const phrase = (await page.getByTestId('recovery-phrase').textContent())?.trim() ?? '';
+  expect(phrase.split(/\s+/).length).toBe(12);
+
+  // The "Sign in" button is disabled until the user checks the ack box.
+  await expect(page.getByTestId('sign-in-btn')).toBeDisabled();
+  await page.getByTestId('phrase-ack').check();
+  await expect(page.getByTestId('sign-in-btn')).toBeEnabled();
+
+  // One click, no pasting.
+  await page.getByTestId('sign-in-btn').click();
 
   await expect(page).toHaveURL('/');
   await expect(page.getByText('Address book')).toBeVisible();
   await expect(page.getByText('Ghost')).toBeVisible();
 });
 
+test('returning visit: single-click sign in', async ({ page }) => {
+  // First visit: onboard + sign in to seed localStorage with a key.
+  await page.goto('/login');
+  await page.getByTestId('get-started-btn').click();
+  await page.getByTestId('reveal-phrase-btn').click();
+  await page.getByTestId('phrase-ack').check();
+  await page.getByTestId('sign-in-btn').click();
+  await expect(page).toHaveURL('/');
+
+  // Clear the session cookie only; keep localStorage → forces login flow
+  // but leaves the principal key in place.
+  await page.context().clearCookies();
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/login/);
+
+  // Returning-user UI: Sign in button is visible immediately, no onboarding.
+  await expect(page.getByTestId('get-started-btn')).toHaveCount(0);
+  await page.getByTestId('sign-in-btn').click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByText('Address book')).toBeVisible();
+});
+
 test('connection detail → audit round-trip', async ({ page }) => {
-  // Reuse the session by going through login again (browser state is
-  // per-test by default).
+  // Onboard + sign in.
   await page.goto('/');
   if (page.url().includes('/login')) {
-    await page.getByTestId('challenge-btn').click();
-    const nonce = (await page.getByTestId('challenge-nonce').textContent())?.trim() ?? '';
-    await page
-      .getByTestId('signature-input')
-      .fill(await signUtf8(nonce));
-    await page.getByTestId('verify-btn').click();
+    await page.getByTestId('get-started-btn').click();
+    await page.getByTestId('reveal-phrase-btn').click();
+    await page.getByTestId('phrase-ack').check();
+    await page.getByTestId('sign-in-btn').click();
     await page.waitForURL('/');
   }
 

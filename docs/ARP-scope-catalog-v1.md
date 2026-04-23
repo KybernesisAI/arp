@@ -32,6 +32,9 @@ obligations_forced: [string]    # obligations always attached (e.g., require_fre
 implies: [string]               # scope IDs automatically included
 conflicts_with: [string]        # scope IDs that cannot coexist
 tier_gate: string               # optional minimum VC requirement (e.g., self_xyz.adult)
+                                # **tier_gate** — a VC type identifier (opaque string). Example values use
+                                # `self_xyz.*` prefixes for historical continuity; any VC provider's type
+                                # strings work. See `ARP-policy-examples.md §6.9`.
 step_up_required: bool          # does granting need fresh principal consent beyond pairing?
 ```
 
@@ -372,7 +375,7 @@ step_up_required: true
 id: credentials.proof.zk.request
 version: 1.0.0
 label: Request ZK proof of an attribute
-description: Peer can ask your agent to present a zero-knowledge proof (via Self.xyz) of a single attribute without revealing the underlying credential.
+description: Peer can ask your agent to present a zero-knowledge proof (via any pluggable VC provider) of a single attribute without revealing the underlying credential.
 category: credentials
 risk: medium
 parameters:
@@ -681,7 +684,7 @@ Ghost WILL NOT be able to:
   ✗ Access any other project, your contacts, or your calendar details
 
 Ghost must prove:
-  • Verified human (via Self.xyz)
+  • Verified human (via attribute VC)
 
 Conditions:
   • Weekdays 09:00–17:00 America/New_York

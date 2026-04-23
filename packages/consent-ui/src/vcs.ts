@@ -1,16 +1,26 @@
 /**
- * Friendly label for a VC type string. v0 ships the Self.xyz set verbatim
- * (see phase 4 Task 3); anything else falls through to the raw id so nothing
- * is silently dropped.
+ * Render a VC type identifier as a human-readable label.
+ *
+ * The v1 renderer is provider-agnostic: it pretty-prints the type id itself
+ * (dots → " · ", underscores → " "). Callers that want curated labels for
+ * specific VC types can pass an `overrides` map to {@link labelForVcWith}.
  */
-const VC_LABELS: Record<string, string> = {
-  'self_xyz.verified_human': 'Verified human',
-  'self_xyz.over_18': 'Over 18',
-  'self_xyz.over_21': 'Over 21',
-  'self_xyz.us_resident': 'US resident',
-  'self_xyz.country': 'Country of residence',
-};
-
 export function labelForVc(vcType: string): string {
-  return VC_LABELS[vcType] ?? vcType;
+  return prettyPrint(vcType);
+}
+
+export function labelForVcWith(
+  vcType: string,
+  overrides: Record<string, string>,
+): string {
+  return overrides[vcType] ?? prettyPrint(vcType);
+}
+
+function prettyPrint(vcType: string): string {
+  return vcType
+    .split('.')
+    .map((segment) => segment.replace(/_/g, ' ').trim())
+    .filter((s) => s.length > 0)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' · ');
 }

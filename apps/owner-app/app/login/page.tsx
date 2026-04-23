@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { env } from '@/lib/env';
 import { getSession } from '@/lib/session';
 import { LoginForm } from './LoginForm';
 
@@ -13,18 +12,18 @@ export default async function LoginPage({
   const session = await getSession();
   if (session) redirect('/');
   const params = await searchParams;
-  const e = env();
 
   return (
     <div>
       <h1 className="mb-4 text-xl font-semibold">Sign in</h1>
       <p className="mb-6 max-w-xl text-sm text-arp-muted">
-        Prove you control <span className="text-arp-text">{e.ARP_PRINCIPAL_DID}</span> by
-        signing a one-time challenge with your Ed25519 principal key. In v0 this is
-        done by pasting a base64url-encoded signature from the ARP CLI or the
-        mobile app; browser-wallet support lands in Phase 8.
+        Your identity is generated securely in this browser as a
+        <code className="mx-1">did:key</code>. On first visit we&apos;ll show
+        you a one-time recovery phrase — save it somewhere safe. After that,
+        signing in is one click: the browser signs the server&apos;s challenge
+        locally.
       </p>
-      <LoginForm principalDid={e.ARP_PRINCIPAL_DID} next={params.next ?? '/'} />
+      <LoginForm next={params.next ?? '/'} />
     </div>
   );
 }

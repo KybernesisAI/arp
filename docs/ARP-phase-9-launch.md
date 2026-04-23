@@ -44,6 +44,12 @@
 - Legal review of ToS / Privacy for ARP Cloud complete
 - Incident-response runbook drafted
 
+**Prerequisites gated on Phase 8.5 merge:**
+- `@kybernesis/arp-selfxyz-bridge` package deleted (removed from workspace).
+- `did:key` support in `@kybernesis/arp-resolver`.
+- Owner-app + cloud-app no-paste onboarding live.
+- `docs/ARP-tld-integration-spec-v2.1.md` delivered to Headless Domains + acknowledged.
+
 ---
 
 ## 3. Repository additions

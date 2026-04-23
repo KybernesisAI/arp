@@ -17,7 +17,6 @@
     "@kybernesis/arp-resolver": "workspace:*",
     "@kybernesis/arp-runtime": "workspace:*",
     "@kybernesis/arp-scope-catalog": "workspace:*",
-    "@kybernesis/arp-selfxyz-bridge": "workspace:*",
     "@kybernesis/arp-spec": "workspace:*",
     "@kybernesis/arp-transport": "workspace:*"
   },

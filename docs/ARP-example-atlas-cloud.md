@@ -30,7 +30,7 @@ Think of it like a Slack client — Slack's servers do all the hard work; the ap
 
 At `https://app.arp.spec`:
 
-1. Sign in with your principal DID (one click if you have a Self.xyz wallet; otherwise it walks you through).
+1. Sign in with your browser-held identity (did:key). New users: click Get Started, save your 12-word recovery phrase.
 2. Paste the `handoff.json` (or it's pre-filled if you came from Headless).
 3. Confirm the agent name and owner binding.
 4. Click "Provision."

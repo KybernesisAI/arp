@@ -19,6 +19,7 @@
 | 6 | **SDKs + Framework Adapters** | `ARP-phase-6-sdks-adapters.md` | 3 | `@kybernesis/arp-sdk`, `arp-sdk` (Python), **required:** OpenClaw + Hermes-Agent + NanoClaw + KyberBot + LangGraph adapters. **Stretch:** CrewAI + MCP |
 | 7 | **ARP Cloud (hosted mode)** | `ARP-phase-7-cloud.md` | 4 | Multi-tenant runtime at `app.arp.spec`, outbound client, billing |
 | 8 | **Mobile Apps** | `ARP-phase-8-mobile.md` | 4 | iOS + Android app, biometric consent, QR pairing, push |
+| 8.5 | **Auth & Identity Shift** (Self.xyz demotion + did:key + terminology) | `ARP-phase-8-5-auth-identity-shift.md` | — | `did:key` resolver support, browser-held principal keys, Self.xyz removed; in flight |
 | 9 | **Headless Integration + Launch** | `ARP-phase-9-launch.md` | 3 | TLD-side registration flow, public beta, docs site |
 
 **Total critical-path: ~26–30 weeks** (phases 1 → 5, plus 9 to launch).
@@ -140,7 +141,7 @@ These are deferred to v0.2+, mentioned in multiple docs, noted here once for ref
 | ARP Cloud infrastructure | ARP team |
 | `.agent` TLD, registrar, hybrid resolver | Headless Domains |
 | HNS protocol itself | Handshake community |
-| Self.xyz VCs | Self.xyz |
+| Optional attribute VCs | any OIDC-style JWKS or VC issuer (pluggable, not required in v1) |
 | x402 protocol | Coinbase / community |
 
 The spec is neutral; everything else is ours or theirs, never blended.

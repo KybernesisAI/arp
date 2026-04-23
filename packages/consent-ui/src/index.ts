@@ -10,5 +10,5 @@
 export { renderConsentView, renderProposalConsent } from './render.js';
 export { renderScopeConsentText } from './scope-render.js';
 export { renderObligations, type ObligationRenderResult } from './obligations.js';
-export { labelForVc } from './vcs.js';
+export { labelForVc, labelForVcWith } from './vcs.js';
 export type { ConsentView, RenderConsentInput, RiskTier } from './types.js';

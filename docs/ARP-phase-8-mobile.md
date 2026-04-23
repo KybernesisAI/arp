@@ -46,6 +46,8 @@
 - Firebase project for FCM (Android pushes)
 - APNs cert/key configured
 
+**Identity method for mobile (Phase 8.5):** the mobile app uses the same `did:key` browser-held approach as the web apps. The 32-byte Ed25519 private key lives in the device's secure enclave (iOS Keychain Services, Android Keystore). Biometric-gated signing (Face ID / Android biometrics) is layered on — it is the gate for decrypting / using the key, not a separate identity primitive. Passkey / WebAuthn integration is explicitly deferred to Phase 10 (public mobile launch) when iOS/Android keystore APIs are wired properly.
+
 ---
 
 ## 3. Repository
@@ -139,9 +141,8 @@ arp-mobile/
 1. `(app)/agent/[did]/scan.tsx`: camera view via `expo-camera`
 2. On valid QR decode → parse invitation → navigate to `(app)/agent/[did]/pair`
 3. Pair screen renders consent view via `@kybernesis/arp-consent-ui`
-4. "Prove with Self.xyz" button opens the Self.xyz mobile SDK (or universal link)
-5. On approval, biometric prompt → sign the Connection Token → post to cloud
-6. Success animation + return to connections list
+4. On approval, biometric prompt → sign the Connection Token → post to cloud
+5. Success animation + return to connections list
 
 **Acceptance:** end-to-end QR pairing works on real device against reference agent.
 
@@ -247,7 +248,6 @@ eas build --platform all --profile preview
 
 ## 9. Common pitfalls
 
-- **Expo + Self.xyz native SDK:** if Self.xyz requires native modules not in Expo's default set, you'll need EAS Development Builds. Plan for that.
 - **QR scanner permissions:** iOS + Android both require camera permission prompts before first use. Handle the "denied" state gracefully.
 - **Background WebSocket is hard on mobile.** We don't keep a WS open in the app — push handles the "wake me up" part, and the app pulls state on foreground.
 - **Keychain sync iCloud can leak keys across devices unintentionally.** Use `kSecAttrSynchronizable: false`.

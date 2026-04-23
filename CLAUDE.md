@@ -9,7 +9,7 @@
 
 ## 1. What ARP is
 
-ARP is the communication + permissions layer for agent-to-agent interaction, sitting on top of Handshake `.agent` domains + Self.xyz verifiable credentials. It's a **protocol + reference implementation**, not a product. The seven-layer stack is in `docs/ARP-architecture.md`. Read that before architectural decisions.
+ARP is the communication + permissions layer for agent-to-agent interaction, sitting on top of Handshake `.agent` domains + method-agnostic principal identity (did:key default for browser-held owner keys; did:web for sovereign or cloud-managed principals). It's a **protocol + reference implementation**, not a product. The seven-layer stack is in `docs/ARP-architecture.md`. Read that before architectural decisions.
 
 The team: **Ian Borders** is the human operator (Kybernesis founder, builder of KyberBot). Headless Domains operates the `.agent` TLD on their side in parallel. Claude Code is the primary build agent.
 
@@ -74,7 +74,8 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 6 | SDKs + 5 required adapters + authoring CLI + skill | `docs/ARP-phase-6-sdks-adapters.md` | ✅ merged (PR #8) |
 | 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ merged (PR #9) + drain fix (PR #10) + Neon HTTP driver (PR #11) |
 | 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | ✅ scaffold merged (PR #12 monorepo pointer; app at `github.com/KybernesisAI/arp-mobile`) — public launch deferred to Phase 10 |
-| 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | **next** |
+| 8.5 | Auth & Identity Shift (Self.xyz demotion + did:key + terminology) | `docs/ARP-phase-8-5-auth-identity-shift.md` | **in flight** on branch `phase-8-5-auth-identity-shift` |
+| 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | pending (gated on Phase 8.5 merge) |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
 
@@ -138,6 +139,7 @@ Risk areas to spot-check per phase (look at these specifically, don't trust "don
 - **Phase 6:** adapter size budgets, DIDComm isolation still holds, each required adapter's conformance test invokes `runAudit` + asserts 8/8, LangGraph uses real `@langchain/langgraph`
 - **Phase 7:** tenant isolation (no cross-tenant query ever, adversarial test passes 5/5), WebSocket reconnect after network drop (100 msgs × kill-at-50 regression green), Stripe webhook idempotency via `stripe_events` PK dedup, DIDComm isolation holds (cloud-runtime verifies envelopes via `@kybernesis/arp-transport` only), cloud-client has zero `@kybernesis/arp-*` runtime deps (stays user-installable footprint tiny)
 - **Phase 8:** keychain key persistence, biometric gates fire on `critical` scopes, push tokens rotate correctly
+- **Phase 8.5:** `grep -rn "selfxyz" --include="*.ts" packages/ apps/ adapters/` returns empty; `@kybernesis/arp-resolver` exposes `resolveDid` + `parseDidKey`; owner-app + cloud-app onboarding compile without importing `@kybernesis/arp-transport` from the root (client code must use `@kybernesis/arp-transport/browser`); did:key signing round-trips through `@kybernesis/arp-pairing::verifyBytes`; `DidDocumentSchema` accepts did:key documents (service + principal optional); Headless gets `docs/ARP-tld-integration-spec-v2.1.md`.
 - **Phase 9:** all `@kybernesis/*` packages at `1.0.0` on `latest`, ghcr image signed + tagged, app store builds submitted
 
 ## 8. What to do when you find a gap in review
@@ -256,8 +258,10 @@ bash tests/phase-3/atlas-smoke.sh
 - **Adapter structural types (Phase 6 conservative call #1)** — KyberBot / OpenClaw / Hermes-Agent / NanoClaw use `*Like` structural projections of their public APIs rather than real package deps. Real wiring validates at Phase 9 when the user installs each framework alongside the adapter. Low risk — docs are public — but worth re-validating at Phase 9 prep.
 - **Python `arp-sdk` lives at `python/arp-sdk/` in-tree for now.** Splits to a separate `arp-sdk-python` repo at Phase 9 publish time. v0.1.0 ships the full public API + obligation engine; Cedar-WASM + DIDComm transport are stubbed for v1.1.
 - **PGlite-only for apps/cloud + apps/cloud-gateway in v0.** Real Postgres driver wiring (node-postgres + drizzle) lands at Phase 7 production deploy prep. Today everything runs against an in-process PGlite WASM database — fine for dev + tests, but not for durability.
-- **`ARP_CLOUD_PRINCIPAL_FIXTURES` env-var-based principal key store in apps/cloud.** For v0 the cloud app resolves principal DID → pubkey from a semicolon-delimited env var. Real did:web / did:key resolution goes through `@kybernesis/arp-resolver` at Phase 9 prep.
+- **`ARP_CLOUD_PRINCIPAL_FIXTURES` env-var-based principal key store in apps/cloud.** For v0 the cloud app resolved principal DID → pubkey from a semicolon-delimited env var. Phase 8.5 added inline `did:key:` decoding (no external resolution needed — the key is in the DID itself); the fixture path is retained for dev/test. Phase 9 prep can delete the fixture path.
 - **WebSocket session registry is in-process.** A single cloud-gateway node owns all WS sessions. For multi-node deployments you'd swap `packages/cloud-runtime/src/sessions.ts` for a Redis pub/sub broker. v0.2 ticket; not blocking for single-region deployment.
+- **Principal-key UX is browser-held did:key in v1 (Phase 8.5).** Passkey / WebAuthn, magic-link email, and server-held KMS-wrapped principal keys are explicitly Phase 9+ consumer-UX polish. Recovery = 12-word BIP-39-style phrase the user saves at signup.
+- **Client code must import browser helpers from `@kybernesis/arp-transport/browser`**, not from the root `@kybernesis/arp-transport` entry — the root pulls in `better-sqlite3` + `node:fs` (mailbox + keystore) and Turbopack cannot bundle them for the browser. Added Phase 8.5.
 
 ## 15. How to resume after context compaction
 
@@ -272,4 +276,4 @@ If you are a continuing Claude session and your context window just compacted:
 
 ---
 
-*Last updated on `phase-7-cloud` branch after Phase 7 acceptance gates passed (2026-04-23). Update the phase status table in §5 and `docs/ARP-session-handoff.md` after the Phase 7 PR merges.*
+*Last updated on `phase-8-5-auth-identity-shift` branch after Phase 8.5 acceptance gates passed (2026-04-24). Update the phase status table in §5 and `docs/ARP-session-handoff.md` after the Phase 8.5 PR merges.*

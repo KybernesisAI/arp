@@ -4,7 +4,21 @@ import { z } from 'zod';
 import { issueChallenge } from '@/lib/challenge-store';
 import { configuredPrincipalDid } from '@/lib/principal-keys';
 
-const Body = z.object({ principalDid: z.string().min(1).optional() });
+/**
+ * Accepts any syntactically valid DID as the principal (did:key, did:web,
+ * etc.). Issues a nonce bound to that DID for 5 minutes. The /verify route
+ * is the integrity point — it decodes did:key pubkeys inline and falls back
+ * to the fixture `principals.json` table for legacy DIDs.
+ */
+const DID_REGEX = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
+
+const Body = z.object({
+  principalDid: z
+    .string()
+    .min(1)
+    .regex(DID_REGEX, 'principalDid must be a syntactically valid DID')
+    .optional(),
+});
 
 export const runtime = 'nodejs';
 

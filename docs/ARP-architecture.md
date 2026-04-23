@@ -1,12 +1,12 @@
 # Agent Relationship Protocol (ARP)
 
-A communication and permissions protocol for agent-to-agent interaction, built on top of the identity layer provided by Handshake `.agent` domains and Self.xyz verifiable credentials.
+A communication and permissions protocol for agent-to-agent interaction, built on top of the identity layer provided by Handshake `.agent` domains and method-agnostic principal DIDs (did:key default, did:web available for sovereign hosting).
 
 ---
 
 ## One-sentence pitch
 
-> A Connection-first, capability-scoped, per-purpose communication protocol that uses Handshake for sovereign names, DIDs + Self.xyz for verifiable identity, Cedar + UCAN for human-readable permissions, and DIDComm for private messaging — letting any two people pair their agents with the precision of an OAuth consent screen and the sovereignty of owning their own DNS.
+> A Connection-first, capability-scoped, per-purpose communication protocol that uses Handshake for sovereign names, DIDs for verifiable identity, Cedar + UCAN for human-readable permissions, and DIDComm for private messaging — letting any two people pair their agents with the precision of an OAuth consent screen and the sovereignty of owning their own DNS.
 
 ---
 
@@ -22,7 +22,7 @@ An agent is not a *child of* its owner — it is a sovereign entity that *declar
 - **DID:** the agent's DID (`did:web:samantha.agent`) is the primary identifier; the owner's DID is referenced as a `principal` attribute inside the DID document.
 - **Transferability:** ownership can change without a rename. The owner subdomain rewrites; the agent's identity, keys, and pending connections persist.
 - **Multi-principal support:** an agent can declare multiple principals (e.g., a shared team agent) by publishing multiple Representation VCs — impossible if the owner were encoded as a parent.
-- **Trust signaling:** counterparties never infer trust from the name hierarchy. They resolve the DID document, verify the Representation VC, and check Self.xyz attestations. The name is a label; the attributes are the truth.
+- **Trust signaling:** counterparties never infer trust from the name hierarchy. They resolve the DID document, verify the Representation VC, and check any presented attribute credentials. The name is a label; the attributes are the truth.
 - **Revocation symmetry:** just as the owner can revoke the agent's permissions, the agent's identity outlives any single owner. The keys, the audit log, the connection history all belong to the agent, not the human.
 
 If you ever find yourself writing code that assumes "the agent belongs to a user, so the user owns the agent's data/keys/connections," stop — you've violated this principle. The agent *represents* the owner; it is not *owned by* the owner in a hierarchical sense.
@@ -66,7 +66,7 @@ ghost.agent                   ← another agent
 ├───────────────────────────────────────────────────────────────┤
 │ 2. Pairing            UCAN/Biscuit envelope + Cedar policies  │
 ├───────────────────────────────────────────────────────────────┤
-│ 1. Identity           DIDs + W3C VCs + Self.xyz ZK proofs     │
+│ 1. Identity           DIDs (did:key default, did:web hosted)  │
 ├───────────────────────────────────────────────────────────────┤
 │ 0. Naming             Handshake .agent → agent card + DID doc │
 └───────────────────────────────────────────────────────────────┘
@@ -84,31 +84,40 @@ Each agent owns an apex `.agent` domain via Headless Domains. The HNS record pub
 
 **Why it works:** We already own the `.agent` TLD. No ICANN, no CA, no platform can revoke a name. HNS is DNS-compatible, so existing HTTP libraries "just work" — no custom resolver required for the prototype.
 
-### Layer 1 — Identity (DIDs + Self.xyz)
+### Layer 1 — Identity (DIDs)
+
+Every agent and every owner has an Ed25519 keypair. The public key is published at a stable address (an HTTPS URL or the DID itself); verifiers fetch it and check signatures. No blockchain, no wallet, no third-party identity provider is required.
+
+Two DID methods are supported in v1:
+
+- **`did:web:<host>`** — the public key lives in a JSON document at `https://<host>/.well-known/did.json`. This is the same pattern as OpenID Connect's JWKS discovery. Used for agents (stable-domain identity) and for ARP Cloud-managed principals.
+- **`did:key:<base58btc>`** — the public key is encoded directly inside the DID string. No document to fetch. Used as the default for browser-generated owner identities.
+
+DIDs are a W3C standard for decentralised identifiers; ARP uses the two methods above, no others in v1.
 
 - **Agent DID:** `did:web:samantha.agent` resolves to a DID document listing the agent's keys and its principal.
-- **Principal DID:** Each human has their own DID (e.g., `did:web:ian.self.xyz`), separate from any agent they own.
+- **Principal DID:** Each human has their own DID (e.g., `did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp`), separate from any agent they own.
 - **Representation VC:** Published at `ian.samantha.agent/.well-known/representation.jwt`, signed by the owner's DID, asserting "samantha.agent acts for me, with these limits, until date X." Referenced from the agent's DID document.
-- **Attribute VCs from Self.xyz:** The owner's Self.xyz credentials sit in their VC wallet — proofs of age, citizenship, employment, etc. Presented selectively during pairing ("prove over 18, prove US resident, don't reveal DOB or address").
+- **Attribute VCs (optional, pluggable):** owners may hold credentials issued by any VC provider — proofs of age, citizenship, employment, etc. Presented selectively during pairing ("prove over 18, prove US resident, don't reveal DOB or address"). Provider choice is not baked into the protocol.
 
 **Example DID document for `did:web:samantha.agent`:**
 ```json
 {
   "id": "did:web:samantha.agent",
-  "controller": "did:web:ian.self.xyz",
+  "controller": "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
   "verificationMethod": [...],
   "service": [
     { "type": "DIDCommMessaging", "serviceEndpoint": "https://samantha.agent/didcomm" },
     { "type": "AgentCard",        "serviceEndpoint": "https://samantha.agent/.well-known/agent-card.json" }
   ],
   "principal": {
-    "did": "did:web:ian.self.xyz",
+    "did": "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
     "representationVC": "https://ian.samantha.agent/.well-known/representation.jwt"
   }
 }
 ```
 
-**Why it works:** DIDs are a stable W3C standard. Self.xyz handles the hardest part (ZK proofs over government IDs) so we don't build a custody product. The agent↔principal binding is a plain signed credential — verifiable by anyone, revocable by the owner in one record update.
+**Why it works:** DIDs are a stable W3C standard. Public-key discovery is either directly embedded in the DID (did:key) or fetched from a well-known HTTPS URL (did:web) — both are simple and widely implemented. The agent↔principal binding is a plain signed credential — verifiable by anyone, revocable by the owner in one record update.
 
 ### Layer 2 — Pairing (Connection Tokens)
 
@@ -118,12 +127,12 @@ The "KYA handshake" produces a signed **Connection Token**. One token per **purp
 {
   "connection_id": "conn_7a3f...",
   "label": "Project Alpha with Nick",
-  "issuer":  "did:web:ian.self.xyz",
+  "issuer":  "did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp",
   "subject": "did:web:samantha.agent",
   "audience":"did:web:ghost.agent",
   "purpose": "project:alpha",
   "cedar_policies": ["permit(...) when {...}"],
-  "required_vcs": ["self.xyz/over-18", "self.xyz/us-resident"],
+  "required_vcs": [],
   "counterparty_vcs_presented": ["hash1", "hash2"],
   "expires": "2026-10-22T00:00:00Z",
   "revocation": "https://ian.samantha.agent/revoke/conn_7a3f",
@@ -136,9 +145,11 @@ The "KYA handshake" produces a signed **Connection Token**. One token per **purp
 }
 ```
 
+`required_vcs` is a list of opaque VC type identifiers. In v1, the scope catalogue ships examples (prefixed `self_xyz.*` for historical reasons) but any provider can issue VCs; the PDP treats them as strings.
+
 Mutually signed. Wrapped in a UCAN or Biscuit envelope so it can be attenuated and chain-verified offline.
 
-**Why it works:** UCAN/Biscuit solve offline verification and delegation chains; Cedar handles the fine-grained semantics. Neither is novel — the novelty is binding them to an HNS-resolvable DID and Self.xyz VCs.
+**Why it works:** UCAN/Biscuit solve offline verification and delegation chains; Cedar handles the fine-grained semantics. Neither is novel — the novelty is binding them to an HNS-resolvable DID and a pluggable set of attribute credentials.
 
 ### Layer 3 — Transport (DIDComm v2)
 
@@ -268,7 +279,7 @@ The full taxonomy the scope catalog should cover:
 2. **Action scope** — read / write / list / derive-only / share-onward
 3. **Temporal** — time windows, expiration, rate limits
 4. **Contextual** — stated purpose, request origin, network
-5. **Identity-gated (Self.xyz)** — "only share with agents whose principal ZK-proved age 18+" or "proved US residency"
+5. **Identity-gated (pluggable VC issuer)** — "only share with agents whose principal presented an 18+ attribute credential" or "proved US residency" (VC provider is not fixed by the protocol)
 6. **Economic** — x402 spending caps per txn / per day / per counterparty
 7. **Redaction & derivation** — return aggregates only, auto-strip SSNs, summaries-not-raw
 8. **Chain-of-custody ("sticky" policies)** — downstream re-sharing forbidden, must delete after N days, must write to audit log
@@ -372,7 +383,7 @@ Owner taps revoke → revocation list updated on HNS record or `/revocations` en
 
 ## Why this works — five defensible claims
 
-1. **Every layer uses something already battle-tested.** HNS works. DIDs work. Cedar is formally verified. UCAN/Biscuit have production implementations. DIDComm v2 is specified with real libraries. Self.xyz is a shipping product. x402 is gaining adoption. We're not betting on any single new primitive surviving; we're composing survivors.
+1. **Every layer uses something already battle-tested.** HNS works. DIDs work. Cedar is formally verified. UCAN/Biscuit have production implementations. DIDComm v2 is specified with real libraries. x402 is gaining adoption. We're not betting on any single new primitive surviving; we're composing survivors.
 
 2. **The `Connection` as the unit of design prevents the cross-context leaks that kill multi-agent systems.** Most designs authorize by peer identity, which collapses the moment one human has multiple contexts with another. Per-connection tokens + per-connection memory + per-connection audit isolates purposes the way the real world actually works.
 
@@ -394,7 +405,7 @@ Owner taps revoke → revocation list updated on HNS record or `/revocations` en
 | 3 | 2–3 | DIDComm transport + PDP integration. Messages flow, policies enforced. |
 | 4 | 2 | Per-connection memory isolation + egress filter. (Do this before adding more scope — retrofitting is painful.) |
 | 5 | 1–2 | Revocation + audit log. Tamper-evident chain, revocation distribution. |
-| 6 | 1–2 | Self.xyz VC presentation during pairing. |
+| 6 | 1–2 | Attribute VC presentation during pairing (pluggable issuer). |
 | 7 | 1–2 | x402 integration + spend caps in Cedar. |
 | 8 | ongoing | Scope-catalog growth, consent-UX polish, agent-framework SDKs (LangGraph, CrewAI adapters). |
 

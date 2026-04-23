@@ -1,5 +1,7 @@
 # ARP × Headless Domains — Parallel Build Brief
 
+> **Update 2026-04-24 (Phase 8.5):** Self.xyz prompts have been removed from both Setup ARP flows. The authoritative amendment is `ARP-tld-integration-spec-v2.1.md`. If your in-flight implementation includes a Self.xyz sign-in widget, the migration is three small UX edits — see v2.1 §8.
+
 **Reader:** Headless Domains engineering (human + their Claude Code / AI agent).
 **Purpose:** executable plan for building the TLD-side ARP integration on Headless's side *in parallel with* the ARP core team's remaining phases. You can start today; nothing in this doc waits on us.
 **Authoritative spec:** `ARP-tld-integration-spec-v2.md` in the ARP repo — that's the contract. This doc is the executable plan for implementing that contract.
@@ -49,7 +51,10 @@ Flow:
 2. Browser-side: generate an Ed25519 keypair with `@noble/ed25519`. Store the public key; the private key goes into the user's browser wallet (or — if no wallet — prompt them to save it as a file they'll later drop into the sidecar's data dir).
 3. Headless backend: call our `@kybernesis/arp-templates` to build a default DID doc, agent card, and `arp.json`. Host them at `https://<domain>/.well-known/did.json`, `agent-card.json`, `arp.json` (or delegate to the user's sidecar once running).
 4. Headless backend: publish the four DNS TXT records per `ARP-tld-integration-spec-v2.md §5.1`.
-5. Collect the owner's principal DID (usually `did:web:<username>.self.xyz`). Prompt for Self.xyz sign-in if needed.
+5. Collect the owner's principal DID via the two-option chooser from `ARP-tld-integration-spec-v2.1.md §4`:
+   - **Option A (recommended):** "Use ARP Cloud account" — redirect to `arp.cloud/onboard?domain=<sld>&registrar=headless&callback=<url>`. ARP Cloud returns a principal DID + signed representation JWT via your callback.
+   - **Option B (advanced):** "Generate now" — in-browser Ed25519 keypair generation (`@noble/ed25519`), private key downloads as a recovery file, principal DID is `did:key:z...`. User must confirm "I've saved my recovery phrase" before continuing.
+   Do not prompt for Self.xyz sign-in.
 6. Create the owner subdomain (`<owner>.<domain>`) and publish the signed `representation.jwt`.
 7. Emit a **handoff bundle** (see §5) and give the user two download options:
    - **Download handoff.json** — user drops it into `~/<agent>/handoff.json` and runs the sidecar docker command
@@ -66,7 +71,7 @@ Flow:
 3. Headless backend: same DID doc / agent card / `arp.json` generation.
 4. Headless backend: same DNS records, but point the domain's A record at `arp.cloud`'s ingress IP (we publish a stable IP + AAAA pair for this).
 5. Headless backend: publish the well-known files AT `arp.cloud/agents/<did>/...` via our provisioning API (available once our Phase 7 ships — stub until then).
-6. Collect the principal DID via Self.xyz.
+6. Redirect the user to `arp.cloud/onboard?domain=<sld>&registrar=headless` immediately after step 5. ARP Cloud onboards the user (browser-held did:key), creates the tenant, and calls back to your `POST /api/v1/arp/domains/<sld>/bind-principal` endpoint with the principal DID, public key multibase, and signed representation JWT. You then publish the `_principal` TXT record and host the representation JWT per §5.2 + §6.4 of the base spec.
 7. Emit the handoff bundle + **redirect the user to `https://app.arp.spec/onboard?handoff=<b64>`** where they complete their account and install the cloud client locally.
 8. Mark the domain state = `arp_cloud_provisioned`. We take over health monitoring once the user's cloud client connects.
 

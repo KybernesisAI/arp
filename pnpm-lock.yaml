@@ -160,6 +160,9 @@ importers:
       '@noble/ed25519':
         specifier: ^2.2.3
         version: 2.3.0
+      '@scure/bip39':
+        specifier: ^1.6.0
+        version: 1.6.0
       next:
         specifier: ^16.2.0
         version: 16.2.4(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -304,9 +307,6 @@ importers:
       '@kybernesis/arp-scope-catalog':
         specifier: workspace:*
         version: link:../../packages/scope-catalog
-      '@kybernesis/arp-selfxyz-bridge':
-        specifier: workspace:*
-        version: link:../../packages/selfxyz-bridge
       '@kybernesis/arp-spec':
         specifier: workspace:*
         version: link:../../packages/spec
@@ -316,6 +316,9 @@ importers:
       '@noble/ed25519':
         specifier: ^2.2.3
         version: 2.3.0
+      '@scure/bip39':
+        specifier: ^1.6.0
+        version: 1.6.0
       next:
         specifier: ^16.2.0
         version: 16.2.4(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -711,6 +714,10 @@ importers:
       zod:
         specifier: ^3.23.8
         version: 3.25.76
+    devDependencies:
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../resolver
 
   packages/pdp:
     dependencies:
@@ -742,6 +749,10 @@ importers:
       zod:
         specifier: ^3.23.8
         version: 3.25.76
+    devDependencies:
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
 
   packages/runtime:
     dependencies:
@@ -829,12 +840,6 @@ importers:
       '@types/node':
         specifier: ^22.9.0
         version: 22.19.17
-
-  packages/selfxyz-bridge:
-    dependencies:
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
 
   packages/spec:
     dependencies:
@@ -1030,9 +1035,6 @@ importers:
       '@kybernesis/arp-scope-catalog':
         specifier: workspace:*
         version: link:../../packages/scope-catalog
-      '@kybernesis/arp-selfxyz-bridge':
-        specifier: workspace:*
-        version: link:../../packages/selfxyz-bridge
       '@kybernesis/arp-spec':
         specifier: workspace:*
         version: link:../../packages/spec
@@ -1873,6 +1875,10 @@ packages:
   '@noble/ed25519@2.3.0':
     resolution: {integrity: sha512-M7dvXL2B92/M7dw9+gzuydL8qn/jiqNHaoR3Q+cb1q1GHV7uwE17WCyFMG+Y+TZb5izcaXk5TdJRrDUxHXL78A==}
 
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -2078,6 +2084,12 @@ packages:
 
   '@rushstack/eslint-patch@1.16.1':
     resolution: {integrity: sha512-TvZbIpeKqGQQ7X0zSCvPH9riMSFQFSggnfBjFZ1mEoILW+UuXCKwOoPcgjMwiUtRqFZ8jWhPJc4um14vC6I4ag==}
+
+  '@scure/base@1.2.6':
+    resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
+
+  '@scure/bip39@1.6.0':
+    resolution: {integrity: sha512-+lF0BbLiJNwVlev4eKelw1WWLaiKXw7sSl8T6FvBlWkdX+94aGJ4o8XjUdlyhTCjd8c+B3KT3JfS8P0bLRNU6A==}
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
@@ -5199,6 +5211,8 @@ snapshots:
 
   '@noble/ed25519@2.3.0': {}
 
+  '@noble/hashes@1.8.0': {}
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -5390,6 +5404,13 @@ snapshots:
   '@rtsao/scc@1.1.0': {}
 
   '@rushstack/eslint-patch@1.16.1': {}
+
+  '@scure/base@1.2.6': {}
+
+  '@scure/bip39@1.6.0':
+    dependencies:
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.6
 
   '@swc/helpers@0.5.15':
     dependencies:

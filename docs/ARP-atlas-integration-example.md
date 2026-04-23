@@ -234,7 +234,7 @@ Samantha (Ian's CEO agent) wants operational reports from Atlas. The pairing:
   - `work.reports.summary` (period: weekly)
   - `tools.invoke.read` (allowlist: `[skill.health-check, skill.check-posthog-signups, skill.heartbeat-task]`)
   - `files.project.files.summarize` (project: `brain.reports`, max_output_words: 500)
-- **Required VCs:** `self_xyz.verified_human`, `self_xyz.same_principal` (both agents belong to Ian)
+- **Required VCs:** `example.verified_human`, `example.same_principal` (illustrative; any provider) (both agents belong to Ian)
 - **Forbid tags:** `credentials`, `pii`, `financial`, `owner-only`
 - **Obligations:**
   - `summarize_only` on any memory/DB read
@@ -275,7 +275,7 @@ Run through these in order to validate the integration:
 ### First peer pairing (Samantha ↔ Atlas)
 - [ ] Generate pairing invitation from Samantha's owner app
 - [ ] Accept on Atlas's owner app (`https://ian.atlas.agent` or `ian.atlas.agent.hns.to`)
-- [ ] VC presentation completes (Self.xyz staging ok for v0 test)
+- [ ] VC presentation completes (any pluggable VC provider; generic presentation test in `@kybernesis/arp-testkit`).
 - [ ] Connection Token stored on both sides
 - [ ] `npx @kybernesis/arp-testkit audit atlas.agent` returns 8/8 green
 

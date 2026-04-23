@@ -5,7 +5,8 @@ import { issueChallenge } from '@/lib/challenge-store';
 
 export const runtime = 'nodejs';
 
-const Body = z.object({ principalDid: z.string().min(1) });
+const DID_REGEX = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
+const Body = z.object({ principalDid: z.string().regex(DID_REGEX) });
 
 export async function POST(req: Request): Promise<NextResponse> {
   const parsed = Body.safeParse(await req.json().catch(() => ({})));

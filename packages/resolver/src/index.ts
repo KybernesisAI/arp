@@ -1,9 +1,10 @@
 /**
- * @kybernesis/arp-resolver — HNS DoH + did:web resolution with LRU cache.
+ * @kybernesis/arp-resolver — HNS DoH + did:web + did:key resolution with LRU cache.
  *
  * Exports:
  *   - resolveHns(name)        — DoH against hnsdoh.com (or local hnsd)
  *   - resolveDidWeb(did)      — did:web resolution, HNS-aware for `.agent`
+ *   - resolveDid(did)         — method-agnostic dispatch (did:web | did:key)
  *   - createResolver(opts)    — factory with injectable DoH client + cache
  *
  * No runtime dependency on DIDComm, Cedar, SQLite, etc. — those live in
@@ -38,6 +39,11 @@ export {
   fetchAndParseDidDocument,
   type FetchDidDocOptions,
 } from './did-web.js';
+export {
+  parseDidKey,
+  didKeyToDidDocument,
+  ed25519PublicKeyToDidKey,
+} from './did-key.js';
 export { resolverError, type ResolverError, type ResolverErrorCode } from './errors.js';
 export { LruCache, type LruCacheOptions } from './lru.js';
 

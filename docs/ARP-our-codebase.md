@@ -69,7 +69,6 @@ arp/ (our repo — public, we own governance)
 │   ├── arp-scope-catalog/     # Scope templates + Cedar compiler
 │   ├── arp-audit/             # Append-only hash-chained log
 │   ├── arp-payments/          # x402 adapter (stubbed v0)
-│   ├── arp-selfxyz/           # Self.xyz VC bridge
 │   ├── arp-sdk/               # Agent developer library
 │   ├── arp-testkit/           # Compliance tests against any .agent domain
 │   └── arp-owner-app/         # Consent / address-book UI (Next.js 16)
@@ -106,19 +105,18 @@ Everything else is ours alone — our infra, our release cadence, our security b
 10. Owner app — address book, connection management, audit viewer, revoke
 11. Pairing flow — QR, deep links, mutual approval
 12. Consent screen renderer — Cedar → plain English
-13. Self.xyz wallet bridge
 
 ### Phase D — Developer SDKs *(ours alone)*
-14. `@kybernesis/arp-sdk` — drop-in library for agent developers
-15. Adapters — LangGraph, CrewAI, MCP server wrapper
+13. `@kybernesis/arp-sdk` — drop-in library for agent developers
+14. Adapters — LangGraph, CrewAI, MCP server wrapper
 
 ### Phase E — Compliance & demos *(ours alone)*
-16. `@kybernesis/arp-testkit` — automated compliance tests; how we certify a `.agent` domain
-17. `samantha.agent` + `ghost.agent` reference deployments
+15. `@kybernesis/arp-testkit` — automated compliance tests; how we certify a `.agent` domain
+16. `samantha.agent` + `ghost.agent` reference deployments
 
 ### Phase F — Optional network services *(v0.2+)*
-18. Public resolver/cache at `resolver.arp.spec`
-19. Opt-in directory at `registry.agent`
+17. Public resolver/cache at `resolver.arp.spec`
+18. Opt-in directory at `registry.agent`
 
 ---
 

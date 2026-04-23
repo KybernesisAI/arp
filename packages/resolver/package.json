@@ -37,5 +37,7 @@
     "@kybernesis/arp-spec": "workspace:*",
     "zod": "^3.23.8"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@noble/ed25519": "^2.2.3"
+  }
 }

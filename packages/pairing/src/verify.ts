@@ -104,7 +104,17 @@ async function verifySigMap(
       reason: `cannot resolve audience agent: ${audienceAgentDoc.reason}`,
     };
   }
-  const audiencePrincipalDid = audienceAgentDoc.value.principal.did;
+  // Agent documents (did:web) carry a principal binding; did:key documents
+  // do not. Connection tokens can only be issued for agents, so a missing
+  // principal is a configuration error (not a did:key audience).
+  const audiencePrincipal = audienceAgentDoc.value.principal;
+  if (!audiencePrincipal) {
+    return {
+      ok: false,
+      reason: `audience agent ${audienceAgentDid} has no principal binding`,
+    };
+  }
+  const audiencePrincipalDid = audiencePrincipal.did;
 
   const required = [issuerPrincipalDid, audiencePrincipalDid];
 
