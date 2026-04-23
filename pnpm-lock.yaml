@@ -424,6 +424,46 @@ importers:
         specifier: ^2.0.0
         version: 2.1.0
 
+  packages/cloud-client:
+    dependencies:
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.20.0
+    devDependencies:
+      '@kybernesis/arp-cloud-db':
+        specifier: workspace:*
+        version: link:../cloud-db
+      '@kybernesis/arp-cloud-runtime':
+        specifier: workspace:*
+        version: link:../cloud-runtime
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../pdp
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../spec
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../transport
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(typescript@5.5.4)(yaml@2.8.3)
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
+
   packages/cloud-db:
     dependencies:
       '@electric-sql/pglite':

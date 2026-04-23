@@ -1,0 +1,55 @@
+{
+  "name": "@kybernesis/arp-cloud-client",
+  "version": "0.1.0",
+  "description": "ARP Cloud outbound client. Opens a WebSocket from the user's machine to arp.cloud and relays DIDComm envelopes to a locally-running agent process.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/cloud-client"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "arp-cloud-client": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@kybernesis/arp-cloud-db": "workspace:*",
+    "@kybernesis/arp-cloud-runtime": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.3.5",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}
