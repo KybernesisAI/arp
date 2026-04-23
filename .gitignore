@@ -44,3 +44,8 @@ coverage/
 # Logs
 logs/
 *.log
+
+# apps/cloud Next.js build artifacts
+apps/cloud/.next/
+apps/cloud/out/
+apps/cloud/tsconfig.tsbuildinfo

@@ -1,0 +1,57 @@
+{
+  "name": "@kybernesis/arp-cloud-runtime",
+  "version": "0.1.0",
+  "description": "ARP Cloud multi-tenant runtime. Routes inbound DIDComm envelopes to agents, evaluates PDP decisions, writes Postgres-backed audit, delivers to outbound WebSocket clients.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/cloud-runtime"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-cloud-db": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-templates": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "canonicalize": "^2.0.0",
+    "drizzle-orm": "^0.36.4",
+    "hono": "^4.6.12",
+    "pino": "^9.5.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.3.5",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}

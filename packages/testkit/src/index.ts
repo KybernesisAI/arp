@@ -10,6 +10,7 @@
  */
 
 export { runAudit, DEFAULT_PROBE_SUITE, type AuditOptions } from './audit.js';
+export { fetchJson, postJson } from './http.js';
 export {
   formatHuman,
   formatJson,

@@ -72,8 +72,8 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 4 | Pairing + Owner App (Next.js + admin API) | `docs/ARP-phase-4-pairing-owner-app.md` | ✅ merged (PR #6) |
 | 5 | Reference Agents + Testkit (local scope) | `docs/ARP-phase-5-reference-agents-testkit.md` | ✅ merged (PR #7) |
 | 6 | SDKs + 5 required adapters + authoring CLI + skill | `docs/ARP-phase-6-sdks-adapters.md` | ✅ merged (PR #8) |
-| 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | **next** |
-| 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | pending |
+| 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ built on `phase-7-cloud` (awaiting push) |
+| 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | **next** |
 | 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | pending |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
@@ -136,7 +136,7 @@ Risk areas to spot-check per phase (look at these specifically, don't trust "don
 - **Phase 4:** consent UI snapshots deterministic, admin API 401/200 path, pairing round-trip + tamper rejection, owner-app e2e
 - **Phase 5:** cross-connection isolation 1000× zero-leaks, revocation-races no-inconsistent-state, **`record.token.obligations` merges into audit entries** (caught Phase-5 review; do not regress)
 - **Phase 6:** adapter size budgets, DIDComm isolation still holds, each required adapter's conformance test invokes `runAudit` + asserts 8/8, LangGraph uses real `@langchain/langgraph`
-- **Phase 7:** tenant isolation (no cross-tenant query ever), WebSocket reconnect after network drop, Stripe webhook idempotency
+- **Phase 7:** tenant isolation (no cross-tenant query ever, adversarial test passes 5/5), WebSocket reconnect after network drop (100 msgs × kill-at-50 regression green), Stripe webhook idempotency via `stripe_events` PK dedup, DIDComm isolation holds (cloud-runtime verifies envelopes via `@kybernesis/arp-transport` only), cloud-client has zero `@kybernesis/arp-*` runtime deps (stays user-installable footprint tiny)
 - **Phase 8:** keychain key persistence, biometric gates fire on `critical` scopes, push tokens rotate correctly
 - **Phase 9:** all `@kybernesis/*` packages at `1.0.0` on `latest`, ghcr image signed + tagged, app store builds submitted
 
@@ -255,6 +255,9 @@ bash tests/phase-3/atlas-smoke.sh
 - **Node 20 actions deprecation in CI** — `actions/checkout@v4`, `actions/setup-node@v4`, `pnpm/action-setup@v4` run on Node 20; forced to Node 24 by June 2026. Bump at Phase 9.
 - **Adapter structural types (Phase 6 conservative call #1)** — KyberBot / OpenClaw / Hermes-Agent / NanoClaw use `*Like` structural projections of their public APIs rather than real package deps. Real wiring validates at Phase 9 when the user installs each framework alongside the adapter. Low risk — docs are public — but worth re-validating at Phase 9 prep.
 - **Python `arp-sdk` lives at `python/arp-sdk/` in-tree for now.** Splits to a separate `arp-sdk-python` repo at Phase 9 publish time. v0.1.0 ships the full public API + obligation engine; Cedar-WASM + DIDComm transport are stubbed for v1.1.
+- **PGlite-only for apps/cloud + apps/cloud-gateway in v0.** Real Postgres driver wiring (node-postgres + drizzle) lands at Phase 7 production deploy prep. Today everything runs against an in-process PGlite WASM database — fine for dev + tests, but not for durability.
+- **`ARP_CLOUD_PRINCIPAL_FIXTURES` env-var-based principal key store in apps/cloud.** For v0 the cloud app resolves principal DID → pubkey from a semicolon-delimited env var. Real did:web / did:key resolution goes through `@kybernesis/arp-resolver` at Phase 9 prep.
+- **WebSocket session registry is in-process.** A single cloud-gateway node owns all WS sessions. For multi-node deployments you'd swap `packages/cloud-runtime/src/sessions.ts` for a Redis pub/sub broker. v0.2 ticket; not blocking for single-region deployment.
 
 ## 15. How to resume after context compaction
 
@@ -269,4 +272,4 @@ If you are a continuing Claude session and your context window just compacted:
 
 ---
 
-*Last updated after Phase 6 merge (2026-04-23). Update the phase status table in §5 and `docs/ARP-session-handoff.md` after each phase merges.*
+*Last updated on `phase-7-cloud` branch after Phase 7 acceptance gates passed (2026-04-23). Update the phase status table in §5 and `docs/ARP-session-handoff.md` after the Phase 7 PR merges.*

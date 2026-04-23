@@ -1,0 +1,109 @@
+/**
+ * Programmatic entry point for the cloud gateway. Starts a Hono HTTP
+ * server + attaches the WS upgrade handler. Used by apps/cloud-gateway/
+ * src/bin.ts (CLI) and tests/phase-7/*.
+ */
+
+import { createAdaptorServer } from '@hono/node-server';
+import { readFileSync } from 'node:fs';
+import { createPdp, type Pdp } from '@kybernesis/arp-pdp';
+import { createResolver, type Resolver } from '@kybernesis/arp-resolver';
+import {
+  createCloudWsServer,
+  createPostgresAudit,
+  createGatewayApp,
+  createSessionRegistry,
+  createLogger,
+  createInMemoryMetrics,
+  type CloudRuntimeLogger,
+  type TenantMetrics,
+  type PeerResolver,
+  type SessionRegistry,
+  type PostgresAudit,
+} from '@kybernesis/arp-cloud-runtime';
+import type { CloudDbClient, TenantDb } from '@kybernesis/arp-cloud-db';
+import type { Server as HttpServer } from 'node:http';
+
+export interface GatewayOptions {
+  db: CloudDbClient;
+  cedarSchemaJson: string;
+  /** Optional resolver override (tests). Production uses built-in did:web + HNS. */
+  peerResolver?: PeerResolver;
+  logger?: CloudRuntimeLogger;
+  metrics?: TenantMetrics;
+  /** Optional clock injection. */
+  now?: () => number;
+}
+
+export interface GatewayHandle {
+  httpServer: HttpServer;
+  port: number;
+  sessions: SessionRegistry;
+  close(): Promise<void>;
+}
+
+export async function startGateway(port: number, opts: GatewayOptions): Promise<GatewayHandle> {
+  const logger = opts.logger ?? createLogger({ bindings: { service: 'arp-cloud-gateway' } });
+  const metrics = opts.metrics ?? createInMemoryMetrics();
+  const sessions = createSessionRegistry();
+  const pdp: Pdp = createPdp(opts.cedarSchemaJson);
+  const peerResolver: PeerResolver = opts.peerResolver ?? buildDefaultResolver();
+
+  const auditFactory = (tenantDb: TenantDb): PostgresAudit =>
+    createPostgresAudit({ tenantDb, logger });
+
+  const app = createGatewayApp({
+    db: opts.db,
+    sessions,
+    pdp,
+    resolver: peerResolver,
+    logger,
+    metrics,
+    auditFactory,
+    ...(opts.now ? { now: opts.now } : {}),
+  });
+
+  const server = createAdaptorServer({
+    fetch: app.fetch,
+    port,
+    hostname: '127.0.0.1',
+  }) as unknown as HttpServer;
+
+  const ws = createCloudWsServer({ db: opts.db, sessions, logger });
+  ws.attach(server);
+
+  const actualPort = await new Promise<number>((resolve) => {
+    server.listen(port, '127.0.0.1', () => {
+      const addr = server.address();
+      if (addr && typeof addr === 'object') resolve(addr.port);
+      else resolve(port);
+    });
+  });
+
+  return {
+    httpServer: server,
+    port: actualPort,
+    sessions,
+    async close() {
+      await ws.close();
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    },
+  };
+}
+
+function buildDefaultResolver(): PeerResolver {
+  const r: Resolver = createResolver();
+  return {
+    async resolveDid(did) {
+      const result = await r.resolveDidWeb(did);
+      if (!result.ok) return null;
+      return result.value;
+    },
+  };
+}
+
+export function loadCedarSchema(path: string): string {
+  return readFileSync(path, 'utf8');
+}

@@ -15,7 +15,10 @@ export async function fetchJson(url: string, ctx: ProbeContext): Promise<FetchJs
     throw new Error('no fetch implementation available');
   }
   const timeoutMs = ctx.timeoutMs ?? 10_000;
-  const res = await withTimeout(fetchImpl(url), timeoutMs, `GET ${url}`);
+  const init: RequestInit = ctx.extraHeaders
+    ? { headers: ctx.extraHeaders }
+    : {};
+  const res = await withTimeout(fetchImpl(url, init), timeoutMs, `GET ${url}`);
   const contentType = res.headers.get('content-type');
   const rawText = await res.text();
   let body: unknown = null;
@@ -45,7 +48,11 @@ export async function postJson(
   const res = await withTimeout(
     fetchImpl(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: {
+        'content-type': 'application/json',
+        ...(ctx.extraHeaders ?? {}),
+        ...headers,
+      },
       body: JSON.stringify(payload),
     }),
     timeoutMs,

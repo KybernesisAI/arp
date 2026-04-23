@@ -37,6 +37,9 @@ interface ParsedArgs {
     base: string | null;
     timeout: number | null;
     doh: string | null;
+    via: string | null;
+    cloudHost: string | null;
+    tenant: string | null;
   };
 }
 
@@ -50,6 +53,9 @@ function parseArgs(argv: string[]): ParsedArgs {
     base: null as string | null,
     timeout: null as number | null,
     doh: null as string | null,
+    via: null as string | null,
+    cloudHost: null as string | null,
+    tenant: null as string | null,
   };
   const positional: string[] = [];
   let command: string | null = null;
@@ -63,6 +69,9 @@ function parseArgs(argv: string[]): ParsedArgs {
     else if (a === '--base') flags.base = argv[++i] ?? null;
     else if (a === '--timeout') flags.timeout = Number(argv[++i]);
     else if (a === '--doh') flags.doh = argv[++i] ?? null;
+    else if (a === '--via') flags.via = argv[++i] ?? null;
+    else if (a === '--cloud-host') flags.cloudHost = argv[++i] ?? null;
+    else if (a === '--tenant') flags.tenant = argv[++i] ?? null;
     else if (a.startsWith('--')) {
       // Unknown long flag — swallow with a warning on stderr.
       // eslint-disable-next-line no-console
@@ -81,6 +90,7 @@ function usage(): string {
 
 USAGE
   arp-testkit audit <domain> [--json] [--jsonl] [--verbose] [--base <url>] [--timeout <ms>] [--doh <url>]
+                             [--via cloud [--cloud-host <url>] [--tenant <tenant-id>]]
   arp-testkit probe <name> <domain> [--json] [--base <url>] [--timeout <ms>]
   arp-testkit compare <a> <b> [--json]
   arp-testkit --version | --help
@@ -91,6 +101,8 @@ PROBES
 EXAMPLES
   arp-testkit audit samantha.agent
   arp-testkit audit localhost:4501 --base http://127.0.0.1:4501
+  arp-testkit audit atlas.agent --via cloud
+  arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.arp.cloud
   arp-testkit probe dns samantha.agent --doh https://hnsdoh.com/dns-query
   arp-testkit compare samantha.agent ghost.agent --json
 `;
@@ -115,6 +127,18 @@ async function main(argv: string[]): Promise<number> {
   }
   if (args.flags.doh !== null) {
     contextOverrides.dohEndpoint = args.flags.doh;
+  }
+  // --via cloud: route through the cloud gateway. The gateway uses
+  // X-Forwarded-Host to identify the target tenant — which is literally
+  // the agent's .agent hostname (the `target`). --cloud-host overrides
+  // the gateway URL (default: arp.cloud) so dev/staging environments
+  // can aim at a preview deploy.
+  if (args.flags.via === 'cloud') {
+    const tgt = args.positional[0] ?? args.positional[1] ?? '';
+    const headers: Record<string, string> = {};
+    if (tgt) headers['x-forwarded-host'] = tgt;
+    if (args.flags.tenant) headers['x-arp-cloud-tenant'] = args.flags.tenant;
+    contextOverrides.extraHeaders = headers;
   }
 
   switch (args.command) {
@@ -143,7 +167,13 @@ async function audit(
     console.error('audit requires a target domain');
     return 1;
   }
-  const baseUrl = args.flags.base ?? undefined;
+  // When --via cloud is active, rewrite baseUrl to the cloud host. Probes
+  // still target URLs like `<base>/.well-known/*` but requests carry the
+  // x-forwarded-host override set above.
+  let baseUrl: string | undefined = args.flags.base ?? undefined;
+  if (args.flags.via === 'cloud' && !baseUrl) {
+    baseUrl = args.flags.cloudHost ?? 'https://arp.cloud';
+  }
   const summary = await runAudit(target, baseUrl, { context: contextOverrides });
   emit(summary, args);
   return summary.ok ? 0 : 2;

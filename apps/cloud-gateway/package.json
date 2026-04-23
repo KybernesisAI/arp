@@ -1,0 +1,36 @@
+{
+  "name": "@kybernesis/arp-cloud-gateway",
+  "version": "0.1.0",
+  "description": "ARP Cloud gateway — Hono HTTP + ws binary. Hosts /.well-known/*, /didcomm inbound, and /ws upgrade across all tenants.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/bin.js",
+    "dev": "tsx watch src/bin.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.5",
+    "@kybernesis/arp-cloud-db": "workspace:*",
+    "@kybernesis/arp-cloud-runtime": "workspace:*",
+    "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "hono": "^4.6.12",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "@types/node": "^22.9.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}

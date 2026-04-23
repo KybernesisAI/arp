@@ -47,6 +47,14 @@ export interface ProbeContext {
   fetchImpl?: typeof fetch;
   /** DNS DoH endpoint for the `dns` probe. Defaults to hnsdoh.com. */
   dohEndpoint?: string;
+  /**
+   * Extra HTTP headers sent on every HTTP probe. When auditing a
+   * cloud-hosted tenant, the `--via cloud --cloud-host <host>` flags
+   * set this to `{ 'X-Forwarded-Host': <host> }` so the cloud gateway
+   * routes the request to the right agent regardless of the real
+   * TCP Host header.
+   */
+  extraHeaders?: Record<string, string>;
 }
 
 export type Probe = (ctx: ProbeContext) => Promise<ProbeResult>;

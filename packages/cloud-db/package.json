@@ -1,0 +1,58 @@
+{
+  "name": "@kybernesis/arp-cloud-db",
+  "version": "0.1.0",
+  "description": "ARP Cloud database layer — Postgres schema + tenant-scoped query wrappers. Enforces row-level tenant isolation via branded TypeScript types.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/cloud-db"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js",
+      "require": "./dist/schema.cjs"
+    },
+    "./pglite": {
+      "types": "./dist/pglite.d.ts",
+      "import": "./dist/pglite.js",
+      "require": "./dist/pglite.cjs"
+    },
+    "./migrations.sql": "./migrations/0001_init.sql"
+  },
+  "files": [
+    "dist",
+    "migrations",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.15",
+    "drizzle-orm": "^0.36.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsup": "^8.3.5",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}
