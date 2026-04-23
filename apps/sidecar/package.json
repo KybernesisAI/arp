@@ -1,0 +1,45 @@
+{
+  "name": "@kybernesis/arp-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ARP sidecar — packaged Docker image + CLI that wraps @kybernesis/arp-runtime for end-user installs.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "arp-sidecar": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "systemd"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo 'sidecar tests live under tests/phase-3' && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@kybernesis/arp-audit": "workspace:*",
+    "@kybernesis/arp-registry": "workspace:*",
+    "@kybernesis/arp-resolver": "workspace:*",
+    "@kybernesis/arp-runtime": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-templates": "workspace:*",
+    "@kybernesis/arp-tls": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*",
+    "commander": "^12.1.0",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "@types/node": "^22.9.0"
+  }
+}

@@ -1,0 +1,32 @@
+# docker-compose example for the ARP sidecar. Drop a handoff.json beside this
+# file, run `docker compose up -d`, and point your tunnel (ngrok or
+# cloudflared) at port 443.
+#
+# See ARP-example-atlas-kyberbot.md §3 for the full walkthrough.
+
+services:
+  arp-sidecar:
+    image: ghcr.io/kybernesisai/sidecar:0.1
+    container_name: atlas-arp
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./handoff.json:/config/handoff.json:ro
+      - arp-data:/data
+    environment:
+      - AGENT_API_URL=http://host.docker.internal:3874
+      - ARP_LOG_LEVEL=info
+    # Linux-only: map host.docker.internal so AGENT_API_URL reaches the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:443/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  arp-data:
