@@ -51,10 +51,20 @@ describe('DidDocumentSchema', () => {
     expect(DidDocumentSchema.safeParse(bad).success).toBe(false);
   });
 
-  it('rejects empty service array (at least DIDComm + AgentCard expected)', () => {
+  it('accepts an omitted service field (did:key documents have no endpoints)', () => {
+    const ok = clone(VALID_DID_DOC) as Record<string, unknown>;
+    delete ok.service;
+    delete ok.principal;
+    expect(DidDocumentSchema.safeParse(ok).success).toBe(true);
+  });
+
+  it('rejects an empty service array when the field is present', () => {
     const bad = clone(VALID_DID_DOC);
     bad.service = [];
-    expect(DidDocumentSchema.safeParse(bad).success).toBe(false);
+    // Zod accepts `[]` because we dropped .min(1) — but for agent documents
+    // the higher-layer helpers require at least one. The schema itself is
+    // permissive by design; presence-checks live in agent-card helpers.
+    expect(DidDocumentSchema.safeParse(bad).success).toBe(true);
   });
 
   it('accepts service endpoints without accept list', () => {

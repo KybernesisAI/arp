@@ -58,7 +58,9 @@ export const didResolutionProbe: Probe = async (ctx: ProbeContext): Promise<Prob
       );
     }
 
-    const didcommSvc = doc.service.find((s) => s.type === 'DIDCommMessaging');
+    // service[] is optional on DidDocument (did:key); agents published under
+    // did:web for the testkit MUST advertise a DIDComm endpoint.
+    const didcommSvc = doc.service?.find((s) => s.type === 'DIDCommMessaging');
     if (!didcommSvc) {
       return fail(startedAt, 'did.json has no DIDCommMessaging service', { didJsonUrl });
     }

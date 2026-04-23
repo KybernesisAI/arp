@@ -6,6 +6,7 @@ import {
   fetchAndParseDidDocument,
   type FetchDidDocOptions,
 } from './did-web.js';
+import { didKeyToDidDocument } from './did-key.js';
 import { resolverError, type ResolverError } from './errors.js';
 import { LruCache } from './lru.js';
 
@@ -38,6 +39,19 @@ export interface ResolverOptions {
 export interface Resolver {
   resolveHns(name: string): Promise<HnsResolution>;
   resolveDidWeb(
+    did: string,
+  ): Promise<{ ok: true; value: DidDocument } | { ok: false; error: ResolverError }>;
+  /**
+   * Method-agnostic DID resolver. Dispatches on the DID method prefix:
+   *   - `did:web:...` → HTTPS fetch via `resolveDidWeb`
+   *   - `did:key:...` → synthesised inline (no network)
+   *   - anything else → `unsupported_method`
+   *
+   * Optional on the interface to stay backwards-compatible with mock
+   * resolvers defined before Phase 8.5. New callers should prefer this over
+   * `resolveDidWeb` for method-agnostic lookups.
+   */
+  resolveDid?(
     did: string,
   ): Promise<{ ok: true; value: DidDocument } | { ok: false; error: ResolverError }>;
   clearCache(): void;
@@ -77,6 +91,43 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
     ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
   };
 
+  const resolveDidWebImpl = async (
+    did: string,
+  ): Promise<{ ok: true; value: DidDocument } | { ok: false; error: ResolverError }> => {
+    const key = did.toLowerCase();
+    const cached = didCache.get(key);
+    if (cached) return { ok: true, value: cached };
+
+    const parsed = didWebToUrl(did);
+    if (!parsed.ok) return parsed;
+
+    // For .agent names we could route through HNS DoH to validate
+    // hostname → IP resolution, but TLS is ultimately validated by
+    // @kybernesis/arp-tls against the DID-doc pinned fingerprint, so the
+    // fetch itself relies on the platform resolver via fetch().
+    // If hnsd-local mode is on, seed the platform's resolver preference
+    // first (callers typically point system DNS at 127.0.0.1 in that setup).
+    if (parsed.host.endsWith('.agent')) {
+      try {
+        await resolveHnsRaw(doh, parsed.host, ['A', 'AAAA']);
+      } catch (err) {
+        return {
+          ok: false,
+          error: resolverError(
+            'doh_failure',
+            `HNS lookup failed for ${parsed.host}`,
+            err,
+          ),
+        };
+      }
+    }
+
+    const fetched = await fetchAndParseDidDocument(parsed.url, didFetchOpts);
+    if (!fetched.ok) return fetched;
+    didCache.set(key, fetched.value);
+    return fetched;
+  };
+
   return {
     async resolveHns(name) {
       const key = name.replace(/\.$/, '').toLowerCase();
@@ -87,39 +138,24 @@ export function createResolver(opts: ResolverOptions = {}): Resolver {
       return resolution;
     },
 
-    async resolveDidWeb(did) {
-      const key = did.toLowerCase();
-      const cached = didCache.get(key);
-      if (cached) return { ok: true, value: cached };
+    resolveDidWeb: resolveDidWebImpl,
 
-      const parsed = didWebToUrl(did);
-      if (!parsed.ok) return parsed;
-
-      // For .agent names we could route through HNS DoH to validate
-      // hostname → IP resolution, but TLS is ultimately validated by
-      // @kybernesis/arp-tls against the DID-doc pinned fingerprint, so the
-      // fetch itself relies on the platform resolver via fetch().
-      // If hnsd-local mode is on, seed the platform's resolver preference
-      // first (callers typically point system DNS at 127.0.0.1 in that setup).
-      if (parsed.host.endsWith('.agent')) {
-        try {
-          await resolveHnsRaw(doh, parsed.host, ['A', 'AAAA']);
-        } catch (err) {
-          return {
-            ok: false,
-            error: resolverError(
-              'doh_failure',
-              `HNS lookup failed for ${parsed.host}`,
-              err,
-            ),
-          };
-        }
+    async resolveDid(did) {
+      if (did.startsWith('did:web:')) {
+        return resolveDidWebImpl(did);
       }
-
-      const fetched = await fetchAndParseDidDocument(parsed.url, didFetchOpts);
-      if (!fetched.ok) return fetched;
-      didCache.set(key, fetched.value);
-      return fetched;
+      if (did.startsWith('did:key:')) {
+        // did:key is self-describing — the DID IS the document; no network
+        // fetch, no cache population (the decode is deterministic + cheap).
+        return didKeyToDidDocument(did);
+      }
+      return {
+        ok: false,
+        error: resolverError(
+          'unsupported_method',
+          `unsupported DID method for ${did}; expected did:web: or did:key:`,
+        ),
+      };
     },
 
     clearCache() {

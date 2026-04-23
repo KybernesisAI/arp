@@ -55,6 +55,14 @@ export const PrincipalBindingSchema = z.object({
     .describe('HTTPS URL of the signed representation VC (see §6.4)'),
 });
 
+/**
+ * DID document as served at `/.well-known/did.json` OR synthesised from a
+ * `did:key` identifier. Agent documents (did:web) carry `service` + `principal`
+ * bindings; owner/principal documents (did:key) are terminal and omit both.
+ * Both shapes validate against this schema; higher-layer helpers decide
+ * whether a given document has the service + principal bindings an agent
+ * requires.
+ */
 export const DidDocumentSchema = z.object({
   '@context': z
     .array(z.string())
@@ -62,13 +70,16 @@ export const DidDocumentSchema = z.object({
       message: "'@context' must include 'https://www.w3.org/ns/did/v1'",
     }),
   id: DidUriSchema.describe('The DID being described, e.g. did:web:samantha.agent'),
-  controller: DidUriSchema.describe('Principal DID that controls the agent'),
+  controller: DidUriSchema.describe('Controller DID (self-controlling for did:key)'),
   verificationMethod: z.array(VerificationMethodSchema).min(1),
   authentication: z.array(z.string().min(1)).min(1),
   assertionMethod: z.array(z.string().min(1)).min(1),
   keyAgreement: z.array(z.string().min(1)).min(1),
-  service: z.array(ServiceEndpointSchema).min(1),
-  principal: PrincipalBindingSchema,
+  // service + principal are present on agent documents (did:web) and
+  // absent on owner documents (did:key). Both are optional at the schema
+  // layer; agent-card consumers must check presence themselves.
+  service: z.array(ServiceEndpointSchema).optional(),
+  principal: PrincipalBindingSchema.optional(),
 });
 
 export type DidUri = z.infer<typeof DidUriSchema>;

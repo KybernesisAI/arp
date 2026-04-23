@@ -18,7 +18,7 @@
     "controller": {
       "type": "string",
       "pattern": "^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$",
-      "description": "Principal DID that controls the agent"
+      "description": "Controller DID (self-controlling for did:key)"
     },
     "verificationMethod": {
       "type": "array",
@@ -117,8 +117,7 @@
           "serviceEndpoint"
         ],
         "additionalProperties": false
-      },
-      "minItems": 1
+      }
     },
     "principal": {
       "type": "object",
@@ -148,9 +147,7 @@
     "verificationMethod",
     "authentication",
     "assertionMethod",
-    "keyAgreement",
-    "service",
-    "principal"
+    "keyAgreement"
   ],
   "additionalProperties": false
 }
