@@ -1074,6 +1074,9 @@ importers:
       '@kybernesis/arp-spec':
         specifier: workspace:*
         version: link:../../packages/spec
+      '@kybernesis/arp-testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../../packages/transport
