@@ -1,0 +1,116 @@
+/*
+ * ARP design-system — base layer.
+ *
+ * Resets + global element defaults (box-sizing, body typography, heading
+ * kerning, link inheritance, mono for code/pre, ink focus outlines,
+ * selection, reduced-motion guard, ticker mask helper, yellow underline).
+ *
+ * Depends on Tailwind directives (@tailwind base / components /
+ * utilities) being declared upstream in the consumer app's `globals.css`.
+ * Consumer apps also need `tokens.css` and `fonts.css` imported first.
+ */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans text-body;
+    margin: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display font-medium text-ink;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    @apply font-mono;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--arp-ink);
+    outline-offset: 2px;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  ::selection {
+    background: var(--arp-ink);
+    color: var(--arp-paper);
+  }
+}
+
+@layer components {
+  /* Ticker wrapper with inset fade — used in cloud nav. */
+  .arp-ticker-mask::before,
+  .arp-ticker-mask::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .arp-ticker-mask::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--arp-paper), transparent);
+  }
+  .arp-ticker-mask::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--arp-paper), transparent);
+  }
+
+  /* Yellow underline highlight used in headlines. */
+  .arp-underline {
+    box-shadow: inset 0 -0.22em 0 var(--arp-signal-yellow, #f2c14b);
+    padding: 0 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
