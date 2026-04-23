@@ -94,28 +94,28 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   } as const;
 
   app.get('/.well-known/did.json', async (c) => {
-    const host = c.req.header('host') ?? '';
+    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownDid), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/agent-card.json', async (c) => {
-    const host = c.req.header('host') ?? '';
+    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownAgentCard), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/arp.json', async (c) => {
-    const host = c.req.header('host') ?? '';
+    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownArp), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/revocations.json', async (c) => {
-    const host = c.req.header('host') ?? '';
+    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     const tenantDb = withTenant(opts.db, toTenantId(ctx.tenantId));
@@ -133,7 +133,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   });
 
   app.post('/didcomm', async (c) => {
-    const host = c.req.header('host') ?? '';
+    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     const envelope = await c.req.text();
