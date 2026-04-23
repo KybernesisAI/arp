@@ -75,6 +75,7 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 7 | ARP Cloud (multi-tenant, outbound client, Stripe) | `docs/ARP-phase-7-cloud.md` | ✅ merged (PR #9) + drain fix (PR #10) + Neon HTTP driver (PR #11) |
 | 8 | Mobile Apps (iOS + Android via Expo) | `docs/ARP-phase-8-mobile.md` | ✅ scaffold merged (PR #12 monorepo pointer; app at `github.com/KybernesisAI/arp-mobile`) — public launch deferred to Phase 10 |
 | 8.5 | Auth & Identity Shift (Self.xyz demotion + did:key + terminology) | `docs/ARP-phase-8-5-auth-identity-shift.md` | ✅ merged (PR #14) |
+| 8.75 | Brand & Design Scaffold (Swiss / editorial system, three-surface middleware, placeholder pages) | design spec: `docs/ARP-design-system.md` | in progress (branch `phase-8-75-brand-scaffold`) |
 | 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | **next** |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
@@ -140,6 +141,7 @@ Risk areas to spot-check per phase (look at these specifically, don't trust "don
 - **Phase 7:** tenant isolation (no cross-tenant query ever, adversarial test passes 5/5), WebSocket reconnect after network drop (100 msgs × kill-at-50 regression green), Stripe webhook idempotency via `stripe_events` PK dedup, DIDComm isolation holds (cloud-runtime verifies envelopes via `@kybernesis/arp-transport` only), cloud-client has zero `@kybernesis/arp-*` runtime deps (stays user-installable footprint tiny)
 - **Phase 8:** keychain key persistence, biometric gates fire on `critical` scopes, push tokens rotate correctly
 - **Phase 8.5:** `grep -rn "selfxyz" --include="*.ts" packages/ apps/ adapters/` returns empty; `@kybernesis/arp-resolver` exposes `resolveDid` + `parseDidKey`; owner-app + cloud-app onboarding compile without importing `@kybernesis/arp-transport` from the root (client code must use `@kybernesis/arp-transport/browser`); did:key signing round-trips through `@kybernesis/arp-pairing::verifyBytes`; `DidDocumentSchema` accepts did:key documents (service + principal optional); Headless gets `docs/ARP-tld-integration-spec-v2.1.md`.
+- **Phase 8.75:** `grep -rn "style={{" apps/cloud/app/layout.tsx` returns empty; `grep -rn "#[0-9a-f]\{6\}" apps/cloud/components/ui/` returns empty (no raw hex inside primitives); `grep -rn "self.xyz\|Self.xyz\|selfxyz" apps/cloud/` returns empty across the new surface; three-hostname middleware dispatch test suite green (`apps/cloud/tests/middleware.test.ts` should cover 17+ assertions); onboarding flow still end-to-end functional (did:key mint → tenant create → agent provision → dashboard renders with new design system); HNS gateway branch in `middleware.ts` unchanged; `app.arp.run` existing URLs (`/dashboard`, `/onboarding`, `/agent/<did>`, `/billing`) all still reachable without rewrites.
 - **Phase 9:** all `@kybernesis/*` packages at `1.0.0` on `latest`, ghcr image signed + tagged, app store builds submitted
 
 ## 8. What to do when you find a gap in review
@@ -262,6 +264,9 @@ bash tests/phase-3/atlas-smoke.sh
 - **WebSocket session registry is in-process.** A single cloud-gateway node owns all WS sessions. For multi-node deployments you'd swap `packages/cloud-runtime/src/sessions.ts` for a Redis pub/sub broker. v0.2 ticket; not blocking for single-region deployment.
 - **Principal-key UX is browser-held did:key in v1 (Phase 8.5).** Passkey / WebAuthn, magic-link email, and server-held KMS-wrapped principal keys are explicitly Phase 9+ consumer-UX polish. Recovery = 12-word BIP-39-style phrase the user saves at signup.
 - **Client code must import browser helpers from `@kybernesis/arp-transport/browser`**, not from the root `@kybernesis/arp-transport` entry — the root pulls in `better-sqlite3` + `node:fs` (mailbox + keystore) and Turbopack cannot bundle them for the browser. Added Phase 8.5.
+- **Design tokens live under `apps/cloud/`** (`apps/cloud/tailwind.config.ts` + `apps/cloud/app/globals.css` + `apps/cloud/components/ui/`) and are not extracted to a shared `@kybernesis/arp-ui` package yet. Phase 9 spec/docs/status sites must match the same tokens — either by copying the config into each app, or (preferred) by extracting the design system to a shared private package. See `docs/ARP-design-system.md §10`. Added Phase 8.75.
+- **Anthropic design file URL referenced in the Phase 8.75 brief returned 404.** Tokens were extracted from a local HTML mock at `/Users/ianborders/Downloads/Swiss Design/ARP Landing.html` (Swiss / editorial: paper + ink + signal palette, Space Grotesk + Instrument Sans + JetBrains Mono). If the upstream design file is ever recoverable, retrofit is localised to `apps/cloud/tailwind.config.ts` + `apps/cloud/app/globals.css` since every component references named tokens. Added Phase 8.75.
+- **`proxy` migration for Next.js 16.** The cloud app `middleware.ts` triggers a "middleware is deprecated, use proxy instead" warning on build. Harmless in v16; follow-up to rename/restructure when we next touch it. Added Phase 8.75.
 
 ## 15. How to resume after context compaction
 

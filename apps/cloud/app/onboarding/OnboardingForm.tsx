@@ -3,6 +3,18 @@
 import type * as React from 'react';
 import { useState } from 'react';
 import {
+  Badge,
+  Button,
+  ButtonLink,
+  Code,
+  FieldError,
+  FieldHint,
+  Input,
+  Label,
+  Pre,
+  Textarea,
+} from '@/components/ui';
+import {
   getOrCreatePrincipalKey,
   exportRecoveryPhrase,
   clearPrincipalKey,
@@ -111,82 +123,97 @@ export default function OnboardingForm(): React.JSX.Element {
 
   if (stage === 'done') {
     return (
-      <div style={panelStyle}>
-        <h2 style={{ marginTop: 0 }}>Account created</h2>
-        <p style={{ color: '#cbd5e1' }}>
+      <div className="border border-rule bg-paper p-7">
+        <Badge tone="blue" className="mb-4">
+          ACCOUNT · CREATED
+        </Badge>
+        <h2 className="font-display font-medium text-h3 mt-0">You are live.</h2>
+        <p className="mt-3 text-body text-ink-2">
           Your agent-owner identity is live and your tenant is provisioned.
         </p>
         {agentDid && (
-          <p>
-            Agent <code>{agentDid}</code> is now connected to ARP Cloud.
+          <p className="mt-3 text-body">
+            Agent <Code>{agentDid}</Code> is now connected to ARP Cloud.
           </p>
         )}
         {tenantId && (
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-            Tenant ID: <code>{tenantId}</code>
+          <p className="mt-2 font-mono text-kicker uppercase text-muted">
+            TENANT · {tenantId}
           </p>
         )}
-        <a href="/dashboard" style={ctaStyle}>
-          Go to dashboard →
-        </a>
+        <div className="mt-6">
+          <ButtonLink href="/dashboard" variant="primary" arrow>
+            Go to dashboard
+          </ButtonLink>
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      <div style={panelStyle}>
+      <div className="border border-rule bg-paper p-7">
         {error && (
-          <p style={{ color: '#f87171' }} data-testid="onboarding-error">
+          <FieldError data-testid="onboarding-error" className="mb-4">
             Error: {error}
-          </p>
+          </FieldError>
         )}
 
         {stage === 'idle' && (
           <>
-            <h2 style={headingStyle}>Get started with ARP Cloud</h2>
-            <p style={{ color: '#cbd5e1' }}>
-              Create your agent-owner identity. Your keys stay in this browser; we never see
-              them.
+            <h2 className="font-display font-medium text-h3 mt-0 mb-3">
+              Create your agent-owner identity.
+            </h2>
+            <p className="text-body text-ink-2 mb-6">
+              Your keys stay in this browser. We never see them.
             </p>
-            <button
-              style={ctaStyle}
+            <Button
+              variant="primary"
+              arrow
               onClick={() => void handleGenerate()}
               data-testid="create-account-btn"
             >
               Create your account
-            </button>
+            </Button>
           </>
         )}
 
         {stage === 'generating' && (
-          <p>Your identity is being generated securely in your browser…</p>
+          <p className="text-body text-ink-2">
+            Your identity is being generated securely in your browser…
+          </p>
         )}
 
-        {(stage === 'show_identity' || stage === 'show_phrase' || stage === 'name_agent' ||
-          stage === 'creating_tenant' || stage === 'creating_agent') && principal && (
-          <>
-            <h2 style={headingStyle}>Your agent-owner identity</h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-              This is the identifier other agents will use to verify actions authorised by
-              you.
-            </p>
-            <pre style={preStyle} data-testid="principal-did">
-              {principal.did}
-            </pre>
-          </>
-        )}
+        {(stage === 'show_identity' ||
+          stage === 'show_phrase' ||
+          stage === 'name_agent' ||
+          stage === 'creating_tenant' ||
+          stage === 'creating_agent') &&
+          principal && (
+            <>
+              <h2 className="font-display font-medium text-h3 mt-0 mb-2">
+                Your agent-owner identity
+              </h2>
+              <p className="font-mono text-kicker uppercase text-muted mb-3">
+                // THIS IS THE IDENTIFIER OTHER AGENTS WILL USE
+              </p>
+              <Pre data-testid="principal-did">{principal.did}</Pre>
+            </>
+          )}
 
         {(stage === 'show_identity' || stage === 'show_phrase') && phrase && (
-          <div style={{ marginTop: '1.5rem' }}>
-            <h3 style={{ ...headingStyle, fontSize: '1rem' }}>Save your recovery phrase</h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div className="mt-6">
+            <h3 className="font-display font-medium text-h4 mt-0 mb-2">
+              Save your recovery phrase
+            </h3>
+            <p className="text-body-sm text-ink-2 mb-3">
               Write these 12 words down offline. If you lose this browser, this phrase is the
               only way to recover your account.
             </p>
             {!phraseRevealed && (
-              <button
-                style={secondaryCtaStyle}
+              <Button
+                variant="ghost"
+                arrow
                 onClick={() => {
                   setPhraseRevealed(true);
                   setStage('show_phrase');
@@ -194,81 +221,75 @@ export default function OnboardingForm(): React.JSX.Element {
                 data-testid="reveal-phrase-btn"
               >
                 Reveal recovery phrase
-              </button>
+              </Button>
             )}
             {phraseRevealed && (
               <>
-                <pre style={preStyle} data-testid="recovery-phrase">
-                  {phrase}
-                </pre>
-                <label style={checkboxLabelStyle}>
+                <Pre data-testid="recovery-phrase">{phrase}</Pre>
+                <label className="flex items-center gap-2 font-mono text-kicker uppercase text-ink-2 mt-3 mb-3">
                   <input
                     type="checkbox"
                     checked={phraseSaved}
                     onChange={(e) => setPhraseSaved(e.target.checked)}
                     data-testid="phrase-saved-checkbox"
+                    className="accent-signal-blue"
                   />
-                  I have saved my recovery phrase somewhere safe.
+                  I HAVE SAVED MY RECOVERY PHRASE SOMEWHERE SAFE
                 </label>
-                <button
-                  style={{
-                    ...ctaStyle,
-                    marginTop: '0.5rem',
-                    opacity: phraseSaved ? 1 : 0.5,
-                    cursor: phraseSaved ? 'pointer' : 'not-allowed',
-                  }}
+                <Button
+                  variant="primary"
+                  arrow
                   disabled={!phraseSaved}
                   onClick={() => void handleContinueToName()}
                   data-testid="name-agent-btn"
                 >
                   Name your agent
-                </button>
+                </Button>
               </>
             )}
           </div>
         )}
 
         {(stage === 'name_agent' || stage === 'creating_tenant' || stage === 'creating_agent') && (
-          <div style={{ marginTop: '1.5rem' }}>
-            <label style={labelStyle} htmlFor="agent-name">
-              Agent name (your agent's subdomain)
-            </label>
-            <input
+          <div className="mt-6">
+            <Label htmlFor="agent-name">Agent name (your agent subdomain)</Label>
+            <Input
               id="agent-name"
-              style={inputStyle}
               value={agentName}
               onChange={(e) => setAgentName(e.target.value)}
               placeholder="my-agent"
               data-testid="agent-name-input"
               disabled={stage !== 'name_agent'}
             />
-            <p style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
-              Lowercase letters, numbers, and hyphens.
-            </p>
-            <button
-              style={ctaStyle}
-              disabled={stage !== 'name_agent' || agentName.length === 0}
-              onClick={() => void handleCreateAgent()}
-              data-testid="create-agent-btn"
-            >
-              {stage === 'creating_tenant' && 'Creating tenant…'}
-              {stage === 'creating_agent' && 'Provisioning agent…'}
-              {stage === 'name_agent' && 'Create agent'}
-            </button>
+            <FieldHint>LOWERCASE LETTERS, NUMBERS, AND HYPHENS</FieldHint>
+            <div className="mt-4">
+              <Button
+                variant="primary"
+                arrow
+                disabled={stage !== 'name_agent' || agentName.length === 0}
+                onClick={() => void handleCreateAgent()}
+                data-testid="create-agent-btn"
+              >
+                {stage === 'creating_tenant' && 'Creating tenant…'}
+                {stage === 'creating_agent' && 'Provisioning agent…'}
+                {stage === 'name_agent' && 'Create agent'}
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
+      <div className="mt-6">
         <button
-          style={linkStyle}
+          type="button"
           onClick={() => setAdvancedOpen((v) => !v)}
           data-testid="advanced-toggle"
+          className="font-mono text-kicker uppercase text-muted hover:text-ink transition-colors border-b border-current pb-0.5"
         >
           {advancedOpen ? '▾' : '▸'} I already run a sidecar — migrate it
         </button>
         {advancedOpen && (
-          <div style={{ ...panelStyle, marginTop: '0.75rem' }}>
+          <div className="border border-rule bg-paper p-7 mt-3">
             <AdvancedHandoffFlow onReset={() => void clearPrincipalKey()} />
           </div>
         )}
@@ -278,10 +299,6 @@ export default function OnboardingForm(): React.JSX.Element {
 }
 
 function AdvancedHandoffFlow({ onReset: _onReset }: { onReset: () => void }): React.JSX.Element {
-  // Legacy three-step flow kept for sovereign users who already have a
-  // sidecar keypair. They paste their principal DID, sign the challenge
-  // externally (via the sidecar CLI), paste the signature, then paste the
-  // handoff bundle.
   const [step, setStep] = useState<'signin' | 'handoff' | 'complete'>('signin');
   const [principalDid, setPrincipalDid] = useState('');
   const [nonce, setNonce] = useState<string | null>(null);
@@ -353,151 +370,94 @@ function AdvancedHandoffFlow({ onReset: _onReset }: { onReset: () => void }): Re
   if (step === 'complete') {
     return (
       <div>
-        <h3 style={{ ...headingStyle, fontSize: '1rem' }}>Sidecar migrated</h3>
-        <p>
-          Agent <code>{agentDid}</code> is now connected to ARP Cloud.
+        <Badge tone="blue" className="mb-3">
+          SIDECAR · MIGRATED
+        </Badge>
+        <p className="text-body">
+          Agent <Code>{agentDid}</Code> is now connected to ARP Cloud.
         </p>
-        <a href="/dashboard" style={ctaStyle}>
-          Go to dashboard →
-        </a>
+        <div className="mt-4">
+          <ButtonLink href="/dashboard" variant="primary" arrow>
+            Go to dashboard
+          </ButtonLink>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <h3 style={{ ...headingStyle, fontSize: '1rem' }}>Migrate an existing sidecar</h3>
-      <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-        Sign a challenge with your sidecar's principal key, then paste your handoff bundle.
+      <h3 className="font-display font-medium text-h4 mt-0 mb-2">
+        Migrate an existing sidecar
+      </h3>
+      <p className="text-body-sm text-ink-2 mb-4">
+        Sign a challenge with your sidecar principal key, then paste your handoff bundle.
       </p>
-      {error && <p style={{ color: '#f87171' }}>Error: {error}</p>}
+      {error && <FieldError>Error: {error}</FieldError>}
       {step === 'signin' && !nonce && (
         <>
-          <label style={labelStyle}>Principal DID</label>
-          <input
-            style={inputStyle}
+          <Label>Principal DID</Label>
+          <Input
             value={principalDid}
             onChange={(e) => setPrincipalDid(e.target.value)}
             placeholder="did:key:z6Mk… or did:web:…"
             data-testid="advanced-principal-did-input"
+            className="font-mono"
           />
-          <button
-            style={ctaStyle}
-            onClick={() => void requestChallenge()}
-            disabled={busy || !principalDid}
-          >
-            Request challenge
-          </button>
+          <div className="mt-4">
+            <Button
+              variant="primary"
+              arrow
+              onClick={() => void requestChallenge()}
+              disabled={busy || !principalDid}
+            >
+              Request challenge
+            </Button>
+          </div>
         </>
       )}
       {step === 'signin' && nonce && (
         <>
-          <p>
-            Sign this nonce with your principal DID's private key (via the sidecar CLI), then
+          <p className="text-body-sm text-ink-2 mb-2">
+            Sign this nonce with your principal DID private key (via the sidecar CLI), then
             paste the base64url signature.
           </p>
-          <pre style={preStyle}>{nonce}</pre>
-          <textarea
-            style={{ ...inputStyle, minHeight: 80 }}
-            value={signature}
-            onChange={(e) => setSignature(e.target.value)}
-            placeholder="base64url signature"
-          />
-          <button
-            style={ctaStyle}
-            onClick={() => void verifySignature()}
-            disabled={busy || !signature}
-          >
-            Verify
-          </button>
+          <Pre>{nonce}</Pre>
+          <div className="mt-4">
+            <Label>Signature</Label>
+            <Textarea
+              value={signature}
+              onChange={(e) => setSignature(e.target.value)}
+              placeholder="base64url signature"
+            />
+          </div>
+          <div className="mt-4">
+            <Button
+              variant="primary"
+              arrow
+              onClick={() => void verifySignature()}
+              disabled={busy || !signature}
+            >
+              Verify
+            </Button>
+          </div>
         </>
       )}
       {step === 'handoff' && (
         <>
-          <label style={labelStyle}>Handoff bundle (paste JSON)</label>
-          <textarea
-            style={{ ...inputStyle, minHeight: 200, fontFamily: 'monospace' }}
+          <Label>Handoff bundle (paste JSON)</Label>
+          <Textarea
             value={handoff}
             onChange={(e) => setHandoff(e.target.value)}
             placeholder='{"agent_did": "did:web:...", "principal_did": "did:key:z...", ...}'
           />
-          <button style={ctaStyle} onClick={() => void submitHandoff()} disabled={busy || !handoff}>
-            Provision agent
-          </button>
+          <div className="mt-4">
+            <Button variant="primary" arrow onClick={() => void submitHandoff()} disabled={busy || !handoff}>
+              Provision agent
+            </Button>
+          </div>
         </>
       )}
     </div>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  padding: '1.5rem',
-  border: '1px solid #334155',
-  borderRadius: '0.5rem',
-  backgroundColor: '#1e293b',
-};
-const headingStyle: React.CSSProperties = {
-  fontSize: '1.25rem',
-  marginTop: 0,
-  marginBottom: '0.5rem',
-};
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: '0.875rem',
-  color: '#94a3b8',
-  marginBottom: '0.5rem',
-};
-const checkboxLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.5rem',
-  fontSize: '0.875rem',
-  color: '#cbd5e1',
-  marginBottom: '0.75rem',
-};
-const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
-  marginBottom: '1rem',
-  padding: '0.5rem 0.75rem',
-  backgroundColor: '#0f172a',
-  color: '#e2e8f0',
-  border: '1px solid #334155',
-  borderRadius: '0.375rem',
-};
-const ctaStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '0.625rem 1rem',
-  backgroundColor: '#3b82f6',
-  color: '#0f172a',
-  borderRadius: '0.375rem',
-  border: 'none',
-  fontWeight: 600,
-  textDecoration: 'none',
-  cursor: 'pointer',
-};
-const secondaryCtaStyle: React.CSSProperties = {
-  ...ctaStyle,
-  backgroundColor: 'transparent',
-  color: '#60a5fa',
-  border: '1px solid #3b82f6',
-};
-const linkStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: '#94a3b8',
-  cursor: 'pointer',
-  fontSize: '0.875rem',
-  padding: 0,
-  textDecoration: 'underline',
-};
-const preStyle: React.CSSProperties = {
-  padding: '0.75rem',
-  backgroundColor: '#0f172a',
-  borderRadius: '0.375rem',
-  overflowX: 'auto',
-  fontSize: '0.875rem',
-  marginBottom: '1rem',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-all',
-};
