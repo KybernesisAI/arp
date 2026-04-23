@@ -1,0 +1,142 @@
+/**
+ * @kybernesis/arp-adapter-{{framework}}
+ *
+ * Generated on {{generatedAt}} by @kybernesis/arp-create-adapter.
+ *
+ * Implements the five ARP integration points
+ * (see ARP-installation-and-hosting.md §8) on top of {{displayName}}'s
+ * public extension surface.
+ *
+ * TODO (you): replace the placeholder `{{frameworkPascal}}Like` surface in
+ * src/types.ts with the actual {{displayName}} public interface you
+ * depend on, and wire `useToolMiddleware` / `onPeerMessage` to whatever
+ * real hook names the framework uses.
+ */
+
+import {
+  ArpAgent,
+  guardAction,
+  type ArpAgentOptions,
+  type Resource,
+} from '@kybernesis/arp-sdk';
+import type { HandoffBundle } from '@kybernesis/arp-spec';
+import type {
+  {{frameworkPascal}}Like,
+  {{frameworkPascal}}Message,
+  {{frameworkPascal}}ToolContext,
+} from './types.js';
+
+export type {
+  {{frameworkPascal}}Like,
+  {{frameworkPascal}}Message,
+  {{frameworkPascal}}MessageHandler,
+  {{frameworkPascal}}Reply,
+  {{frameworkPascal}}ToolContext,
+  {{frameworkPascal}}ToolMiddleware,
+} from './types.js';
+
+export interface {{frameworkPascal}}ArpOptions
+  extends Omit<ArpAgentOptions, 'onIncoming'> {
+  handoff?: HandoffBundle | string | Record<string, unknown>;
+  agent?: ArpAgent;
+  port?: number;
+  toolMapping?: (ctx: {{frameworkPascal}}ToolContext) => {
+    action: string;
+    resource: Resource;
+    context?: Record<string, unknown>;
+  };
+}
+
+export interface ArpWrapped{{frameworkPascal}}<F extends {{frameworkPascal}}Like> {
+  framework: F;
+  agent: ArpAgent;
+  start(): Promise<void>;
+  stop(graceMs?: number): Promise<void>;
+}
+
+export function withArp<F extends {{frameworkPascal}}Like>(
+  framework: F,
+  options: {{frameworkPascal}}ArpOptions,
+): ArpWrapped{{frameworkPascal}}<F> {
+  let agent: ArpAgent | null = options.agent ?? null;
+  let started = false;
+  const port = options.port ?? 4500;
+
+  const toolMapping =
+    options.toolMapping ??
+    ((ctx: {{frameworkPascal}}ToolContext) => ({
+      action: ctx.toolName,
+      resource: { type: 'Tool', id: ctx.toolName },
+      context: ctx.args,
+    }));
+
+  async function ensureAgent(): Promise<ArpAgent> {
+    if (agent) return agent;
+    if (!options.handoff) {
+      throw new Error(
+        '@kybernesis/arp-adapter-{{framework}}: options.handoff or options.agent required',
+      );
+    }
+    const { agent: _a, handoff: _h, port: _p, toolMapping: _tm, ...rest } = options;
+    void _a; void _h; void _p; void _tm;
+    agent = await ArpAgent.fromHandoff(options.handoff, rest);
+    return agent;
+  }
+
+  framework.useToolMiddleware(async (ctx, next) => {
+    const a = await ensureAgent();
+    const mapping = toolMapping(ctx);
+    const result = await guardAction(a, {
+      connectionId: ctx.connectionId,
+      action: mapping.action,
+      resource: mapping.resource,
+      ...(mapping.context !== undefined ? { context: mapping.context } : {}),
+      run: () => next(),
+    });
+    if (!result.allow) {
+      return { error: 'denied_by_arp', reason: result.reason };
+    }
+    return result.data;
+  });
+
+  framework.onPeerMessage(async (msg: {{frameworkPascal}}Message) => {
+    const a = await ensureAgent();
+    const connectionId = msg.connectionId ?? (typeof msg.body['connection_id'] === 'string' ? msg.body['connection_id'] : null);
+    if (!connectionId) return { body: { error: 'missing_connection_id' } };
+    const res = await guardAction(a, {
+      connectionId,
+      action: msg.action,
+      resource: { type: 'Message', id: msg.id },
+      context: msg.body,
+      run: async () => ({ ok: true }),
+    });
+    if (!res.allow) return { body: { error: 'denied_by_arp', reason: res.reason } };
+    return { body: (res.data as Record<string, unknown>) ?? {} };
+  });
+
+  return {
+    framework,
+    get agent() {
+      if (!agent) throw new Error('agent not started');
+      return agent;
+    },
+    async start() {
+      const a = await ensureAgent();
+      if (!started) {
+        await a.start({ port });
+        started = true;
+      }
+      await framework.start();
+    },
+    async stop(graceMs = 5000) {
+      try {
+        await framework.stop();
+      } finally {
+        if (agent && started) {
+          await agent.stop({ graceMs });
+          started = false;
+        }
+      }
+    },
+  };
+}

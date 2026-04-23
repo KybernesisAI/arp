@@ -1,0 +1,32 @@
+import { describe, expect, it } from 'vitest';
+import { withArp } from '../src/index.js';
+import type { {{frameworkPascal}}Like } from '../src/types.js';
+
+/**
+ * Baseline conformance test.
+ *
+ * Runs `withArp` against a minimal framework fake and verifies the hooks
+ * were registered. The real conformance test — pairing with the ARP
+ * reference agents and running `@kybernesis/arp-testkit audit` — lives in
+ * the ARP monorepo's `tests/phase-6` suite. Point that at this adapter
+ * once the framework-specific wiring is done.
+ */
+
+class Fake{{frameworkPascal}} implements {{frameworkPascal}}Like {
+  public readonly id = 'fake-{{framework}}';
+  public toolHookRegistered = false;
+  public peerHookRegistered = false;
+  useToolMiddleware() { this.toolHookRegistered = true; }
+  onPeerMessage() { this.peerHookRegistered = true; }
+  async start() {}
+  async stop() {}
+}
+
+describe('@kybernesis/arp-adapter-{{framework}} conformance (scaffold)', () => {
+  it('withArp registers tool-middleware + peer-message hooks', () => {
+    const fw = new Fake{{frameworkPascal}}();
+    withArp(fw, { handoff: { /* stubbed */ } as unknown as never });
+    expect(fw.toolHookRegistered).toBe(true);
+    expect(fw.peerHookRegistered).toBe(true);
+  });
+});

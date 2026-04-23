@@ -1,0 +1,41 @@
+[project]
+name = "arp-sdk"
+version = "0.1.0"
+description = "Python SDK for the Agent Relationship Protocol (ARP). Mirrors the @kybernesis/arp-sdk TypeScript API."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Kybernesis", email = "hello@kybernesis.ai" },
+]
+keywords = ["arp", "agent-relationship-protocol", "kybernesis", "agents", "authorization"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "mypy>=1.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/KybernesisAI/arp"
+Repository = "https://github.com/KybernesisAI/arp"
+Issues = "https://github.com/KybernesisAI/arp/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["arp_sdk"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

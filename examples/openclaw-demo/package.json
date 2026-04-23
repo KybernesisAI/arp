@@ -1,0 +1,19 @@
+{
+  "name": "@kybernesis/arp-example-openclaw-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'example — no build' && exit 0",
+    "test": "echo 'example — see tests/phase-6/adapter-conformance.test.ts' && exit 0",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@kybernesis/arp-adapter-openclaw": "workspace:*",
+    "@kybernesis/arp-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0"
+  }
+}

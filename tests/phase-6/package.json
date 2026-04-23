@@ -1,0 +1,28 @@
+{
+  "name": "@kybernesis/arp-phase-6-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build": "echo 'no build for acceptance tests' && exit 0"
+  },
+  "dependencies": {
+    "@kybernesis/arp-adapter-hermes-agent": "workspace:*",
+    "@kybernesis/arp-adapter-kyberbot": "workspace:*",
+    "@kybernesis/arp-adapter-langgraph": "workspace:*",
+    "@kybernesis/arp-adapter-nanoclaw": "workspace:*",
+    "@kybernesis/arp-adapter-openclaw": "workspace:*",
+    "@kybernesis/arp-runtime": "workspace:*",
+    "@kybernesis/arp-sdk": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-testkit": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*"
+  },
+  "devDependencies": {
+    "@langchain/langgraph": "^0.4.0",
+    "@noble/ed25519": "^2.2.3"
+  }
+}

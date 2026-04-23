@@ -1,0 +1,46 @@
+/**
+ * Minimal structural interface describing {{displayName}}'s public
+ * extension surface that this adapter consumes. Replace the placeholder
+ * shape below with whatever {{displayName}} actually exposes (middleware,
+ * plugin, hooks, decorators).
+ *
+ * Rule: the adapter MUST only depend on documented public API. Never fork
+ * framework source or reach into internals.
+ */
+
+export interface {{frameworkPascal}}Like {
+  readonly id: string;
+  /** Register middleware for every outbound tool / action call. */
+  useToolMiddleware(mw: {{frameworkPascal}}ToolMiddleware): void;
+  /** Register an inbound-message handler. */
+  onPeerMessage(handler: {{frameworkPascal}}MessageHandler): void;
+  /** Start / stop — framework lifecycle. */
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+export interface {{frameworkPascal}}ToolContext {
+  connectionId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+}
+
+export type {{frameworkPascal}}ToolMiddleware = (
+  ctx: {{frameworkPascal}}ToolContext,
+  next: () => Promise<unknown>,
+) => Promise<unknown>;
+
+export interface {{frameworkPascal}}Message {
+  id: string;
+  connectionId?: string;
+  action: string;
+  body: Record<string, unknown>;
+}
+
+export interface {{frameworkPascal}}Reply {
+  body: Record<string, unknown>;
+}
+
+export type {{frameworkPascal}}MessageHandler = (
+  msg: {{frameworkPascal}}Message,
+) => Promise<{{frameworkPascal}}Reply | void>;
