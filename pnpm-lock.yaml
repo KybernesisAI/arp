@@ -39,6 +39,43 @@ importers:
         specifier: ^2.1.5
         version: 2.1.9(@types/node@22.19.17)
 
+  apps/ghost-reference:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../../packages/pdp
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-tls':
+        specifier: workspace:*
+        version: link:../../packages/tls
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+      pino:
+        specifier: ^9.5.0
+        version: 9.14.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+
   apps/owner-app:
     dependencies:
       '@kybernesis/arp-consent-ui':
@@ -132,6 +169,43 @@ importers:
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../../packages/transport
+
+  apps/samantha-reference:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../../packages/pdp
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-tls':
+        specifier: workspace:*
+        version: link:../../packages/tls
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+      pino:
+        specifier: ^9.5.0
+        version: 9.14.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
 
   apps/sidecar:
     dependencies:
@@ -339,6 +413,37 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
 
+  packages/testkit:
+    dependencies:
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../pairing
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../resolver
+      '@kybernesis/arp-scope-catalog':
+        specifier: workspace:*
+        version: link:../scope-catalog
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../spec
+      '@kybernesis/arp-templates':
+        specifier: workspace:*
+        version: link:../templates
+      '@kybernesis/arp-tls':
+        specifier: workspace:*
+        version: link:../tls
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../transport
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+
   packages/tls:
     dependencies:
       '@peculiar/x509':
@@ -480,6 +585,49 @@ importers:
       '@kybernesis/arp-spec':
         specifier: workspace:*
         version: link:../../packages/spec
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+    devDependencies:
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
+
+  tests/phase-5:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-ghost-reference':
+        specifier: workspace:*
+        version: link:../../apps/ghost-reference
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../../packages/pairing
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../../packages/pdp
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-samantha-reference':
+        specifier: workspace:*
+        version: link:../../apps/samantha-reference
+      '@kybernesis/arp-scope-catalog':
+        specifier: workspace:*
+        version: link:../../packages/scope-catalog
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../../packages/transport

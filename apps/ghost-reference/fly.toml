@@ -1,0 +1,49 @@
+# Fly.io deployment config for ghost.agent. NOT deployed in Phase 5.
+app = "arp-ghost-reference"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile.compose"
+  build_target = "runtime"
+
+[env]
+  ARP_HOST = "0.0.0.0"
+  ARP_PORT = "443"
+  ARP_DATA_DIR = "/data"
+  ARP_HANDOFF = "/config/handoff.json"
+
+[[mounts]]
+  source = "ghost_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[[mounts]]
+  source = "ghost_config"
+  destination = "/config"
+  initial_size = "10mb"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 443
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+    handlers = []
+
+  [[services.http_checks]]
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    timeout = "3s"
+    grace_period = "10s"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

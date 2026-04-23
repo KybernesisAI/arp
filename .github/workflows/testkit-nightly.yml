@@ -1,0 +1,108 @@
+name: testkit-nightly
+
+# Runs @kybernesis/arp-testkit's full audit against the configured reference
+# domains nightly. When `TESTKIT_TARGET_DOMAINS` is empty the workflow exits
+# cleanly with a "no targets configured" message — Phase 5 ships this
+# scaffolded; Phase 5B sets the env var once `samantha.agent` / `ghost.agent`
+# are live. When a probe fails, the job emits the JSON reports as an
+# artifact and opens a GitHub issue tagged `testkit-regression`.
+
+on:
+  schedule:
+    # 02:00 UTC daily.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      domains:
+        description: Comma-separated list of domains to audit (overrides TESTKIT_TARGET_DOMAINS)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    name: arp-testkit audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build testkit
+        run: pnpm --filter @kybernesis/arp-testkit run build
+
+      - name: Resolve target domains
+        id: targets
+        env:
+          INPUT_DOMAINS: ${{ inputs.domains }}
+          TESTKIT_TARGET_DOMAINS: ${{ vars.TESTKIT_TARGET_DOMAINS }}
+        run: |
+          if [[ -n "${INPUT_DOMAINS}" ]]; then
+            targets="${INPUT_DOMAINS}"
+          else
+            targets="${TESTKIT_TARGET_DOMAINS}"
+          fi
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if no targets configured
+        if: steps.targets.outputs.targets == ''
+        run: |
+          echo "::notice::TESTKIT_TARGET_DOMAINS is empty — no live .agent domains provisioned yet."
+          echo "Phase 5 ships this workflow scaffolded; Phase 5B populates the var."
+          exit 0
+
+      - name: Run audits
+        if: steps.targets.outputs.targets != ''
+        env:
+          TARGETS: ${{ steps.targets.outputs.targets }}
+        run: |
+          mkdir -p reports
+          IFS=',' read -ra DOMAINS <<< "${TARGETS}"
+          fail=0
+          for domain in "${DOMAINS[@]}"; do
+            domain="$(echo "$domain" | xargs)"
+            [[ -z "$domain" ]] && continue
+            echo "::group::Auditing ${domain}"
+            if ! node packages/testkit/dist/cli.js audit "${domain}" --json > "reports/${domain//\//_}.json"; then
+              fail=1
+              echo "::error::audit failed for ${domain}"
+            fi
+            echo "::endgroup::"
+          done
+          if [[ "$fail" -ne 0 ]]; then
+            exit 2
+          fi
+
+      - name: Upload reports
+        if: steps.targets.outputs.targets != '' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testkit-reports
+          path: reports/
+          retention-days: 30
+
+      - name: Open issue on failure
+        if: failure() && steps.targets.outputs.targets != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `testkit-nightly regression on ${new Date().toISOString().slice(0, 10)}`,
+              body: `A probe failed during the nightly audit. See run: ${run}\n\nReports are attached as a workflow artifact.`,
+              labels: ['testkit-regression'],
+            });
