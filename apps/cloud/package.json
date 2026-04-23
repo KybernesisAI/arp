@@ -21,6 +21,7 @@
     "@kybernesis/arp-templates": "workspace:*",
     "@kybernesis/arp-transport": "workspace:*",
     "@noble/ed25519": "^2.2.3",
+    "@scure/bip39": "^1.6.0",
     "next": "^16.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

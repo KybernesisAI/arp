@@ -3,7 +3,7 @@ import { z } from 'zod';
 import * as ed25519 from '@noble/ed25519';
 import { base64urlDecode } from '@kybernesis/arp-transport';
 import { consumeChallenge } from '@/lib/challenge-store';
-import { publicKeyForPrincipal } from '@/lib/principal-keys';
+import { decodeDidKeyPublicKey, publicKeyForPrincipal } from '@/lib/principal-keys';
 import { setSession } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { tenants } from '@kybernesis/arp-cloud-db';
@@ -27,7 +27,11 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (!record || record.principalDid !== principalDid) {
     return NextResponse.json({ error: 'unknown_or_expired_nonce' }, { status: 401 });
   }
-  const publicKey = publicKeyForPrincipal(principalDid);
+  // Phase 8.5: `did:key` DIDs carry the public key inline; decode it directly
+  // instead of consulting the fixture table. Other DID methods (did:web,
+  // fixture-based principals) continue through the existing path.
+  const publicKey =
+    decodeDidKeyPublicKey(principalDid) ?? publicKeyForPrincipal(principalDid);
   if (!publicKey) {
     return NextResponse.json({ error: 'principal_not_registered' }, { status: 500 });
   }
