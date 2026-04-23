@@ -1,0 +1,6 @@
+__pycache__/
+.venv/
+.arp-data/
+*.egg-info/
+dist/
+build/

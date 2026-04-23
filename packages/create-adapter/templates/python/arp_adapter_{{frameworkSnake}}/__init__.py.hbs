@@ -1,0 +1,77 @@
+"""
+arp_adapter_{{frameworkSnake}} — ARP adapter for {{displayName}} (Python).
+
+Generated on {{generatedAt}} by @kybernesis/arp-create-adapter.
+
+TODO (you): replace the placeholder `{{frameworkPascal}}Like` protocol
+below with the real {{displayName}} extension interface (middleware,
+decorator, plugin) and wire `with_arp` into whichever hook names
+{{displayName}} actually exposes.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Awaitable, Callable, Protocol
+
+from arp_sdk import ArpAgent, guard_action  # type: ignore
+
+
+class {{frameworkPascal}}Like(Protocol):
+    id: str
+
+    def use_tool_middleware(
+        self,
+        middleware: Callable[[dict[str, Any], Callable[[], Awaitable[Any]]], Awaitable[Any]],
+    ) -> None: ...
+
+    def on_peer_message(
+        self,
+        handler: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
+    ) -> None: ...
+
+    async def start(self) -> None: ...
+    async def stop(self) -> None: ...
+
+
+async def with_arp(
+    framework: {{frameworkPascal}}Like,
+    *,
+    agent: ArpAgent,
+) -> {{frameworkPascal}}Like:
+    """Register ARP hooks on `framework` using `agent`."""
+
+    async def tool_mw(ctx: dict[str, Any], nxt: Callable[[], Awaitable[Any]]) -> Any:
+        result = await guard_action(
+            agent,
+            connection_id=ctx["connection_id"],
+            action=ctx["tool_name"],
+            resource={"type": "Tool", "id": ctx["tool_name"]},
+            context=ctx.get("args", {}),
+            run=nxt,
+        )
+        if not result.allow:
+            return {"error": "denied_by_arp", "reason": result.reason}
+        return result.data
+
+    async def inbound(msg: dict[str, Any]) -> dict[str, Any]:
+        connection_id = msg.get("connection_id") or msg.get("body", {}).get("connection_id")
+        if not connection_id:
+            return {"body": {"error": "missing_connection_id"}}
+        res = await guard_action(
+            agent,
+            connection_id=connection_id,
+            action=msg["action"],
+            resource={"type": "Message", "id": msg["id"]},
+            context=msg.get("body", {}),
+            run=lambda: {"ok": True},
+        )
+        if not res.allow:
+            return {"body": {"error": "denied_by_arp", "reason": res.reason}}
+        return {"body": res.data or {}}
+
+    framework.use_tool_middleware(tool_mw)
+    framework.on_peer_message(inbound)
+    return framework
+
+
+__all__ = ["with_arp", "{{frameworkPascal}}Like"]

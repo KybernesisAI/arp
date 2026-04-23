@@ -1,0 +1,34 @@
+# Migrating {{displayName}} (Python) to ARP
+
+## Before
+
+```python
+from {{framework}} import {{frameworkPascal}}
+
+agent = {{frameworkPascal}}( ... )
+await agent.start()
+```
+
+## After
+
+```python
+from arp_sdk import ArpAgent
+from {{framework}} import {{frameworkPascal}}
+from arp_adapter_{{frameworkSnake}} import with_arp
+
+arp = await ArpAgent.from_handoff("./arp-handoff.json")
+framework = {{frameworkPascal}}( ... )
+await with_arp(framework, agent=arp)
+await framework.start()
+```
+
+## What ARP adds
+
+- Cedar PDP check before every tool invocation.
+- Obligation pipeline (redact, rate limit, watermark) applied to outbound replies.
+- Append-only hash-chained audit log per connection.
+
+## What doesn't change
+
+- No prompt / model changes.
+- No fork of {{displayName}} — the adapter uses its documented public API only.

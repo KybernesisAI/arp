@@ -1,0 +1,42 @@
+"""
+Baseline conformance test.
+
+The real conformance test — pairing with the ARP reference agents and
+running `arp-testkit audit` — lives in the ARP monorepo's
+`tests/phase-6` suite. Point it at this adapter once wiring is done.
+"""
+
+import asyncio
+import pytest
+
+
+class Fake{{frameworkPascal}}:
+    def __init__(self) -> None:
+        self.id = "fake-{{framework}}"
+        self.tool_hook_registered = False
+        self.peer_hook_registered = False
+
+    def use_tool_middleware(self, _mw) -> None:
+        self.tool_hook_registered = True
+
+    def on_peer_message(self, _handler) -> None:
+        self.peer_hook_registered = True
+
+    async def start(self) -> None:
+        pass
+
+    async def stop(self) -> None:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_with_arp_registers_hooks():
+    from arp_adapter_{{frameworkSnake}} import with_arp
+
+    class FakeAgent:
+        did = "did:web:test.agent"
+
+    fw = Fake{{frameworkPascal}}()
+    await with_arp(fw, agent=FakeAgent())  # type: ignore[arg-type]
+    assert fw.tool_hook_registered
+    assert fw.peer_hook_registered

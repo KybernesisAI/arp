@@ -1,0 +1,44 @@
+# Migrating {{displayName}} to ARP
+
+## Before
+
+```ts
+import { {{displayName}} } from '{{framework}}';
+const agent = new {{displayName}}({ /* ... */ });
+await agent.start();
+```
+
+## After
+
+```ts
+import { {{displayName}} } from '{{framework}}';
+import { withArp } from '@kybernesis/arp-adapter-{{framework}}';
+
+const guarded = withArp(new {{displayName}}({ /* ... */ }), {
+  handoff: './arp-handoff.json',
+});
+await guarded.start();
+```
+
+## What ARP adds
+
+- Cedar PDP check before every tool call.
+- Obligation pipeline (redact, rate limit, watermark) applied to every outbound reply.
+- Append-only audit log per connection.
+- Lifecycle events (`revocation`, `rotation`, `pairing`) via `guarded.agent.on(...)`.
+
+## What doesn't change
+
+- No prompt / model changes.
+- No fork of {{displayName}} — the adapter uses its documented public API only.
+
+## FAQ
+
+**Will my tools still work?**
+Yes. The middleware only wraps the invocation — your tool runs unchanged when the PDP allows.
+
+**Latency?**
+The PDP is in-process Cedar-WASM; <5 ms per check on a realistic policy bundle.
+
+**Debuggability?**
+Every decision is appended to `<dataDir>/audit/<connection_id>.jsonl` (hash-chained). Use `arp-testkit audit <agent>` to verify.
