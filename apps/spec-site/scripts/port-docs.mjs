@@ -27,18 +27,44 @@ const APP_DIR = resolve(__dirname, '..', 'app');
  * Paths intentionally lean on Next's file-system routing.
  */
 const MAPPINGS = [
+  // RFCs — sourced from the repo-root `rfcs/` tree so the site + the repo
+  // stay byte-identical.
+  {
+    src: '../rfcs/README.md',
+    dst: 'rfcs/page.mdx',
+    title: 'RFC process',
+    description: 'How to propose substantive changes to the ARP protocol.',
+  },
+  {
+    src: '../rfcs/0001-template.md',
+    dst: 'rfcs/0001-template/page.mdx',
+    title: 'RFC template',
+    description: 'Blank template — copy this, don\'t fill it in directly.',
+  },
+  {
+    src: '../rfcs/0002-connection-first-policy-model.md',
+    dst: 'rfcs/0002-connection-first-policy-model/page.mdx',
+    title: 'RFC-0002: Connection-first policy model',
+    description: 'Why policy is bound to the connection between two agents, not to either agent in isolation.',
+  },
+  {
+    src: '../rfcs/0003-did-pinned-tls-for-agent-endpoints.md',
+    dst: 'rfcs/0003-did-pinned-tls-for-agent-endpoints/page.mdx',
+    title: 'RFC-0003: DID-pinned TLS for agent endpoints',
+    description: 'Why agent-to-agent TLS pins the cert fingerprint in the DID document rather than using Web PKI.',
+  },
+  {
+    src: '../rfcs/0004-scope-catalog-versioning.md',
+    dst: 'rfcs/0004-scope-catalog-versioning/page.mdx',
+    title: 'RFC-0004: Scope catalog versioning',
+    description: 'How the scope catalog evolves across releases — addition, deprecation, retirement.',
+  },
   // Spec pages
   {
     src: 'ARP-architecture.md',
     dst: 'spec/v0.1/architecture/page.mdx',
     title: 'Architecture',
     description: 'The seven-layer ARP stack — identity, pairing, policy, transport, TLS, registry, audit.',
-  },
-  {
-    src: 'ARP-tld-integration-spec-v2.md',
-    dst: 'spec/v0.1/registrar-integration/page.mdx',
-    title: 'Registrar integration (v2.1)',
-    description: 'What a .agent TLD registrar publishes, hosts, and signs. Includes the v2.1 two-option owner-binding amendment.',
   },
   // Docs pages
   {
@@ -98,6 +124,54 @@ const MAPPINGS = [
 ];
 
 const TODAY = new Date().toISOString().slice(0, 10);
+
+/**
+ * The source docs predate the Phase-8.5 Self.xyz demotion and still
+ * reference `did:web:ian.self.xyz` as a sample principal DID. Public
+ * pages must not carry those references (opener rule 7). Replace the
+ * examples with the v2.1-canonical forms: `did:key:…` for browser-held
+ * keys, `did:web:arp.cloud:u:<uuid>` for cloud-managed. Explanatory prose
+ * about Self.xyz gets rewritten to a neutral "any DID method accepted"
+ * frame that matches the current contract.
+ */
+const SELFXYZ_REWRITES = [
+  // Example DID strings → canonical did:key form.
+  [/did:web:ian\.self\.xyz/g, 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK'],
+  [/did:web:([a-zA-Z0-9_-]+)\.self\.xyz/g, 'did:web:arp.cloud:u:$1'],
+  // Illustrative Cedar VC type identifiers — `self_xyz.verified_human`
+  // was provider-specific; the PDP treats VC types as opaque strings so
+  // we rename to a neutral `vc_provider.*` prefix that still reads as a
+  // valid Cedar context key.
+  [/self_xyz/g, 'vc_provider'],
+  // Prose normalisations — neutralise remaining mentions, tuned so the
+  // resulting sentences still parse in English.
+  [
+    /Self\.xyz SHOULD NOT be prompted for by registrar UX\.\s*/g,
+    'The v2.1 registrar UX presents the two-option owner-binding chooser (browser `did:key` or ARP Cloud `did:web`). ',
+  ],
+  [
+    /Self\.xyz is no longer a required dependency of the protocol;\s*credentials are pluggable\./g,
+    'Credential providers are pluggable; the reference implementation ships no provider-specific bindings.',
+  ],
+  [
+    /Self\.xyz integration beyond accepting a DID string \(no VC verification logic yet\)/g,
+    'provider-specific VC verification logic (treat all types as opaque strings)',
+  ],
+  [/Self\.xyz prompts must be removed;/g, 'external-provider prompts must be removed;'],
+  [/`did:web:<x>\.self\.xyz`/g, '`did:web:provider.example`'],
+  [/did:web:<x>\.self\.xyz/g, 'did:web:provider.example'],
+  [/Self\.xyz/g, 'the external identity provider'],
+  [/self\.xyz/g, 'the external provider'],
+  [/selfxyz/g, 'external-provider'],
+];
+
+function rewriteForPublic(body) {
+  let out = body;
+  for (const [pattern, replacement] of SELFXYZ_REWRITES) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
 
 function escapeMdx(body) {
   // MDX parses `<foo>` as a JSX tag. Source docs use `<` for less-than
@@ -164,7 +238,7 @@ function build(mapping) {
   const srcPath = resolve(DOCS_DIR, mapping.src);
   const dstPath = resolve(APP_DIR, mapping.dst);
   const source = readFileSync(srcPath, 'utf8');
-  const body = escapeMdx(stripLeadingH1(source));
+  const body = escapeMdx(rewriteForPublic(stripLeadingH1(source)));
 
   const mdx = `export const metadata = {
   title: ${JSON.stringify(mapping.title)},

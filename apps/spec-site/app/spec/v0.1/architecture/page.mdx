@@ -150,7 +150,7 @@ The "KYA handshake" produces a signed **Connection Token**. One token per **purp
 }
 ```
 
-`required_vcs` is a list of opaque VC type identifiers. In v1, the scope catalogue ships examples (prefixed `self_xyz.*` for historical reasons) but any provider can issue VCs; the PDP treats them as strings.
+`required_vcs` is a list of opaque VC type identifiers. In v1, the scope catalogue ships examples (prefixed `vc_provider.*` for historical reasons) but any provider can issue VCs; the PDP treats them as strings.
 
 Mutually signed. Wrapped in a UCAN or Biscuit envelope so it can be attenuated and chain-verified offline.
 

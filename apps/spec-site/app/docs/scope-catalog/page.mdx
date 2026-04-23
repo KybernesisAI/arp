@@ -36,9 +36,9 @@ consent_text_template: string   # rendered in plain English for the consent UI
 obligations_forced: [string]    # obligations always attached (e.g., require_fresh_consent)
 implies: [string]               # scope IDs automatically included
 conflicts_with: [string]        # scope IDs that cannot coexist
-tier_gate: string               # optional minimum VC requirement (e.g., self_xyz.adult)
+tier_gate: string               # optional minimum VC requirement (e.g., vc_provider.adult)
                                 # **tier_gate** — a VC type identifier (opaque string). Example values use
-                                # `self_xyz.*` prefixes for historical continuity; any VC provider's type
+                                # `vc_provider.*` prefixes for historical continuity; any VC provider's type
                                 # strings work. See `ARP-policy-examples.md §6.9`.
 step_up_required: bool          # does granting need fresh principal consent beyond pairing?
 ```
@@ -370,7 +370,7 @@ obligations_forced:
       level: verbose
 implies: []
 conflicts_with: []
-tier_gate: self_xyz.verified_human
+tier_gate: vc_provider.verified_human
 step_up_required: true
 ```
 
@@ -489,7 +489,7 @@ obligations_forced:
     params: {}
 implies: []
 conflicts_with: []
-tier_gate: self_xyz.verified_human
+tier_gate: vc_provider.verified_human
 step_up_required: true
 ```
 

@@ -24,8 +24,10 @@ overview](/spec/v0.1/architecture) for why.
 - The TXT record at `_principal.<owner>.<domain>` MUST publish the
   principal DID verbatim. The regex
   `^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$` is the only shape check.
-- Self.xyz SHOULD NOT be prompted for by registrar UX. See the v2.1
-  [registrar amendment](/spec/v0.1/registrar-integration) for the approved
-  two-option chooser (browser did:key vs. ARP Cloud did:web).
+- Registrar UX MUST present the two-option owner-binding chooser
+  documented in the v2.1
+  [registrar amendment](/spec/v0.1/registrar-integration): browser-held
+  `did:key` or ARP Cloud-managed `did:web`. No external identity-provider
+  sign-in is required by the protocol.
 
 *This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

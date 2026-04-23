@@ -134,8 +134,8 @@ permit (
     context.time.within_business_hours &&
     context.time.day_of_week in ["Mon","Tue","Wed","Thu","Fri"] &&
     // Required VCs presented this session
-    context.presented_vcs.contains("self_xyz.verified_human") &&
-    context.presented_vcs.contains("self_xyz.over_18") &&
+    context.presented_vcs.contains("vc_provider.verified_human") &&
+    context.presented_vcs.contains("vc_provider.over_18") &&
     // Per-request spend cap
     context.quoted_price_usd <= 5 &&
     // Aggregate 30-day cap
@@ -187,7 +187,7 @@ Ghost sends: *"Summarize the Q2 research findings doc from Project Alpha."*
        time.now: 2026-04-22T14:30 NYC,
        time.within_business_hours: true,
        time.day_of_week: "Wed",
-       presented_vcs: ["self_xyz.verified_human","self_xyz.over_18"],
+       presented_vcs: ["vc_provider.verified_human","vc_provider.over_18"],
        quoted_price_usd: 0.02,
        spend_last_30d_usd: 3.18,
        connection.expires_at: 2026-10-22
@@ -381,7 +381,7 @@ Actions are enumerated from the scope catalog. Core set:
 
 ### 6.9 Presented credentials
 
-&gt; **Note (v0.1+):** the `self_xyz.*` prefixes below are illustrative. The PDP treats all VC type identifiers as opaque strings. Any provider-defined VC type works identically — `custom.over_18`, `gov.verified_human`, etc. Self.xyz is no longer a required dependency of the protocol; credentials are pluggable.
+&gt; **Note (v0.1+):** the `vc_provider.*` prefixes below are illustrative. The PDP treats all VC type identifiers as opaque strings. Any provider-defined VC type works identically — `custom.over_18`, `gov.verified_human`, etc. Credential providers are pluggable; the reference implementation ships no provider-specific bindings.
 
 The keys in the table below are example VC type identifiers — they render as plain string comparisons inside Cedar `when { ... }` clauses. Replace them with whatever type strings your chosen VC issuer uses; the semantics are identical.
 
@@ -389,12 +389,12 @@ The keys in the table below are example VC type identifiers — they render as p
 |---|---|---|
 | `context.presented_vcs` | [string] | Full list of VC type IDs presented this session |
 | `context.presented_vcs.contains(X)` | bool | Convenience check |
-| `context.presented_vcs.self_xyz.verified_human` | bool | |
-| `context.presented_vcs.self_xyz.over_18` | bool | |
-| `context.presented_vcs.self_xyz.over_21` | bool | |
-| `context.presented_vcs.self_xyz.country` | string | ISO country code |
-| `context.presented_vcs.self_xyz.us_resident` | bool | |
-| `context.presented_vcs.self_xyz.attestation_age_seconds` | int | Freshness |
+| `context.presented_vcs.vc_provider.verified_human` | bool | |
+| `context.presented_vcs.vc_provider.over_18` | bool | |
+| `context.presented_vcs.vc_provider.over_21` | bool | |
+| `context.presented_vcs.vc_provider.country` | string | ISO country code |
+| `context.presented_vcs.vc_provider.us_resident` | bool | |
+| `context.presented_vcs.vc_provider.attestation_age_seconds` | int | Freshness |
 | `context.presented_vcs.employment.verified` | bool | External issuer |
 | `context.presented_vcs.employment.employer_did` | string | |
 
@@ -521,8 +521,8 @@ when { principal.reputation_score >= 70 };
 ```cedar
 permit (principal, action == Action::"share_external", resource)
 when {
-    context.presented_vcs.contains("self_xyz.us_resident") &&
-    context.presented_vcs.contains("self_xyz.over_18")
+    context.presented_vcs.contains("vc_provider.us_resident") &&
+    context.presented_vcs.contains("vc_provider.over_18")
 };
 ```
 

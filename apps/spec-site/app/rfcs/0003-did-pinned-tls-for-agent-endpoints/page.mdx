@@ -1,0 +1,156 @@
+export const metadata = {
+  title: "RFC-0003: DID-pinned TLS for agent endpoints",
+  description: "Why agent-to-agent TLS pins the cert fingerprint in the DID document rather than using Web PKI.",
+};
+
+# RFC-0003: DID-pinned TLS for agent endpoints
+
+- **Status:** accepted (retroactive)
+- **Author(s):** @ianborders
+- **Created:** 2026-02-18
+- **Related:** `docs/ARP-architecture.md` §Transport, `apps/sidecar/README.md`
+
+## Summary
+
+The agent-to-agent transport path uses **self-signed TLS** with the
+server's cert fingerprint pinned inside the DID document. Web PKI
+(Let's Encrypt, commercial CAs) is reserved for human-facing endpoints
+— the gateway, the SaaS surface, tunnel endpoints. This RFC formalises
+why the agent path does not participate in Web PKI.
+
+## Motivation
+
+The first instinct is to treat agent-to-agent as "just more HTTPS."
+That works, until you ask:
+
+- **What authority validates the cert?** A CA. CAs are out-of-band trust
+  anchors administered by a small oligopoly. An agent trusting a CA is
+  trusting every other agent that CA chooses to vouch for, for the
+  lifetime of that root in the trust store.
+- **How does the agent's identity rotate?** It doesn't. The DNS name
+  rotates (via ACME re-issuance), but the agent's *identity* — the
+  thing that should outlast any single cert — is baked into the DID
+  document, which lives outside the CA trust graph.
+- **What happens when an agent changes hosting?** With Web PKI, the new
+  host issues its own cert. The calling agent has no way to distinguish
+  "legitimate hosting change" from "MITM with a valid cert."
+
+DID-pinning solves all three: the DID document lists the expected cert
+fingerprint. If the fingerprint changes, the DID document changes
+first. The agent's sovereign DID is the authority, not a CA.
+
+## Design
+
+### Cert generation
+
+Sidecar first-boot generates an ed25519 keypair and a matching self-
+signed X.509 cert. The cert's SAN includes the agent's `.agent`
+domain. No CSR is ever submitted to a public CA.
+
+### Fingerprint format
+
+- Hash: SHA-256.
+- Over: DER encoding of the leaf cert.
+- Encoding: multibase with prefix `z` (base58btc).
+- Example:
+  `z8mKfYJhH3kU9cQh5r7T4X6YvZwA1nPpGqKtMoLr9SxE`
+
+### Publication
+
+Fingerprint is a field on the DIDComm service block inside the DID
+document:
+
+```json
+{
+  "service": [{
+    "id": "#didcomm",
+    "type": "DIDCommMessaging",
+    "serviceEndpoint": "https://samantha.agent/arp/inbox",
+    "accept": ["didcomm/v2"],
+    "tlsFingerprint": "z8mKfYJhH3kU…"
+  }]
+}
+```
+
+### Client behaviour
+
+- Resolve the peer DID document.
+- Extract `tlsFingerprint`.
+- Open a TLS connection, compare the peer's presented cert's SHA-256 to
+  the pinned value.
+- **Fail closed** on mismatch. No fallback to Web PKI.
+
+### Rotation
+
+A rotation event publishes both the old and new fingerprints in the
+service block. After a 30-day grace window, the old fingerprint may be
+removed. Peers may cache the old fingerprint during the grace window.
+
+### Web PKI carve-out
+
+The following endpoints MAY use Web PKI because they are fetched from
+browsers or serve human-readable content:
+
+- `/.well-known/did.json` and other well-known documents (fetched by
+  client apps, not agents).
+- The ARP Cloud gateway (`cloud.arp.run`).
+- Tunnel endpoints exposed by users running local sidecars with ngrok
+  or Tailscale Funnel.
+
+## Alternatives considered
+
+- **Web PKI end-to-end.** Rejected: delegates trust to CAs, breaks
+  identity sovereignty, makes hosting changes indistinguishable from
+  MITM.
+- **TOFU (trust on first use).** Rejected: "first use" is the most
+  dangerous window for MITM. DID resolution happens before first
+  transport use anyway, so we can pin without TOFU.
+- **ACME inside the DID method.** Rejected: no standard exists; CAs
+  aren't DID-aware; doesn't buy us anything over self-signed + pinned.
+
+## Drawbacks
+
+- Browsers cannot directly visit an agent endpoint — they reject self-
+  signed certs. This is **fine** because the agent endpoint is not for
+  browsers. Browser-facing UX goes through the human endpoints.
+- Debugging a fingerprint mismatch requires pulling the DID doc and
+  comparing. The CLI ships a helper: `arp diag tls-pin <domain>`.
+- Rotation UX depends on the DID document being updatable within the
+  grace window.
+
+## Adoption path
+
+Shipped in Phase 2 (Runtime Core) + Phase 3 (Sidecar Packaging).
+Retroactive formalisation before Phase 9 public launch.
+
+## Unresolved questions
+
+- Post-quantum migration. When we add post-quantum signatures to the
+  DID document, do we also add PQ cert material? Deferred to v1.x.
+
+## Security & privacy considerations
+
+- **Trust anchor:** the DID document itself must be served over a
+  trusted path. The DID-method-level trust chain handles this (for
+  `did:web`, DNSSEC + TLS on the DNS endpoint).
+- **Downgrade attack:** a peer that supports Web PKI fallback + pinned
+  fingerprints is vulnerable to fingerprint-stripping. Spec forbids
+  fallback. Reference implementations verify this via
+  `representation-jwt-signer-binding` + `tls-fingerprint-pin` testkit
+  probes.
+- **Cert reuse:** the ed25519 keypair used for TLS is distinct from the
+  DID keypair. No cross-contamination.
+
+## Testkit impact
+
+Existing probe: `tls-fingerprint-pin` (ships in testkit v1) validates
+that the published fingerprint matches the presented cert. No changes
+from this RFC.
+
+
+---
+
+<div className="mt-16 border-t border-rule pt-6 font-mono text-kicker uppercase tracking-[0.14em] text-muted">
+  Source: <a href="https://github.com/KybernesisAI/arp/blob/main/docs/../rfcs/0003-did-pinned-tls-for-agent-endpoints.md">docs/../rfcs/0003-did-pinned-tls-for-agent-endpoints.md</a>
+  {' · '}Ported 2026-04-23
+</div>

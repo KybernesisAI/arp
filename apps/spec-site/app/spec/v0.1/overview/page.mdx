@@ -36,7 +36,7 @@ An implementation is **ARP v0.1 conformant** when:
    audit log per the rule in `§Policy`.
 3. The `@kybernesis/arp-testkit` compliance suite returns 11/11 against a
    live `<domain>` — the 8 original probes plus the 3 added for the v2.1
-   amendment (principal-identity-method, no-selfxyz-prompt,
+   amendment (principal-identity-method, no-external-provider-prompt,
    representation-jwt-signer-binding).
 4. The sole DIDComm-adjacent import site is the transport package — no
    other layer touches envelope signing / verification libraries directly.

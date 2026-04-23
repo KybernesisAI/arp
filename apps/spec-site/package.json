@@ -6,10 +6,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "next build",
-    "dev": "next dev",
+    "build": "pnpm run prebuild && next build",
+    "dev": "pnpm run prebuild && next dev",
+    "prebuild": "node scripts/bundle-catalog.mjs",
     "start": "next start",
-    "test": "vitest run --passWithNoTests",
+    "test": "pnpm run prebuild && vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "lint": "eslint app lib components"
   },
