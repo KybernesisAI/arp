@@ -12,6 +12,9 @@
 
 ### Main branch
 ```
+889ef05 fix(runtime): wait for TCP-level connection drain, not just app-level inFlight (#10)
+eeec5bf Phase 7: ARP Cloud — multi-tenant runtime + cloud-client + Next.js UI + Stripe billing + tenant isolation (#9)
+53fe9da docs: CLAUDE.md + ARP-session-handoff.md (operating model + state at end of phase 6)
 1e2defe Phase 6: SDKs + Framework Adapters (#8)
 a7e6a20 Phase 5: Reference Agents + Compliance Testkit (#7)
 a5ef6da Phase 4: Pairing Flow + Owner App (#6)
@@ -32,11 +35,14 @@ c2aa88d docs(headless): TLD-integration parallel-build brief + card-bridging ana
 4. **Phase 4 — Pairing + Owner App.** `@kybernesis/arp-pairing`, `-consent-ui`, `-selfxyz-bridge`. `apps/owner-app` Next.js 16 App Router. Runtime `/admin/*` bearer-gated API. End-to-end pairing demo.
 5. **Phase 5 — Reference Agents + Testkit (local scope).** `@kybernesis/arp-testkit` with all 8 probes + CLI. `samantha-reference` and `ghost-reference` agent configs (not deployed — deferred to Phase 5B when infra is ready). Nightly compliance workflow (dormant). Review-pass fix: `record.token.obligations` now merges into audit entries + outbound replies.
 6. **Phase 6 — SDKs + Adapters.** `@kybernesis/arp-sdk` + Python scaffold. Five required adapters: KyberBot, OpenClaw, Hermes-Agent, NanoClaw, LangGraph. `@kybernesis/arp-create-adapter` CLI. Claude Code adapter-authoring skill.
+7. **Phase 7 — ARP Cloud.** `@kybernesis/arp-cloud-db` (branded `TenantId` + `TenantDb`), `@kybernesis/arp-cloud-runtime` (multi-tenant dispatch), `@kybernesis/arp-cloud-client` (outbound WebSocket + reconnect), `apps/cloud-gateway`, `apps/cloud` (Next.js UI + Stripe billing). Tenant isolation: 5 × 4 adversarial scenarios, zero leaks. Stripe webhook idempotency. **Post-merge drain fix (PR #10):** `server.getConnections()` now joins `inFlight` in the quiescence loop to close the TCP-accept-queue race that re-flared on CI.
 
 ### Phases remaining
-- **Phase 7 — ARP Cloud.** Multi-tenant runtime, `@kybernesis/arp-cloud-client` outbound WebSocket, Stripe billing, app.arp.spec fallback UI, HNS gateway.
 - **Phase 8 — Mobile Apps.** iOS + Android via Expo/React Native, biometric consent, QR pairing, push.
-- **Phase 9 — Headless Integration + Public Launch.** Docs site, spec site, mobile store submissions, npm `latest` promotion, Headless compliance co-sign.
+- **Phase 9 — Headless Integration + Public Launch.** Domain wiring (user picked `arp.run`), spec site, mobile store submissions, npm `latest` promotion, Headless compliance co-sign.
+
+### Domain decision (logged)
+User registered **`arp.run`** on 2026-04-23. Phase 7 is domain-agnostic (all Vercel preview URLs + env vars). Phase 9 wires `cloud.arp.run`, `app.arp.run`, `spec.arp.run`, `docs.arp.run` to the Vercel project. Branding remains "ARP" — user considered "Dispatch" as a product brand on top of ARP-the-protocol but committed to ARP branding for now. Can revisit at Phase 9 launch prep.
 
 ### Deferred
 - **Phase 5B** — live deployment of reference agents on real `.agent` domains + real VPSes. Blocked on Option A decision (no user testing until 7-9 ship).
