@@ -1,0 +1,50 @@
+{
+  "name": "@kybernesis/arp-adapter-langgraph",
+  "version": "0.1.0",
+  "description": "ARP adapter for LangGraph — graph node + helper that inserts ARP PDP checks into StateGraph workflows.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "adapters/langgraph"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "MIGRATION.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-sdk": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*"
+  },
+  "peerDependencies": {
+    "@langchain/langgraph": "^0.4.0"
+  },
+  "devDependencies": {
+    "@kybernesis/arp-transport": "workspace:*",
+    "@langchain/langgraph": "^0.4.0",
+    "@noble/ed25519": "^2.2.3",
+    "@types/node": "^22.9.0"
+  }
+}
