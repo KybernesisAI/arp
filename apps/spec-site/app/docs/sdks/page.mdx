@@ -1,0 +1,43 @@
+export const metadata = {
+  title: 'SDKs',
+  description: 'Public APIs for building ARP-native code — TypeScript SDK and (at launch) Python SDK.',
+};
+
+# SDKs
+
+ARP ships two SDKs: a TypeScript SDK that powers the reference monorepo
+and a Python port that ships at Phase 9 launch.
+
+## TypeScript — `@kybernesis/arp-sdk`
+
+```sh
+npm install @kybernesis/arp-sdk
+```
+
+Core building blocks:
+
+- `createClient({ sidecar, principalDid })` — open a connection to the
+  sidecar admin API from a caller frame (a UI, an adapter, your own app).
+- `listConnections()` / `getConnection(cid)` — introspect the caller's
+  connection set.
+- `request({ to, scope, payload, obligations })` — issue a scoped request
+  over an existing connection. Returns a signed reply or a rejection with
+  the failing Cedar rule.
+- `audit({ cid, limit })` — fetch a slice of the audit chain, verify
+  the hash links locally.
+
+Full typings live in `packages/sdk/src/index.ts` in the monorepo.
+
+## Python — `arp-sdk` (coming at Phase 9)
+
+Mirrors the TypeScript public API. v0.1 stubs Cedar-WASM + DIDComm
+transport; the obligation engine and compliance testkit probes are full-
+fidelity on day one. Installed via `pip install arp-sdk`.
+
+## Adapters
+
+If you're using a framework (LangGraph, KyberBot, OpenClaw, Hermes-Agent,
+NanoClaw), prefer the [framework adapter](/docs/adapters) — it wraps the
+SDK with framework-native conventions so you don't rewrite your handlers.
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*
