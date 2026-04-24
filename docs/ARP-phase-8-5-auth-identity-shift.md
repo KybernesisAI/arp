@@ -5,6 +5,13 @@
 **Predecessor:** Phase 8 (mobile scaffold merged, PR #12; public launch deferred to Phase 10).
 **Successor:** Phase 9 — Headless Integration + Public Launch.
 
+## Status (2026-04-24)
+
+- ✅ Phase 8.5 merged (PR #14, commit `3c157fb`).
+- ✅ Conservative call #1 (WebAuthn / passkey UX) **closed by Phase 9d**. See `docs/ARP-phase-9-launch.md` §Task 10 + apps/cloud `/api/webauthn/*` routes + `lib/principal-key-passkey.ts`.
+- ✅ Conservative call #3 (HKDF-SHA256 seed derivation + identity rotation path) **closed by Phase 9d**. See `rfcs/0005-principal-key-derivation-v2.md` + `lib/principal-key-browser.ts::rotateToV2()` + `/api/tenants/rotate` + `/u/<uuid>/did.json` dual-publish.
+- ⏳ Conservative call #2 (server-held KMS-wrapped principal keys) and #4 (magic-link email) remain deferred to Phase 9+ consumer-UX polish or beyond.
+
 ---
 
 ## 0. Why this phase exists
