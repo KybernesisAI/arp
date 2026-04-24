@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Container, Nav } from '@/components/ui';
+import { LogoutButton } from './LogoutButton';
 
 /**
  * Authenticated app shell — top bar with brand, a couple of app links, and
@@ -21,11 +22,13 @@ export function AppShell({
           showMainActions
             ? [
                 { label: 'Dashboard', href: '/dashboard' },
+                { label: 'Pair', href: '/pair' },
                 { label: 'Billing', href: '/billing' },
                 { label: 'Docs', href: 'https://arp.run', external: true },
               ]
             : [{ label: 'About ARP', href: 'https://arp.run', external: true }]
         }
+        cta={showMainActions ? <LogoutButton /> : undefined}
       />
       <main className="flex-1 py-12 lg:py-16">
         <Container>{children}</Container>

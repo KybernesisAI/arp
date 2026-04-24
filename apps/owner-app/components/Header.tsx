@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { env } from '@/lib/env';
 import { formatAgentName } from '@/lib/format';
+import { LogoutButton } from './LogoutButton';
 
 export function Header() {
   const e = env();
@@ -14,10 +15,11 @@ export function Header() {
           {formatAgentName(e.ARP_AGENT_DID)}
         </h1>
       </div>
-      <nav className="flex gap-4 text-sm">
+      <nav className="flex items-center gap-4 text-sm">
         <Link href="/">Connections</Link>
         <Link href="/pair">Pair</Link>
         <Link href="/settings">Settings</Link>
+        <LogoutButton />
       </nav>
     </header>
   );

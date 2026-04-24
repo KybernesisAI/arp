@@ -122,6 +122,11 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/settings',
     '/internal',
     '/u',
+    // Phase 10a: URL-fragment pairing is reachable on cloud.arp.run — the
+    // marketing surface's /cloud rewrite would bury the hash payload under
+    // a non-existent route. Also enables the "open invite link in another
+    // browser" smoke flow without forcing users onto app.arp.run.
+    '/pair',
     // /legal/* pages are referenced from footers on all three surfaces
     // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
     // /legal layout regardless of which host the user is on.

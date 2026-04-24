@@ -148,6 +148,15 @@ importers:
       '@kybernesis/arp-consent-ui':
         specifier: workspace:*
         version: link:../../packages/consent-ui
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../../packages/pairing
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-scope-catalog':
+        specifier: workspace:*
+        version: link:../../packages/scope-catalog
       '@kybernesis/arp-spec':
         specifier: workspace:*
         version: link:../../packages/spec
@@ -175,6 +184,9 @@ importers:
       '@simplewebauthn/server':
         specifier: ^13.3.0
         version: 13.3.0
+      canonicalize:
+        specifier: ^2.0.0
+        version: 2.1.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

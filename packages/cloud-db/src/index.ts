@@ -35,6 +35,7 @@ export {
   rateLimitHits,
   userCredentials,
   webauthnChallenges,
+  pairingInvitations,
 } from './schema.js';
 export type {
   TenantRow,
@@ -52,4 +53,5 @@ export type {
   RateLimitHitRow,
   UserCredentialRow,
   WebauthnChallengeRow,
+  PairingInvitationRow,
 } from './schema.js';
