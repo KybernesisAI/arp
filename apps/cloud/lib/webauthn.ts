@@ -164,3 +164,52 @@ export async function bumpCredentialCounter(
     .set({ counter, lastUsedAt: new Date() })
     .where(eq(userCredentials.credentialId, credentialId));
 }
+
+/**
+ * Rename a credential by DB row id. Tenant-scoped — updates ONLY if the
+ * row's tenantId matches the caller's. Returns the updated row or null if
+ * not found / not owned by the tenant.
+ */
+export async function renameCredentialForTenant(
+  tenantId: string,
+  id: string,
+  nickname: string | null,
+): Promise<UserCredentialRow | null> {
+  const db = await getDb();
+  const rows = await db
+    .update(userCredentials)
+    .set({ nickname })
+    .where(and(eq(userCredentials.id, id), eq(userCredentials.tenantId, tenantId)))
+    .returning();
+  return rows[0] ?? null;
+}
+
+/**
+ * Delete a credential by DB row id. Tenant-scoped — deletes ONLY if the
+ * row's tenantId matches the caller's. Returns true if a row was removed.
+ */
+export async function deleteCredentialForTenant(
+  tenantId: string,
+  id: string,
+): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db
+    .delete(userCredentials)
+    .where(and(eq(userCredentials.id, id), eq(userCredentials.tenantId, tenantId)))
+    .returning({ id: userCredentials.id });
+  return rows.length > 0;
+}
+
+/**
+ * Count credentials registered for a tenant. Used by the DELETE route to
+ * refuse removing the last credential — see
+ * apps/cloud/app/api/webauthn/credentials/[id]/route.ts.
+ */
+export async function countCredentialsForTenant(tenantId: string): Promise<number> {
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(userCredentials)
+    .where(eq(userCredentials.tenantId, tenantId));
+  return rows.length;
+}
