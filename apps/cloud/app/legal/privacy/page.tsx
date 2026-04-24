@@ -23,7 +23,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="1. Who we are">
         <p>
-          [DRAFT] Kybernesis operates ARP Cloud at <code>cloud.arp.run</code>.
+          Kybernesis operates ARP Cloud at <code>cloud.arp.run</code>.
           This policy describes how we handle personal data when you use
           the hosted Service.
         </p>
@@ -62,7 +62,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="3. How we use it">
         <p>
-          [DRAFT] Operating the Service, enforcing acceptable use, billing,
+          Operating the Service, enforcing acceptable use, billing,
           customer support, service announcements. No behavioral
           advertising.
         </p>
@@ -70,7 +70,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="4. Sharing">
         <p>
-          [DRAFT] We use the following processors (subprocessors):
+          We use the following processors (subprocessors):
         </p>
         <ul>
           <li>Stripe — billing.</li>
@@ -86,14 +86,14 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="5. Retention">
         <p>
-          [DRAFT] Account data is retained for the life of your account +
+          Account data is retained for the life of your account +
           [TODO: counsel — TBD] days after termination. Audit entries are
           retained per plan tier (see pricing). Request logs ≤ 90 days.
         </p>
       </Section>
 
       <Section title="6. Your rights">
-        <p>[DRAFT] Depending on your jurisdiction, you may have rights to:</p>
+        <p>Depending on your jurisdiction, you may have rights to:</p>
         <ul>
           <li>Access a copy of your personal data.</li>
           <li>Correct inaccurate data.</li>
@@ -108,7 +108,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="7. International transfers">
         <p>
-          [DRAFT] Our infrastructure runs on Vercel + Neon regions that may
+          Our infrastructure runs on Vercel + Neon regions that may
           be outside your country of residence. Standard Contractual
           Clauses or equivalent safeguards apply where required.
         </p>
@@ -116,7 +116,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="8. Security">
         <p>
-          [DRAFT] Principal keys are browser-held. Transport is
+          Principal keys are browser-held. Transport is
           authenticated + integrity-protected. Audit entries are hash-chained
           to allow tamper detection. The full security posture is
           documented in the public spec.
@@ -125,21 +125,21 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="9. Children">
         <p>
-          [DRAFT] The Service is not directed at children under 16. We do
+          The Service is not directed at children under 16. We do
           not knowingly collect personal data from children.
         </p>
       </Section>
 
       <Section title="10. Changes">
         <p>
-          [DRAFT] Material changes will be announced with 30 days&apos;
+          Material changes will be announced with 30 days&apos;
           notice where practical.
         </p>
       </Section>
 
       <Section title="11. Contact">
         <p>
-          [DRAFT] Privacy questions: <code>privacy@arp.run</code>.
+          Privacy questions: <code>privacy@arp.run</code>.
         </p>
       </Section>
     </>
