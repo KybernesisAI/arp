@@ -1,23 +1,14 @@
-// LEGAL-REVIEW-PENDING — skeleton only. Do NOT publish without counsel
-// review. The headings below follow the typical Terms of Service outline;
-// no section commits ARP / Kybernesis to any specific obligation until the
-// banner is removed and counsel signs off.
 import type { Metadata } from 'next';
 import type * as React from 'react';
-import { LegalDraftBanner } from '@/components/ui';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service (Draft) · ARP',
-  description:
-    'DRAFT terms of service for ARP Cloud. Pending legal review; do not rely on.',
-  robots: { index: false, follow: false },
+  title: 'Terms of Service · ARP',
+  description: 'Terms of service for ARP Cloud.',
 };
 
 export default function TermsPage(): React.JSX.Element {
   return (
     <>
-      <LegalDraftBanner />
-
       <header>
         <div className="font-mono text-kicker uppercase tracking-[0.14em] text-muted">
           // LEGAL / TERMS OF SERVICE
@@ -26,7 +17,7 @@ export default function TermsPage(): React.JSX.Element {
           Terms of Service
         </h1>
         <p className="mt-3 font-mono text-kicker uppercase text-muted">
-          DRAFT · LAST UPDATED 2026-04-24 · PENDING COUNSEL REVIEW
+          LAST UPDATED 2026-04-24
         </p>
       </header>
 
