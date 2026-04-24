@@ -19,7 +19,7 @@ export interface ConsentScenario {
 }
 
 const DEFAULTS = {
-  issuer: 'did:web:ian.self.xyz',
+  issuer: 'did:web:ian.example.agent',
   subject: 'did:web:samantha.agent',
   audience: 'did:web:ghost.agent',
   expires: '2026-10-22T00:00:00Z',
