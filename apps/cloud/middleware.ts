@@ -135,6 +135,10 @@ export function isAppOwnedPath(pathname: string): boolean {
     // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
     // /legal layout regardless of which host the user is on.
     '/legal',
+    // Phase 10c: /support is linked from every surface's footer; the page is
+    // static + auth-optional. Passthrough here prevents the /cloud rewrite
+    // from burying it at /cloud/support.
+    '/support',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }

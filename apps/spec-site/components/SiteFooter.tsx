@@ -122,6 +122,14 @@ export function SiteFooter(): React.JSX.Element {
             </li>
             <li>
               <Link
+                href="https://cloud.arp.run/support"
+                className="text-ink hover:opacity-60"
+              >
+                Support
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="https://status.arp.run"
                 className="text-ink hover:opacity-60"
               >
@@ -153,6 +161,12 @@ export function SiteFooter(): React.JSX.Element {
               className="text-muted hover:text-ink"
             >
               DPA
+            </Link>
+            <Link
+              href="https://cloud.arp.run/support"
+              className="text-muted hover:text-ink"
+            >
+              SUPPORT
             </Link>
             <span>SPEC v0.1 · SITE REV 9e</span>
           </div>
