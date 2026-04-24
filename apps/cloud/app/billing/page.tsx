@@ -72,7 +72,10 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
           );
         })}
       </div>
-      <BillingButtons currentPlan={tenant.plan} />
+      <BillingButtons
+        currentPlan={tenant.plan}
+        canManage={tenant.canManage}
+      />
     </AppShell>
   );
 }
@@ -81,5 +84,10 @@ async function loadTenant() {
   const { tenantDb } = await requireTenantDb();
   const tenant = await tenantDb.getTenant();
   if (!tenant) throw new AuthError(404, 'no_tenant');
-  return { plan: tenant.plan, status: tenant.status };
+  return {
+    plan: tenant.plan,
+    status: tenant.status,
+    // Only paid tenants with a Stripe customer id can open the portal.
+    canManage: tenant.plan !== 'free' && Boolean(tenant.stripeCustomerId),
+  };
 }

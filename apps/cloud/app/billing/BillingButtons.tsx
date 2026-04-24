@@ -4,7 +4,13 @@ import type * as React from 'react';
 import { useState } from 'react';
 import { Button, FieldError } from '@/components/ui';
 
-export default function BillingButtons({ currentPlan }: { currentPlan: string }): React.JSX.Element {
+export default function BillingButtons({
+  currentPlan,
+  canManage,
+}: {
+  currentPlan: string;
+  canManage: boolean;
+}): React.JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +37,25 @@ export default function BillingButtons({ currentPlan }: { currentPlan: string })
     }
   }
 
+  async function openPortal(): Promise<void> {
+    setBusy('portal');
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' });
+      if (!res.ok) {
+        const body = (await res.json()) as { error: string; hint?: string };
+        throw new Error(body.hint ?? body.error);
+      }
+      const { url } = (await res.json()) as { url: string | null };
+      if (url) window.location.href = url;
+      else throw new Error('no_portal_url');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="mt-8 flex flex-wrap items-center gap-3">
       {(['pro', 'team'] as const).map((plan) => (
@@ -44,6 +69,15 @@ export default function BillingButtons({ currentPlan }: { currentPlan: string })
           {busy === plan ? 'Redirecting…' : `Upgrade to ${plan}`}
         </Button>
       ))}
+      {canManage && (
+        <Button
+          variant="default"
+          onClick={() => void openPortal()}
+          disabled={busy !== null}
+        >
+          {busy === 'portal' ? 'Redirecting…' : 'Manage subscription'}
+        </Button>
+      )}
       {error && <FieldError className="m-0">{error}</FieldError>}
     </div>
   );
