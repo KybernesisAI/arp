@@ -112,7 +112,10 @@ export const agents = pgTable(
 export const connections = pgTable(
   'connections',
   {
-    connectionId: text('connection_id').primaryKey(),
+    // Phase-10a: composite primary key (tenant_id, connection_id) — the same
+    // connection_id intentionally appears twice in cloud-to-cloud pairing,
+    // once per tenant, so either side can view + revoke it independently.
+    connectionId: text('connection_id').notNull(),
     tenantId: uuid('tenant_id').notNull(),
     agentDid: text('agent_did').notNull(),
     peerDid: text('peer_did').notNull(),
@@ -131,6 +134,8 @@ export const connections = pgTable(
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
   },
   (t) => ({
+    pk: primaryKey({ columns: [t.tenantId, t.connectionId] }),
+    idxConnectionId: index('idx_connections_connection_id').on(t.connectionId),
     idxTenant: index('idx_connections_tenant').on(t.tenantId),
     idxAgent: index('idx_connections_agent').on(t.agentDid),
     idxPeer: index('idx_connections_peer').on(t.peerDid),
