@@ -16,16 +16,58 @@ import {
   bigint,
   integer,
   jsonb,
+  customType,
   primaryKey,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+
+// BYTEA column (Postgres binary blob) mapped to Uint8Array for WebAuthn
+// credential public keys. PGlite + Neon both surface BYTEA as Buffer in JS;
+// we narrow the type here so schema consumers see Uint8Array.
+const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+  fromDriver(value: Buffer): Uint8Array {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  },
+  toDriver(value: Uint8Array): Buffer {
+    return Buffer.from(value);
+  },
+});
+
+// Postgres TEXT[] (text array) mapped to string[]. PGlite surfaces this as
+// a native JS array in drizzle-orm; the customType is a safety belt for
+// drivers that return the Postgres textual form `{a,b,c}`.
+const textArray = customType<{ data: string[]; driverData: string[] | string }>({
+  dataType() {
+    return 'text[]';
+  },
+  fromDriver(value: string[] | string): string[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+    // Postgres textual form: `{a,b,"c,with,commas"}`
+    const trimmed = value.replace(/^\{|\}$/g, '');
+    if (trimmed === '') return [];
+    return trimmed.split(',').map((s) => s.replace(/^"|"$/g, ''));
+  },
+  toDriver(value: string[]): string[] {
+    return value;
+  },
+});
 
 export const tenants = pgTable(
   'tenants',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     principalDid: text('principal_did').notNull().unique(),
+    // Phase 9d: retains the pre-rotation principal DID during the HKDF v2
+    // grace window so audit-log signatures signed by the old key still
+    // verify. Cleared fire-and-forget once v1_deprecated_at + 90 days
+    // elapses (see /u/<uuid>/did.json read path).
+    principalDidPrevious: text('principal_did_previous'),
+    v1DeprecatedAt: timestamp('v1_deprecated_at', { withTimezone: true }),
     displayName: text('display_name'),
     stripeCustomerId: text('stripe_customer_id'),
     stripeSubscriptionId: text('stripe_subscription_id'),
@@ -38,6 +80,7 @@ export const tenants = pgTable(
   (t) => ({
     idxPrincipal: index('idx_tenants_principal_did').on(t.principalDid),
     idxStripe: index('idx_tenants_stripe_customer').on(t.stripeCustomerId),
+    idxPrincipalPrevious: index('idx_tenants_principal_did_previous').on(t.principalDidPrevious),
   }),
 );
 
@@ -292,6 +335,60 @@ export const rateLimitHits = pgTable(
   }),
 );
 
+// ----------------------------------------------------------- user_credentials
+//
+// Phase 9d: WebAuthn passkey authenticators. Tenant-scoped (cascade delete on
+// tenant removal). `credentialId` carries the base64url-encoded WebAuthn
+// credential id; `publicKey` stores the raw CBOR-encoded public key returned
+// by the attestation. `counter` is the WebAuthn signature counter used to
+// detect cloned authenticators (never decreases under normal use).
+//
+// The passkey is the AUTHENTICATOR, not the identity. The principal DID stays
+// did:key regardless of how many passkeys a user registers.
+export const userCredentials = pgTable(
+  'user_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    credentialId: text('credential_id').notNull(),
+    publicKey: bytea('public_key').notNull(),
+    counter: bigint('counter', { mode: 'number' }).notNull().default(0),
+    transports: textArray('transports').notNull().default([]),
+    nickname: text('nickname'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => ({
+    idxCredentialId: uniqueIndex('user_credentials_credential_id').on(t.credentialId),
+    idxTenant: index('idx_user_credentials_tenant').on(t.tenantId),
+  }),
+);
+
+// -------------------------------------------------------- webauthn_challenges
+//
+// Phase 9d: short-lived (60s TTL) challenges issued by /api/webauthn/*/options
+// routes. `tenantId` is nullable — pre-session authentication issues a
+// challenge before the caller has a session. `purpose` distinguishes
+// registration challenges (must have a session) from auth challenges
+// (discoverable-credential flow, pre-session). Rows are consumed exactly
+// once and swept opportunistically.
+export const webauthnChallenges = pgTable(
+  'webauthn_challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id'),
+    challenge: text('challenge').notNull(),
+    purpose: text('purpose').$type<'register' | 'auth'>().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxExpires: index('idx_webauthn_challenges_expires').on(t.expiresAt),
+    idxChallenge: index('idx_webauthn_challenges_challenge').on(t.challenge),
+  }),
+);
+
 export type TenantRow = typeof tenants.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type ConnectionRow = typeof connections.$inferSelect;
@@ -305,3 +402,5 @@ export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
 export type RateLimitHitRow = typeof rateLimitHits.$inferSelect;
+export type UserCredentialRow = typeof userCredentials.$inferSelect;
+export type WebauthnChallengeRow = typeof webauthnChallenges.$inferSelect;
