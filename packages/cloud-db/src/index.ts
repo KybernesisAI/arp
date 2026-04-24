@@ -33,6 +33,8 @@ export {
   onboardingSessions,
   pushRegistrations,
   rateLimitHits,
+  userCredentials,
+  webauthnChallenges,
 } from './schema.js';
 export type {
   TenantRow,
@@ -48,4 +50,6 @@ export type {
   OnboardingSessionRow,
   PushRegistrationRow,
   RateLimitHitRow,
+  UserCredentialRow,
+  WebauthnChallengeRow,
 } from './schema.js';

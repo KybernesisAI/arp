@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPgliteDb, tenants } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
+import { eq } from 'drizzle-orm';
 
 process.env['ARP_CLOUD_SESSION_SECRET'] =
   process.env['ARP_CLOUD_SESSION_SECRET'] ?? 'test-session-secret-abcdefghij';
@@ -16,6 +17,9 @@ process.env['ARP_CLOUD_SESSION_SECRET'] =
 // Deterministic did:key fixture (same as tenants-route.test.ts).
 const PRINCIPAL_DID = 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y';
 const PUBLIC_KEY_MULTIBASE = 'z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y';
+// A distinct did:key fixture for the rotation "previous DID" path.
+const OLD_PRINCIPAL_DID = 'did:key:z6MkpzfuWK75xJ4UGwaz4K8ZQA7TGNSbE2FUi5XiFH3cLzb8';
+const OLD_PUBLIC_KEY_MULTIBASE = 'z6MkpzfuWK75xJ4UGwaz4K8ZQA7TGNSbE2FUi5XiFH3cLzb8';
 
 let currentDb: { db: CloudDbClient; close: () => Promise<void> } | null = null;
 
@@ -109,6 +113,74 @@ describe('GET /u/<uuid>/did.json', () => {
 
     const res = await hit(tenantId);
     expect(res.status).toBe(404);
+  });
+
+  it('dual-publishes during the HKDF v1 → v2 rotation grace window', async () => {
+    if (!currentDb) throw new Error('db gone');
+    const rows = await currentDb.db
+      .insert(tenants)
+      .values({
+        principalDid: PRINCIPAL_DID,
+        principalDidPrevious: OLD_PRINCIPAL_DID,
+        v1DeprecatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      })
+      .returning({ id: tenants.id });
+    const tenantId = rows[0]!.id;
+
+    const res = await hit(tenantId);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      verificationMethod: Array<{ id: string; publicKeyMultibase: string }>;
+      authentication: string[];
+      assertionMethod: string[];
+      keyAgreement: string[];
+    };
+    expect(body.verificationMethod).toHaveLength(2);
+    const didSubject = `did:web:arp.cloud:u:${tenantId}`;
+    expect(body.verificationMethod[0]?.id).toBe(`${didSubject}#key-1`);
+    expect(body.verificationMethod[0]?.publicKeyMultibase).toBe(PUBLIC_KEY_MULTIBASE);
+    expect(body.verificationMethod[1]?.id).toBe(`${didSubject}#key-0`);
+    expect(body.verificationMethod[1]?.publicKeyMultibase).toBe(OLD_PUBLIC_KEY_MULTIBASE);
+    // Both keys referenced in authentication + assertionMethod + keyAgreement.
+    expect(body.authentication).toEqual([`${didSubject}#key-1`, `${didSubject}#key-0`]);
+    expect(body.assertionMethod).toEqual([`${didSubject}#key-1`, `${didSubject}#key-0`]);
+    expect(body.keyAgreement).toEqual([`${didSubject}#key-1`, `${didSubject}#key-0`]);
+  });
+
+  it('clears rotation columns + publishes only the current key past the 90-day grace', async () => {
+    if (!currentDb) throw new Error('db gone');
+    const rows = await currentDb.db
+      .insert(tenants)
+      .values({
+        principalDid: PRINCIPAL_DID,
+        principalDidPrevious: OLD_PRINCIPAL_DID,
+        // 91 days ago = past grace
+        v1DeprecatedAt: new Date(Date.now() - 91 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: tenants.id });
+    const tenantId = rows[0]!.id;
+
+    const res = await hit(tenantId);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      verificationMethod: Array<{ id: string; publicKeyMultibase: string }>;
+    };
+    // Only the current key is published past the grace.
+    expect(body.verificationMethod).toHaveLength(1);
+    expect(body.verificationMethod[0]?.publicKeyMultibase).toBe(PUBLIC_KEY_MULTIBASE);
+
+    // The fire-and-forget cleanup runs async, but we can see its effect
+    // on a subsequent read OR by waiting one tick.
+    await new Promise((r) => setTimeout(r, 20));
+    const row = (await currentDb.db
+      .select({
+        principalDidPrevious: tenants.principalDidPrevious,
+        v1DeprecatedAt: tenants.v1DeprecatedAt,
+      })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId)))[0]!;
+    expect(row.principalDidPrevious).toBeNull();
+    expect(row.v1DeprecatedAt).toBeNull();
   });
 
   it('429s on burst: 121st hit inside a minute from the same IP', async () => {
