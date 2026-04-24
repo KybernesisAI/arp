@@ -2,6 +2,7 @@ import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS } from '@kybernesis/arp-cloud-db';
+import { listCredentialsForTenant } from '@/lib/webauthn';
 import {
   Badge,
   ButtonLink,
@@ -12,6 +13,7 @@ import {
   PlateHead,
 } from '@/components/ui';
 import { AppShell } from '@/components/app/AppShell';
+import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +26,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     if (err instanceof AuthError) redirect('/onboarding');
     throw err;
   }
-  const { tenant, agents } = state;
+  const { tenant, agents, hasPasskey } = state;
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS];
 
   return (
@@ -34,6 +36,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         kicker={`// TENANT · ${tenant.plan.toUpperCase()} · ${tenant.status.toUpperCase()}`}
         title="Dashboard"
       />
+
+      {!hasPasskey && <MigrateToPasskeyBanner />}
 
       <div className="grid grid-cols-12 gap-4 mb-10">
         <div className="col-span-12 md:col-span-8">
@@ -135,6 +139,7 @@ async function loadState() {
   const tenant = await tenantDb.getTenant();
   if (!tenant) throw new AuthError(404, 'no_tenant');
   const agents = await tenantDb.listAgents();
+  const passkeys = await listCredentialsForTenant(tenantDb.tenantId);
   return {
     tenant,
     agents: agents.map((a) => ({
@@ -142,5 +147,6 @@ async function loadState() {
       name: a.agentName,
       lastSeenAt: a.lastSeenAt ? a.lastSeenAt.toISOString() : null,
     })),
+    hasPasskey: passkeys.length > 0,
   };
 }
