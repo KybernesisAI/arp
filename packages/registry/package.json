@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-registry",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "ARP connection registry — SQLite-backed store for Connection Tokens, spend windows, and revocations.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-create-adapter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Scaffolds a conformance-passing ARP framework adapter in TypeScript or Python.",
   "license": "MIT",
   "repository": {

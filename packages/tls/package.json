@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-tls",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "ARP TLS — self-signed Ed25519 X.509 cert generation + DID-doc pinning + fingerprint validation.",
   "license": "MIT",
   "repository": {
