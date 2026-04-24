@@ -8,15 +8,11 @@ name: Deploy
 #      (scope: team ian-darkstarvccs-projects).
 #   2. Add it as a GitHub repo secret named VERCEL_TOKEN.
 #
-# Behaviour:
-#   - configure-spec-site: PATCHes arp-spec-site project settings and
-#     attaches spec.arp.run + docs.arp.run. Idempotent.
-#   - deploy-cloud: vercel pull + build + deploy from repo root. Vercel
-#     honours the project-level rootDirectory=apps/cloud setting.
-#   - deploy-spec-site: same, gated on configure-spec-site. rootDirectory
-#     is set to apps/spec-site by configure-spec-site; buildCommand runs
-#     turbo with the spec-site filter so upstream deps (scope-catalog's
-#     generated/ output) get built first.
+# Configure jobs (configure-cloud, configure-spec-site) PATCH each
+# project's buildCommand so Vercel runs turbo from the workspace root
+# (needed to build upstream deps like @kybernesis/arp-ui before the app).
+# For arp-spec-site this also sets rootDirectory=apps/spec-site and
+# includeFilesOutsideRootDirectory=true. Both idempotent.
 
 on:
   push:
@@ -34,31 +30,65 @@ permissions:
   contents: read
 
 jobs:
+  configure-cloud:
+    name: Configure arp-cloud buildCommand
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: PATCH arp-cloud project buildCommand
+        shell: bash
+        run: |
+          set -euo pipefail
+          body='{"buildCommand":"cd ../.. && pnpm turbo run build --filter=@kybernesis/arp-cloud-app..."}'
+          status=$(curl -sS -o /tmp/patch.json -w "%{http_code}" -X PATCH \
+            "https://api.vercel.com/v10/projects/arp-cloud?teamId=${VERCEL_ORG_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body")
+          echo "HTTP $status"
+          if [ "$status" != "200" ]; then
+            cat /tmp/patch.json
+            exit 1
+          fi
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
   configure-spec-site:
     name: Configure arp-spec-site project + domains
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Ensure rootDirectory + monorepo flag + turbo build
+      - name: PATCH arp-spec-site project settings
+        shell: bash
         run: |
-          curl -sSfL -X PATCH \
+          set -euo pipefail
+          body=$(cat <<'JSON'
+          {
+            "rootDirectory": "apps/spec-site",
+            "includeFilesOutsideRootDirectory": true,
+            "installCommand": "pnpm install --frozen-lockfile",
+            "buildCommand": "cd ../.. && pnpm turbo run build --filter=@kybernesis/arp-spec-site...",
+            "outputDirectory": ".next"
+          }
+          JSON
+          )
+          status=$(curl -sS -o /tmp/patch.json -w "%{http_code}" -X PATCH \
             "https://api.vercel.com/v10/projects/arp-spec-site?teamId=${VERCEL_ORG_ID}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "rootDirectory": "apps/spec-site",
-              "includeFilesOutsideRootDirectory": true,
-              "framework": "nextjs",
-              "installCommand": "pnpm install --frozen-lockfile",
-              "buildCommand": "cd ../.. && pnpm turbo run build --filter=@kybernesis/arp-spec-site...",
-              "outputDirectory": ".next"
-            }' \
-          | head -c 300 && echo
+            -d "$body")
+          echo "HTTP $status"
+          cat /tmp/patch.json | head -c 500 && echo
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Attach custom domains (idempotent)
+        shell: bash
         run: |
+          set -euo pipefail
           for domain in spec.arp.run docs.arp.run; do
             status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
               "https://api.vercel.com/v10/projects/arp-spec-site/domains?teamId=${VERCEL_ORG_ID}" \
@@ -80,6 +110,7 @@ jobs:
 
   deploy-cloud:
     name: Deploy arp-cloud
+    needs: configure-cloud
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
