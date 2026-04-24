@@ -104,7 +104,22 @@ export function rewriteForSurface(
 function isAppOwnedPath(pathname: string): boolean {
   // Paths that belong to the authenticated app surface and must NOT be
   // rewritten into the marketing tree.
-  const appRoots = ['/dashboard', '/onboarding', '/agent', '/billing', '/settings'];
+  //
+  // `/onboard` is the v2.1 TLD registrar entry point (used by Headless's
+  // Option A redirect); external registrars link directly to
+  // `cloud.arp.run/onboard`, so it must not be rewritten under /cloud.
+  // `/internal` is the PSK-authenticated server-to-server callback space.
+  // `/u` serves cloud-managed DID documents.
+  const appRoots = [
+    '/dashboard',
+    '/onboarding',
+    '/onboard',
+    '/agent',
+    '/billing',
+    '/settings',
+    '/internal',
+    '/u',
+  ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
 
