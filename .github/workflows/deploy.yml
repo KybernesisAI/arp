@@ -1,0 +1,150 @@
+name: Deploy
+
+# Auto-deploys arp-cloud + arp-spec-site to Vercel on every push to main.
+# Replaces the previously-broken Vercel GitHub integration auto-deploy.
+#
+# One-time setup (per repo):
+#   1. Create a Vercel token at https://vercel.com/account/tokens
+#      (scope: team ian-darkstarvccs-projects).
+#   2. Add it as a GitHub repo secret named VERCEL_TOKEN.
+#
+# Behaviour:
+#   - configure-spec-site: PATCHes arp-spec-site project settings
+#     (rootDirectory=apps/spec-site, includeFilesOutsideRootDirectory=true,
+#     framework/install/build commands) and attaches spec.arp.run +
+#     docs.arp.run. Idempotent.
+#   - deploy-cloud: vercel pull + build + deploy for arp-cloud.
+#   - deploy-spec-site: same, gated on configure-spec-site.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_Z35YhTGZ11VABl0iMry0LmfX
+
+permissions:
+  contents: read
+
+jobs:
+  configure-spec-site:
+    name: Configure arp-spec-site project + domains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Ensure rootDirectory + monorepo flag
+        run: |
+          curl -sSfL -X PATCH \
+            "https://api.vercel.com/v10/projects/arp-spec-site?teamId=${VERCEL_ORG_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "rootDirectory": "apps/spec-site",
+              "includeFilesOutsideRootDirectory": true,
+              "framework": "nextjs",
+              "installCommand": "pnpm install --frozen-lockfile",
+              "buildCommand": "pnpm --filter @kybernesis/arp-spec-site build",
+              "outputDirectory": ".next"
+            }' \
+          | head -c 300 && echo
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Attach custom domains (idempotent)
+        run: |
+          for domain in spec.arp.run docs.arp.run; do
+            status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+              "https://api.vercel.com/v10/projects/arp-spec-site/domains?teamId=${VERCEL_ORG_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${domain}\"}")
+            if [ "$status" = "200" ] || [ "$status" = "201" ]; then
+              echo "attached ${domain}"
+            elif [ "$status" = "409" ]; then
+              echo "${domain} already attached"
+            else
+              echo "${domain} failed → HTTP ${status}"
+              cat /tmp/resp.json
+              exit 1
+            fi
+          done
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+  deploy-cloud:
+    name: Deploy arp-cloud
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VERCEL_PROJECT_ID: prj_QzMDCK3VvC3xMhEwhaMhsk3wESrL
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Vercel pull
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token=${VERCEL_TOKEN} --cwd apps/cloud
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel build
+        run: pnpm dlx vercel@latest build --prod --token=${VERCEL_TOKEN} --cwd apps/cloud
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel deploy
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${VERCEL_TOKEN} --cwd apps/cloud
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+  deploy-spec-site:
+    name: Deploy arp-spec-site
+    needs: configure-spec-site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VERCEL_PROJECT_ID: prj_obiM4SaPoBNa2UjSaYTnjYl0zkst
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Vercel pull
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token=${VERCEL_TOKEN} --cwd apps/spec-site
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel build
+        run: pnpm dlx vercel@latest build --prod --token=${VERCEL_TOKEN} --cwd apps/spec-site
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel deploy
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${VERCEL_TOKEN} --cwd apps/spec-site
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
