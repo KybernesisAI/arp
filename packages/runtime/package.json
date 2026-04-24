@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-runtime",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "ARP runtime — Hono HTTP server, PDP pipeline, connection registry + audit orchestration, per-connection memory partitioning.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-adapter-skill",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Claude Code skill for creating conformance-passing ARP framework adapters. Drop into any Claude Code install and ask 'create an ARP adapter for <framework>'.",
   "license": "MIT",
   "repository": {

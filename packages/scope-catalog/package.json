@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-scope-catalog",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ARP scope catalog v1 — 50 scope templates + Handlebars→Cedar compiler.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-ui",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Shared ARP design-system tokens (Tailwind preset + CSS custom properties + fonts) consumed by apps/cloud, apps/spec-site, and future public surfaces.",
   "private": true,
   "license": "MIT",
