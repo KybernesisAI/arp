@@ -201,23 +201,30 @@ describe('POST /api/push/register', () => {
   });
 
   it('429s on burst: 11th hit inside a minute for the same tenant', async () => {
-    const tenantId = await seedTenant();
-    sessionOverride = { principalDid: PRINCIPAL_DID, tenantId };
-    // Rate-limit is 10/min per tenant.
-    for (let i = 0; i < 10; i++) {
-      const res = await makeRequest({
-        device_token: `device-token-${i}`,
+    // Freeze Date.now so the 11 requests always land in the same window.
+    const frozen = Date.UTC(2026, 5, 1, 14, 0, 0);
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(frozen);
+    try {
+      const tenantId = await seedTenant();
+      sessionOverride = { principalDid: PRINCIPAL_DID, tenantId };
+      // Rate-limit is 10/min per tenant.
+      for (let i = 0; i < 10; i++) {
+        const res = await makeRequest({
+          device_token: `device-token-${i}`,
+          platform: 'ios',
+          bundle_id: 'com.arp.owner',
+        });
+        expect(res.status).toBe(200);
+      }
+      const tripped = await makeRequest({
+        device_token: 'one-too-many',
         platform: 'ios',
         bundle_id: 'com.arp.owner',
       });
-      expect(res.status).toBe(200);
+      expect(tripped.status).toBe(429);
+      expect(tripped.headers.get('retry-after')).toBeTruthy();
+    } finally {
+      dateNowSpy.mockRestore();
     }
-    const tripped = await makeRequest({
-      device_token: 'one-too-many',
-      platform: 'ios',
-      bundle_id: 'com.arp.owner',
-    });
-    expect(tripped.status).toBe(429);
-    expect(tripped.headers.get('retry-after')).toBeTruthy();
   });
 });
