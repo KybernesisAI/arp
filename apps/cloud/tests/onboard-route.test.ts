@@ -14,6 +14,7 @@ process.env['ARP_CLOUD_SESSION_SECRET'] =
   process.env['ARP_CLOUD_SESSION_SECRET'] ?? 'test-session-secret-abcdefghij';
 
 let currentDb: { db: CloudDbClient; close: () => Promise<void> } | null = null;
+let sessionOverride: { principalDid: string; tenantId: string | null } | null = null;
 
 vi.mock('@/lib/db', async () => {
   return {
@@ -29,6 +30,18 @@ vi.mock('@/lib/db', async () => {
     },
   };
 });
+
+vi.mock('@/lib/session', async () => ({
+  getSession: async () => {
+    if (!sessionOverride) return null;
+    return {
+      ...sessionOverride,
+      nonce: 'test-nonce',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 3600_000,
+    };
+  },
+}));
 
 const OnboardPage = (await import('../app/onboard/page')).default;
 const { POST: OnboardCompletePost } = await import('../app/api/onboard/complete/route');
@@ -109,16 +122,17 @@ describe('POST /api/onboard/complete', () => {
   beforeEach(async () => {
     const built = await createPgliteDb();
     currentDb = { db: built.db as unknown as CloudDbClient, close: built.close };
+    sessionOverride = null;
   });
   afterEach(async () => {
     if (currentDb) {
       await currentDb.close();
       currentDb = null;
     }
+    sessionOverride = null;
   });
 
-  it('updates the session row with the resolved principal DID', async () => {
-    // Seed a session.
+  async function seedSession(): Promise<string> {
     if (!currentDb) throw new Error('db gone');
     const inserted = await currentDb.db
       .insert(onboardingSessions)
@@ -129,46 +143,91 @@ describe('POST /api/onboard/complete', () => {
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       })
       .returning({ id: onboardingSessions.id });
-    const sessionId = inserted[0]?.id;
-    if (!sessionId) throw new Error('no session');
+    const id = inserted[0]?.id;
+    if (!id) throw new Error('no session');
+    return id;
+  }
+
+  it('401 without a session cookie', async () => {
+    const sessionId = await seedSession();
+    const req = new Request('http://test.local/api/onboard/complete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        principalDid: 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y',
+      }),
+    });
+    const res = await OnboardCompletePost(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('updates the session row with the resolved principal DID (did:key match)', async () => {
+    const sessionId = await seedSession();
+    const principalDid = 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y';
+    sessionOverride = { principalDid, tenantId: '00000000-0000-0000-0000-000000000001' };
+
+    const req = new Request('http://test.local/api/onboard/complete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId, principalDid }),
+    });
+    const res = await OnboardCompletePost(req);
+    expect(res.status).toBe(200);
+
+    if (!currentDb) throw new Error('db gone');
+    const rows = await currentDb.db.select().from(onboardingSessions);
+    expect(rows[0]?.principalDid).toBe(principalDid);
+  });
+
+  it('also accepts the cloud-managed did:web alias for the session tenant', async () => {
+    const sessionId = await seedSession();
+    const tenantId = '00000000-0000-0000-0000-000000000001';
+    const principalDidKey = 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y';
+    sessionOverride = { principalDid: principalDidKey, tenantId };
 
     const req = new Request('http://test.local/api/onboard/complete', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sessionId,
-        principalDid: 'did:web:arp.cloud:u:00000000-0000-0000-0000-000000000001',
+        principalDid: `did:web:arp.cloud:u:${tenantId}`,
       }),
     });
     const res = await OnboardCompletePost(req);
     expect(res.status).toBe(200);
+  });
 
-    const rows = await currentDb.db.select().from(onboardingSessions);
-    expect(rows[0]?.principalDid).toBe(
-      'did:web:arp.cloud:u:00000000-0000-0000-0000-000000000001',
-    );
+  it('rejects a principal DID that does not match the session', async () => {
+    const sessionId = await seedSession();
+    sessionOverride = {
+      principalDid: 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+    };
+
+    const req = new Request('http://test.local/api/onboard/complete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        principalDid: 'did:key:z6Mkdifferent1111111111111111111111111111111',
+      }),
+    });
+    const res = await OnboardCompletePost(req);
+    expect(res.status).toBe(403);
   });
 
   it('rejects bad session id', async () => {
+    sessionOverride = {
+      principalDid: 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y',
+      tenantId: null,
+    };
     const req = new Request('http://test.local/api/onboard/complete', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sessionId: 'not-a-uuid',
-        principalDid: 'did:web:arp.cloud:u:00000000-0000-0000-0000-000000000001',
-      }),
-    });
-    const res = await OnboardCompletePost(req);
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects bad DID', async () => {
-    const req = new Request('http://test.local/api/onboard/complete', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: '00000000-0000-0000-0000-000000000000',
-        principalDid: 'not a did',
+        principalDid: 'did:key:z6Mkpz6BnhqJPmKBiLK3t1ZC8JdPsS8DsqHfDffm2LEsEY4y',
       }),
     });
     const res = await OnboardCompletePost(req);
