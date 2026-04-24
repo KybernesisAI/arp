@@ -96,6 +96,17 @@ export interface TenantDb {
   listAudit(agentDid: string, connectionId: string, opts?: { limit?: number; offset?: number }): Promise<AuditEntryRow[]>;
   latestAudit(agentDid: string, connectionId: string): Promise<AuditEntryRow | null>;
   countAudit(agentDid: string, connectionId: string): Promise<number>;
+  listRecentActivity(limit?: number): Promise<AuditEntryRow[]>;
+
+  // ----- dashboard aggregates -----------------------------------------
+  getAgentActivitySummary(): Promise<
+    Array<{
+      agentDid: string;
+      activeConnections: number;
+      lastAuditAt: Date | null;
+      lastAuditMsgId: string | null;
+    }>
+  >;
 
   // ----- revocations ---------------------------------------------------
   addRevocation(agentDid: string, kind: 'connection' | 'key', subjectId: string, reason?: string): Promise<void>;
@@ -343,6 +354,71 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
         );
       const row = rows[0];
       return row?.count ?? 0;
+    },
+    async listRecentActivity(limit = 10) {
+      return client
+        .select()
+        .from(auditEntries)
+        .where(eq(auditEntries.tenantId, tenantId))
+        .orderBy(desc(auditEntries.timestamp), desc(auditEntries.id))
+        .limit(limit);
+    },
+
+    // --- dashboard aggregates
+    async getAgentActivitySummary() {
+      // Three tenant-scoped queries in parallel: agents, active-connection
+      // counts, and latest audit per agent. Merged in JS to avoid PG-dialect
+      // lateral joins that PGlite + Neon HTTP disagree about on edge cases.
+      const [agentRows, connRows, auditRows] = await Promise.all([
+        client
+          .select({ did: agents.did })
+          .from(agents)
+          .where(eq(agents.tenantId, tenantId)),
+        client
+          .select({
+            agentDid: connections.agentDid,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(connections)
+          .where(
+            and(
+              eq(connections.tenantId, tenantId),
+              eq(connections.status, 'active'),
+            ),
+          )
+          .groupBy(connections.agentDid),
+        client
+          .selectDistinctOn([auditEntries.agentDid], {
+            agentDid: auditEntries.agentDid,
+            timestamp: auditEntries.timestamp,
+            msgId: auditEntries.msgId,
+          })
+          .from(auditEntries)
+          .where(eq(auditEntries.tenantId, tenantId))
+          .orderBy(
+            auditEntries.agentDid,
+            desc(auditEntries.timestamp),
+            desc(auditEntries.id),
+          ),
+      ]);
+      const countByAgent = new Map<string, number>();
+      for (const r of connRows) countByAgent.set(r.agentDid, Number(r.count));
+      const auditByAgent = new Map<
+        string,
+        { timestamp: Date; msgId: string }
+      >();
+      for (const r of auditRows) {
+        auditByAgent.set(r.agentDid, { timestamp: r.timestamp, msgId: r.msgId });
+      }
+      return agentRows.map((a) => {
+        const latest = auditByAgent.get(a.did);
+        return {
+          agentDid: a.did,
+          activeConnections: countByAgent.get(a.did) ?? 0,
+          lastAuditAt: latest ? latest.timestamp : null,
+          lastAuditMsgId: latest ? latest.msgId : null,
+        };
+      });
     },
 
     // --- revocations

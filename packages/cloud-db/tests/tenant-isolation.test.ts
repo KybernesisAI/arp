@@ -201,4 +201,185 @@ describe('tenant-db isolation', () => {
     // @ts-expect-error intentional invalid input
     expect(() => toTenantId(null)).toThrow();
   });
+
+  it('getAgentActivitySummary aggregates per-agent health', async () => {
+    const ctx1 = withTenant(db, toTenantId(t1));
+    const ctx2 = withTenant(db, toTenantId(t2));
+
+    // Tenant 1 has two agents.
+    for (const did of ['did:web:a.agent', 'did:web:b.agent']) {
+      await ctx1.createAgent({
+        did,
+        principalDid: 'did:web:ian.example.agent',
+        agentName: did,
+        agentDescription: '',
+        publicKeyMultibase: 'z',
+        handoffJson: {},
+        wellKnownDid: {},
+        wellKnownAgentCard: {},
+        wellKnownArp: {},
+        scopeCatalogVersion: 'v1',
+        tlsFingerprint: 'stub',
+      });
+    }
+
+    // Agent A: two active + one revoked connection + 2 audit entries.
+    for (const [cid, status] of [
+      ['conn-a1', 'active'],
+      ['conn-a2', 'active'],
+      ['conn-a3', 'active'],
+    ] as const) {
+      await ctx1.createConnection({
+        connectionId: cid,
+        agentDid: 'did:web:a.agent',
+        peerDid: 'did:web:peer.agent',
+        label: null,
+        purpose: null,
+        tokenJws: '{}',
+        tokenJson: {},
+        cedarPolicies: [],
+        obligations: [],
+        scopeCatalogVersion: 'v1',
+        metadata: null,
+        expiresAt: null,
+        status,
+      });
+    }
+    await ctx1.updateConnectionStatus('conn-a3', 'revoked', 'owner');
+
+    const olderTs = new Date('2026-04-01T00:00:00Z').toISOString();
+    const newerTs = new Date('2026-04-10T00:00:00Z').toISOString();
+    await ctx1.appendAudit(
+      'did:web:a.agent',
+      {
+        connectionId: 'conn-a1',
+        msgId: 'old-a',
+        decision: 'allow',
+        obligations: [],
+        policiesFired: ['P1'],
+        timestamp: olderTs,
+      },
+      { prevHash: 'sha256:' + '0'.repeat(64), selfHash: 'sha256:' + '1'.repeat(64), seq: 0 },
+    );
+    await ctx1.appendAudit(
+      'did:web:a.agent',
+      {
+        connectionId: 'conn-a1',
+        msgId: 'latest-a',
+        decision: 'allow',
+        obligations: [],
+        policiesFired: ['P1'],
+        timestamp: newerTs,
+      },
+      { prevHash: 'sha256:' + '1'.repeat(64), selfHash: 'sha256:' + '2'.repeat(64), seq: 1 },
+    );
+
+    // Agent B: no connections, no audit — should land in "never active" bucket.
+
+    // Tenant 2 provisions an agent + active connection that MUST NOT leak.
+    await ctx2.createAgent({
+      did: 'did:web:leak.agent',
+      principalDid: 'did:web:nick.example.agent',
+      agentName: 'Leak',
+      agentDescription: '',
+      publicKeyMultibase: 'z',
+      handoffJson: {},
+      wellKnownDid: {},
+      wellKnownAgentCard: {},
+      wellKnownArp: {},
+      scopeCatalogVersion: 'v1',
+      tlsFingerprint: 'stub',
+    });
+    await ctx2.createConnection({
+      connectionId: 'leak-conn',
+      agentDid: 'did:web:leak.agent',
+      peerDid: 'did:web:peer.agent',
+      label: null,
+      purpose: null,
+      tokenJws: '{}',
+      tokenJson: {},
+      cedarPolicies: [],
+      obligations: [],
+      scopeCatalogVersion: 'v1',
+      metadata: null,
+      expiresAt: null,
+    });
+
+    const summary = await ctx1.getAgentActivitySummary();
+    expect(summary).toHaveLength(2);
+    const byDid = new Map(summary.map((s) => [s.agentDid, s]));
+    const a = byDid.get('did:web:a.agent')!;
+    expect(a.activeConnections).toBe(2); // conn-a3 is revoked, excluded
+    expect(a.lastAuditMsgId).toBe('latest-a');
+    expect(a.lastAuditAt?.toISOString()).toBe(newerTs);
+    const b = byDid.get('did:web:b.agent')!;
+    expect(b.activeConnections).toBe(0);
+    expect(b.lastAuditAt).toBeNull();
+    expect(b.lastAuditMsgId).toBeNull();
+
+    // Tenant 2 sees only its own agent.
+    const t2Summary = await ctx2.getAgentActivitySummary();
+    expect(t2Summary).toHaveLength(1);
+    expect(t2Summary[0]?.agentDid).toBe('did:web:leak.agent');
+    expect(t2Summary[0]?.activeConnections).toBe(1);
+  });
+
+  it('listRecentActivity returns tenant-scoped audit rows desc', async () => {
+    const ctx1 = withTenant(db, toTenantId(t1));
+    const ctx2 = withTenant(db, toTenantId(t2));
+
+    await ctx1.createAgent({
+      did: 'did:web:act.agent',
+      principalDid: 'did:web:ian.example.agent',
+      agentName: 'Act',
+      agentDescription: '',
+      publicKeyMultibase: 'z',
+      handoffJson: {},
+      wellKnownDid: {},
+      wellKnownAgentCard: {},
+      wellKnownArp: {},
+      scopeCatalogVersion: 'v1',
+      tlsFingerprint: 'stub',
+    });
+
+    const stamps = [
+      '2026-04-05T00:00:00Z',
+      '2026-04-06T00:00:00Z',
+      '2026-04-07T00:00:00Z',
+    ];
+    for (let i = 0; i < stamps.length; i++) {
+      const ts = stamps[i]!;
+      await ctx1.appendAudit(
+        'did:web:act.agent',
+        {
+          connectionId: 'conn-x',
+          msgId: `msg-${i}`,
+          decision: 'allow',
+          obligations: [],
+          policiesFired: ['P1'],
+          timestamp: ts,
+        },
+        {
+          prevHash: 'sha256:' + `${i}`.padStart(64, '0'),
+          selfHash: 'sha256:' + `${i + 1}`.padStart(64, '0'),
+          seq: i,
+        },
+      );
+    }
+
+    const recent = await ctx1.listRecentActivity(10);
+    expect(recent).toHaveLength(3);
+    // Newest first.
+    expect(recent[0]?.msgId).toBe('msg-2');
+    expect(recent[2]?.msgId).toBe('msg-0');
+
+    // Respect limit.
+    const recentOne = await ctx1.listRecentActivity(1);
+    expect(recentOne).toHaveLength(1);
+    expect(recentOne[0]?.msgId).toBe('msg-2');
+
+    // Tenant 2 sees nothing.
+    const other = await ctx2.listRecentActivity(10);
+    expect(other).toHaveLength(0);
+  });
 });
