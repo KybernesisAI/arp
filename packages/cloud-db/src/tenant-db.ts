@@ -21,6 +21,7 @@ import type {
   AuditEntryRow,
   ConnectionRow,
   MessageRow,
+  PushRegistrationRow,
   RevocationRow,
   TenantRow,
   UsageCounterRow,
@@ -30,6 +31,7 @@ import {
   auditEntries,
   connections,
   messages,
+  pushRegistrations,
   revocations,
   tenants,
   usageCounters,
@@ -103,6 +105,14 @@ export interface TenantDb {
   // ----- usage / billing ----------------------------------------------
   incrementUsage(period: string, patch: { inbound?: number; outbound?: number }): Promise<UsageCounterRow>;
   getUsage(period: string): Promise<UsageCounterRow | null>;
+
+  // ----- push registrations -------------------------------------------
+  upsertPushRegistration(input: {
+    deviceToken: string;
+    platform: 'ios' | 'android';
+    bundleId: string;
+  }): Promise<PushRegistrationRow>;
+  listPushRegistrations(): Promise<PushRegistrationRow[]>;
 }
 
 export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb {
@@ -405,6 +415,37 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
         .where(and(eq(usageCounters.tenantId, tenantId), eq(usageCounters.period, period)))
         .limit(1);
       return rows[0] ?? null;
+    },
+
+    // --- push registrations
+    async upsertPushRegistration(input) {
+      const rows = await client
+        .insert(pushRegistrations)
+        .values({
+          tenantId,
+          deviceToken: input.deviceToken,
+          platform: input.platform,
+          bundleId: input.bundleId,
+        })
+        .onConflictDoUpdate({
+          target: [pushRegistrations.tenantId, pushRegistrations.deviceToken],
+          set: {
+            platform: input.platform,
+            bundleId: input.bundleId,
+            updatedAt: sql`now()`,
+          },
+        })
+        .returning();
+      const row = rows[0];
+      if (!row) throw new Error('upsertPushRegistration returned no row');
+      return row;
+    },
+    async listPushRegistrations() {
+      return client
+        .select()
+        .from(pushRegistrations)
+        .where(eq(pushRegistrations.tenantId, tenantId))
+        .orderBy(desc(pushRegistrations.updatedAt));
     },
   };
   // Freeze to prevent monkey-patching bypasses.

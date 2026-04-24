@@ -29,6 +29,9 @@ export {
   usageCounters,
   stripeEvents,
   principalSessions,
+  registrarBindings,
+  onboardingSessions,
+  pushRegistrations,
 } from './schema.js';
 export type {
   TenantRow,
@@ -40,4 +43,7 @@ export type {
   UsageCounterRow,
   StripeEventRow,
   PrincipalSessionRow,
+  RegistrarBindingRow,
+  OnboardingSessionRow,
+  PushRegistrationRow,
 } from './schema.js';

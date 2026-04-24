@@ -18,6 +18,7 @@ import {
   jsonb,
   primaryKey,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 export const tenants = pgTable(
@@ -196,6 +197,78 @@ export const principalSessions = pgTable(
   }),
 );
 
+// ----------------------------------------------------------- registrar_bindings
+//
+// Phase 9b: TLD registrar → cloud callback receiver. Populated by the
+// `POST /internal/registrar/bind` endpoint (PSK-gated) when Headless — or any
+// registrar speaking the v2.1 TLD integration spec — confirms an ARP-Cloud
+// owner binding for a newly-purchased agent domain. `tenantId` is nullable
+// because the registrar callback may land before the user has finished the
+// `/onboard` flow (in which case a future login reconciles the row).
+export const registrarBindings = pgTable(
+  'registrar_bindings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id'),
+    domain: text('domain').notNull(),
+    ownerLabel: text('owner_label').notNull(),
+    registrar: text('registrar').notNull(),
+    principalDid: text('principal_did').notNull(),
+    publicKeyMultibase: text('public_key_multibase').notNull(),
+    representationJwt: text('representation_jwt').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxDomainOwner: uniqueIndex('registrar_bindings_domain_owner').on(t.domain, t.ownerLabel),
+    idxTenant: index('idx_registrar_bindings_tenant').on(t.tenantId),
+  }),
+);
+
+// ---------------------------------------------------------- onboarding_sessions
+//
+// Phase 9b: short-lived record of a /onboard entry point visit. The registrar
+// hands us `domain` / `registrar` / `callback_url` via query params; we persist
+// them so a user who closes the tab mid-flow can be reconciled on next login.
+// Populated when the user signs the representation JWT and we know which
+// tenant (and therefore principal DID) the session belongs to. 1 hour TTL.
+export const onboardingSessions = pgTable(
+  'onboarding_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    domain: text('domain').notNull(),
+    registrar: text('registrar').notNull(),
+    callbackUrl: text('callback_url').notNull(),
+    principalDid: text('principal_did'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxExpires: index('idx_onboarding_sessions_expires').on(t.expiresAt),
+  }),
+);
+
+// ----------------------------------------------------------- push_registrations
+//
+// Phase 9b: mobile APNs / FCM device token registry. Tenant-scoped; idempotent
+// on `(tenant_id, device_token)` so re-registering from the same device just
+// updates platform + bundle_id + `updated_at`.
+export const pushRegistrations = pgTable(
+  'push_registrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    deviceToken: text('device_token').notNull(),
+    platform: text('platform').$type<'ios' | 'android'>().notNull(),
+    bundleId: text('bundle_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxTenantToken: uniqueIndex('push_registrations_tenant_token').on(t.tenantId, t.deviceToken),
+    idxTenant: index('idx_push_registrations_tenant').on(t.tenantId),
+  }),
+);
+
 export type TenantRow = typeof tenants.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type ConnectionRow = typeof connections.$inferSelect;
@@ -205,3 +278,6 @@ export type RevocationRow = typeof revocations.$inferSelect;
 export type UsageCounterRow = typeof usageCounters.$inferSelect;
 export type StripeEventRow = typeof stripeEvents.$inferSelect;
 export type PrincipalSessionRow = typeof principalSessions.$inferSelect;
+export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
+export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
+export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;

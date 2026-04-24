@@ -7,6 +7,7 @@ interface EnvShape {
   ARP_CLOUD_SESSION_SECRET: string;
   ARP_CLOUD_HOST: string;
   ARP_CLOUD_WS_PUBLIC_URL: string;
+  ARP_CLOUD_REGISTRAR_PSK: string | null;
   STRIPE_SECRET_KEY: string | null;
   STRIPE_WEBHOOK_SECRET: string | null;
   STRIPE_PRICE_PRO: string | null;
@@ -25,6 +26,7 @@ export function env(): EnvShape {
     ARP_CLOUD_HOST: process.env['ARP_CLOUD_HOST'] ?? 'arp-cloud.vercel.app',
     ARP_CLOUD_WS_PUBLIC_URL:
       process.env['ARP_CLOUD_WS_PUBLIC_URL'] ?? 'ws://localhost:3001/ws',
+    ARP_CLOUD_REGISTRAR_PSK: process.env['ARP_CLOUD_REGISTRAR_PSK'] ?? null,
     STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] ?? null,
     STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] ?? null,
     STRIPE_PRICE_PRO: process.env['STRIPE_PRICE_PRO'] ?? null,

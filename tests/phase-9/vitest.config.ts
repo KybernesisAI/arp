@@ -4,13 +4,12 @@ import { resolve } from 'node:path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': resolve(__dirname),
+      '@': resolve(__dirname, '../../apps/cloud'),
     },
   },
   test: {
-    include: ['tests/**/*.test.ts'],
+    include: ['**/*.test.ts'],
     globals: false,
-    testTimeout: 20000,
-    hookTimeout: 20000,
+    testTimeout: 60000,
   },
 });

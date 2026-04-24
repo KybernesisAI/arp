@@ -101,6 +101,19 @@ describe('rewriteForSurface', () => {
     expect(rewriteForSurface(mockReq('/settings/keys'), 'cloud')).toBeNull();
   });
 
+  it('passes v2.1 routes through on cloud surface (onboard, internal, u)', () => {
+    // Phase 9b: registrar-facing + DID-doc routes must resolve at the top
+    // level on cloud.arp.run so external registrars can link directly.
+    expect(rewriteForSurface(mockReq('/onboard'), 'cloud')).toBeNull();
+    expect(
+      rewriteForSurface(mockReq('/onboard?domain=x&registrar=y&callback=z'), 'cloud'),
+    ).toBeNull();
+    expect(rewriteForSurface(mockReq('/internal/registrar/bind'), 'cloud')).toBeNull();
+    expect(
+      rewriteForSurface(mockReq('/u/00000000-0000-0000-0000-000000000000/did.json'), 'cloud'),
+    ).toBeNull();
+  });
+
   it('passes app surface through untouched', () => {
     expect(rewriteForSurface(mockReq('/'), 'app')).toBeNull();
     expect(rewriteForSurface(mockReq('/dashboard'), 'app')).toBeNull();
