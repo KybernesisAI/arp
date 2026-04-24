@@ -21,3 +21,17 @@ export {
   type CrossConnectionIsolationResult,
   type CrossConnectionProbeOptions,
 } from './cross-connection.js';
+export {
+  principalIdentityMethodProbe,
+  createPrincipalIdentityMethodProbe,
+  type PrincipalIdentityProbeOptions,
+} from './principal-identity-method.js';
+export {
+  noSelfxyzPromptProbe,
+  createNoSelfxyzPromptProbe,
+} from './no-selfxyz-prompt.js';
+export {
+  representationJwtSignerBindingProbe,
+  createRepresentationJwtSignerBindingProbe,
+  type RepresentationJwtProbeOptions,
+} from './representation-jwt-signer-binding.js';
