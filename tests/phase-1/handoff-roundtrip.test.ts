@@ -6,7 +6,7 @@ describe('Phase 1 acceptance: handoff-bundle JSON round-trip', () => {
   it('build → serialize → parse → validate → equals original', () => {
     const original = buildHandoffBundle({
       agentDid: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       agentOrigin: 'https://samantha.agent',
       dnsRecordsPublished: [

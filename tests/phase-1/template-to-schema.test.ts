@@ -28,7 +28,7 @@ describe('Phase 1 acceptance: templates produce documents that validate against 
   it('buildDidDocument → did-document.json', () => {
     const doc = buildDidDocument({
       agentDid: 'did:web:samantha.agent',
-      controllerDid: 'did:web:ian.self.xyz',
+      controllerDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       endpoints: {
         didcomm: 'https://samantha.agent/didcomm',
@@ -65,7 +65,7 @@ describe('Phase 1 acceptance: templates produce documents that validate against 
   it('buildHandoffBundle → handoff-bundle.json', () => {
     const bundle = buildHandoffBundle({
       agentDid: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       agentOrigin: 'https://samantha.agent',
       dnsRecordsPublished: [

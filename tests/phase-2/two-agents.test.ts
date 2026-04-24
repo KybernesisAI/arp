@@ -122,7 +122,7 @@ describe('two-agent integration (Samantha ↔ Ghost)', () => {
       const runtime = await createRuntime({
         config: {
           did,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
           publicKeyMultibase: ed25519RawToMultibase(pub),
           agentName: did.split(':')[2] ?? 'agent',
           agentDescription: `phase 2 test agent ${did}`,
@@ -176,7 +176,7 @@ describe('two-agent integration (Samantha ↔ Ghost)', () => {
     // summarize on Project::alpha for Ghost; nothing else.
     const token: ConnectionToken = {
       connection_id: 'conn_phase2_alpha',
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',

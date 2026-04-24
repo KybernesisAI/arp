@@ -1,6 +1,6 @@
 {
   "agent_did": "did:web:ghost.agent",
-  "principal_did": "did:web:nick.self.xyz",
+  "principal_did": "did:web:nick.example.agent",
   "public_key_multibase": "z-REPLACE-WITH-OUTPUT-OF-fixtures/gen-test-handoff.mjs",
   "well_known_urls": {
     "did": "https://ghost.agent/.well-known/did.json",

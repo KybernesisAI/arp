@@ -57,7 +57,7 @@ async function bootRuntime(adminToken: string | undefined) {
   const runtime = await createRuntime({
     config: {
       did: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: ed25519RawToMultibase(pub),
       agentName: 'samantha',
       agentDescription: 'admin test',
@@ -85,7 +85,7 @@ async function bootRuntime(adminToken: string | undefined) {
 
 const sampleToken: ConnectionToken = {
   connection_id: 'conn_admin_test',
-  issuer: 'did:web:ian.self.xyz',
+  issuer: 'did:web:ian.example.agent',
   subject: 'did:web:samantha.agent',
   audience: 'did:web:ghost.agent',
   purpose: 'project:alpha',
@@ -95,7 +95,7 @@ const sampleToken: ConnectionToken = {
   obligations: [],
   scope_catalog_version: 'v1',
   expires: '2099-01-01T00:00:00Z',
-  sigs: { 'did:web:ian.self.xyz': 'sig-ian', 'did:web:nick.self.xyz': 'sig-nick' },
+  sigs: { 'did:web:ian.example.agent': 'sig-ian', 'did:web:nick.example.agent': 'sig-nick' },
 };
 
 describe('admin API auth', () => {
@@ -242,7 +242,7 @@ describe('admin API — pairing invitations', () => {
       body: JSON.stringify({
         proposal: {
           connection_id: 'conn_pending_1',
-          issuer: 'did:web:ian.self.xyz',
+          issuer: 'did:web:ian.example.agent',
           audience: 'did:web:ghost.agent',
         },
         invitation_url: 'https://samantha.agent/pair?invitation=ZXhhbXBsZQ',

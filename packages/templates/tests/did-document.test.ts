@@ -7,7 +7,7 @@ describe('buildDidDocument', () => {
   it('produces a schema-valid document for the reference inputs', () => {
     const doc = buildDidDocument({
       agentDid: 'did:web:samantha.agent',
-      controllerDid: 'did:web:ian.self.xyz',
+      controllerDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       endpoints: {
         didcomm: 'https://samantha.agent/didcomm',
@@ -23,7 +23,7 @@ describe('buildDidDocument', () => {
   it('uses a caller-supplied keyId', () => {
     const doc = buildDidDocument({
       agentDid: 'did:web:samantha.agent',
-      controllerDid: 'did:web:ian.self.xyz',
+      controllerDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       endpoints: {
         didcomm: 'https://samantha.agent/didcomm',
@@ -40,7 +40,7 @@ describe('buildDidDocument', () => {
     expect(() =>
       buildDidDocument({
         agentDid: 'not-a-did',
-        controllerDid: 'did:web:ian.self.xyz',
+        controllerDid: 'did:web:ian.example.agent',
         publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
         endpoints: {
           didcomm: 'https://samantha.agent/didcomm',

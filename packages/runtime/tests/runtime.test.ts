@@ -58,7 +58,7 @@ async function mintAgent(did: string, port: number, overrides?: Partial<RuntimeO
   const runtime = await createRuntime({
     config: {
       did,
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: ed25519RawToMultibase(pub),
       agentName: did.split(':')[2] ?? 'agent',
       agentDescription: 'test agent',
@@ -135,7 +135,7 @@ describe('createRuntime — PDP pipeline', () => {
     // Pre-seed both sides with the same Connection Token (allow read on alpha).
     const token: ConnectionToken = {
       connection_id: 'conn_alpha_integ',
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',
@@ -274,7 +274,7 @@ async function mintAgentForPipeline(did: string) {
   const runtime = await createRuntime({
     config: {
       did,
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: ed25519RawToMultibase(pub),
       agentName: did.split(':')[2] ?? 'agent',
       agentDescription: 'pipeline test',

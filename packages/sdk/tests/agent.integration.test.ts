@@ -59,7 +59,7 @@ describe('ArpAgent integration (SDK end-to-end)', () => {
   it('fromHandoff → start → check → egress → audit → connections.revoke', async () => {
     const samanthaDid = 'did:web:sdktest-samantha.agent';
     const ghostDid = 'did:web:sdktest-ghost.agent';
-    const ianDid = 'did:web:sdktest-ian.self.xyz';
+    const ianDid = 'did:web:sdktest-ian.example.agent';
 
     // Mint keys.
     const samanthaKey = ed25519.utils.randomPrivateKey();

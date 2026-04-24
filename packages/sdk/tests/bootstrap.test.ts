@@ -13,7 +13,7 @@ async function buildHandoff(
 ): Promise<HandoffBundle> {
   return {
     agent_did: 'did:web:demo.agent',
-    principal_did: 'did:web:owner.self.xyz',
+    principal_did: 'did:web:owner.example.agent',
     public_key_multibase: publicKeyMultibase,
     well_known_urls: {
       did: 'https://demo.agent/.well-known/did.json',

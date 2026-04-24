@@ -14,7 +14,7 @@ import { ed25519RawToMultibase } from '@kybernesis/arp-transport';
 import { bootstrap } from '@kybernesis/arp-sidecar';
 
 const DID = 'did:web:test.agent';
-const PRINCIPAL_DID = 'did:web:ian.self.xyz';
+const PRINCIPAL_DID = 'did:web:ian.example.agent';
 
 describe('sidecar bootstrap', () => {
   let dataDir!: string;

@@ -52,7 +52,7 @@ export async function createMultiTenantHarness(count: number): Promise<MultiTena
 
   for (let i = 0; i < count; i++) {
     const idx = i + 1;
-    const principalDid = `did:web:owner${idx}.self.xyz`;
+    const principalDid = `did:web:owner${idx}.example.agent`;
     const agentHost = `agent${idx}.agent`;
     const agentDid = `did:web:${agentHost}`;
     const peerDid = `did:web:peer${idx}.agent`;

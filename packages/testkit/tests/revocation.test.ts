@@ -15,7 +15,7 @@ describe('revocationProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       fetchImpl: fakeFetch({
-        issuer: 'did:web:ian.self.xyz',
+        issuer: 'did:web:ian.example.agent',
         updated_at: new Date().toISOString(),
         revocations: [],
       }),
@@ -39,7 +39,7 @@ describe('revocationProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       fetchImpl: fakeFetch({
-        issuer: 'did:web:ian.self.xyz',
+        issuer: 'did:web:ian.example.agent',
         updated_at: new Date().toISOString(),
         revocations: [{ type: 'connection', id: 'conn_abc', revoked_at: new Date().toISOString() }],
       }),
@@ -54,7 +54,7 @@ describe('revocationProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       fetchImpl: fakeFetch({
-        issuer: 'did:web:ian.self.xyz',
+        issuer: 'did:web:ian.example.agent',
         updated_at: new Date().toISOString(),
         revocations: [{ type: 'connection', id: 'conn_other' }],
       }),

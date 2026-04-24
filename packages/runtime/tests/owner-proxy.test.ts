@@ -85,7 +85,7 @@ async function bootRuntime(ownerTarget: string) {
   const runtime = await createRuntime({
     config: {
       did: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: ed25519RawToMultibase(pub),
       agentName: 'samantha',
       agentDescription: 'proxy test',

@@ -39,7 +39,7 @@ writeFileSync(join(outDir, 'data', 'keys', 'private.key'), priv, { mode: 0o600 }
 
 const handoff = {
   agent_did: 'did:web:samantha.agent',
-  principal_did: 'did:web:ian.self.xyz',
+  principal_did: 'did:web:ian.example.agent',
   public_key_multibase: pubMb,
   well_known_urls: {
     did: 'https://samantha.agent/.well-known/did.json',

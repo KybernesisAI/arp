@@ -70,7 +70,7 @@ export async function createTestHarness(params?: {
 }): Promise<TestHarness> {
   const agentDid = params?.agentDid ?? 'did:web:samantha.agent';
   const peerDid = params?.peerDid ?? 'did:web:ghost.agent';
-  const principalDid = params?.tenantPrincipal ?? 'did:web:ian.self.xyz';
+  const principalDid = params?.tenantPrincipal ?? 'did:web:ian.example.agent';
 
   const { db, close: closeDb } = await createPgliteDb();
 

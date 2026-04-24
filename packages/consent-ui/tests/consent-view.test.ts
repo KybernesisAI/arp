@@ -34,7 +34,7 @@ describe('renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6'
         return sel;
       });
       const view = renderConsentView({
-        issuer: 'did:web:ian.self.xyz',
+        issuer: 'did:web:ian.example.agent',
         subject: 'did:web:samantha.agent',
         audience: 'did:web:ghost.agent',
         purpose: bundle.label,

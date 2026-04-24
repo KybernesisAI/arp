@@ -28,7 +28,7 @@ async function bootRuntime(dataDir: string): Promise<{
   const runtime = await createRuntime({
     config: {
       did: DID,
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: ed25519RawToMultibase(pub),
       wellKnownUrls: {
         didcomm: 'https://test.agent/didcomm',

@@ -167,36 +167,36 @@ export async function createDualRuntime(opts: DualRuntimeOptions = {}): Promise<
   const SCHEMA = readFileSync(CEDAR_SCHEMA_PATH, 'utf8');
 
   const [ian, nick, samanthaId, ghostId] = await Promise.all([
-    mintIdentity('did:web:ian.self.xyz', 'did:web:ian.self.xyz'),
-    mintIdentity('did:web:nick.self.xyz', 'did:web:nick.self.xyz'),
-    mintIdentity('did:web:samantha.agent', 'did:web:ian.self.xyz'),
-    mintIdentity('did:web:ghost.agent', 'did:web:nick.self.xyz'),
+    mintIdentity('did:web:ian.example.agent', 'did:web:ian.example.agent'),
+    mintIdentity('did:web:nick.example.agent', 'did:web:nick.example.agent'),
+    mintIdentity('did:web:samantha.agent', 'did:web:ian.example.agent'),
+    mintIdentity('did:web:ghost.agent', 'did:web:nick.example.agent'),
   ]);
 
   const docs: Record<string, DidDocument> = {
-    'did:web:ian.self.xyz': didDoc({
-      did: 'did:web:ian.self.xyz',
-      controller: 'did:web:ian.self.xyz',
+    'did:web:ian.example.agent': didDoc({
+      did: 'did:web:ian.example.agent',
+      controller: 'did:web:ian.example.agent',
       publicKey: ian.principalPublicKey,
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
     }),
-    'did:web:nick.self.xyz': didDoc({
-      did: 'did:web:nick.self.xyz',
-      controller: 'did:web:nick.self.xyz',
+    'did:web:nick.example.agent': didDoc({
+      did: 'did:web:nick.example.agent',
+      controller: 'did:web:nick.example.agent',
       publicKey: nick.principalPublicKey,
-      principalDid: 'did:web:nick.self.xyz',
+      principalDid: 'did:web:nick.example.agent',
     }),
     'did:web:samantha.agent': didDoc({
       did: 'did:web:samantha.agent',
-      controller: 'did:web:ian.self.xyz',
+      controller: 'did:web:ian.example.agent',
       publicKey: samanthaId.agentPublicKey,
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
     }),
     'did:web:ghost.agent': didDoc({
       did: 'did:web:ghost.agent',
-      controller: 'did:web:nick.self.xyz',
+      controller: 'did:web:nick.example.agent',
       publicKey: ghostId.agentPublicKey,
-      principalDid: 'did:web:nick.self.xyz',
+      principalDid: 'did:web:nick.example.agent',
     }),
   };
 

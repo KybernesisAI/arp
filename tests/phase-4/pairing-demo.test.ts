@@ -79,35 +79,35 @@ describe('phase 4 — end-to-end pairing demo', () => {
     /* ------------------------------------------------------------------ *
      *  Principal identities + agent keys                                 *
      * ------------------------------------------------------------------ */
-    const ian = await mintKey('did:web:ian.self.xyz#key-1');
-    const nick = await mintKey('did:web:nick.self.xyz#key-1');
+    const ian = await mintKey('did:web:ian.example.agent#key-1');
+    const nick = await mintKey('did:web:nick.example.agent#key-1');
     const samantha = await mintKey('did:web:samantha.agent#key-1');
     const ghost = await mintKey('did:web:ghost.agent#key-1');
 
     const resolver = mapResolver({
-      'did:web:ian.self.xyz': didDoc({
-        did: 'did:web:ian.self.xyz',
-        controller: 'did:web:ian.self.xyz',
+      'did:web:ian.example.agent': didDoc({
+        did: 'did:web:ian.example.agent',
+        controller: 'did:web:ian.example.agent',
         publicKey: ian.publicKey,
-        principalDid: 'did:web:ian.self.xyz',
+        principalDid: 'did:web:ian.example.agent',
       }),
-      'did:web:nick.self.xyz': didDoc({
-        did: 'did:web:nick.self.xyz',
-        controller: 'did:web:nick.self.xyz',
+      'did:web:nick.example.agent': didDoc({
+        did: 'did:web:nick.example.agent',
+        controller: 'did:web:nick.example.agent',
         publicKey: nick.publicKey,
-        principalDid: 'did:web:nick.self.xyz',
+        principalDid: 'did:web:nick.example.agent',
       }),
       'did:web:samantha.agent': didDoc({
         did: 'did:web:samantha.agent',
-        controller: 'did:web:ian.self.xyz',
+        controller: 'did:web:ian.example.agent',
         publicKey: samantha.publicKey,
-        principalDid: 'did:web:ian.self.xyz',
+        principalDid: 'did:web:ian.example.agent',
       }),
       'did:web:ghost.agent': didDoc({
         did: 'did:web:ghost.agent',
-        controller: 'did:web:nick.self.xyz',
+        controller: 'did:web:nick.example.agent',
         publicKey: ghost.publicKey,
-        principalDid: 'did:web:nick.self.xyz',
+        principalDid: 'did:web:nick.example.agent',
       }),
     });
 
@@ -174,8 +174,8 @@ describe('phase 4 — end-to-end pairing demo', () => {
           did,
           principalDid:
             did === 'did:web:samantha.agent'
-              ? 'did:web:ian.self.xyz'
-              : 'did:web:nick.self.xyz',
+              ? 'did:web:ian.example.agent'
+              : 'did:web:nick.example.agent',
           publicKeyMultibase: ed25519RawToMultibase(sharedKeys[did]!),
           agentName: did.split(':')[2] ?? 'agent',
           agentDescription: `phase 4 pairing demo: ${did}`,
@@ -241,7 +241,7 @@ describe('phase 4 — end-to-end pairing demo', () => {
      *  Pairing: Samantha's owner (Ian) issues invitation                 *
      * ------------------------------------------------------------------ */
     const proposal = await createPairingProposal({
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'Project Alpha',
@@ -262,7 +262,7 @@ describe('phase 4 — end-to-end pairing demo', () => {
       catalog,
       issuerKey: {
         privateKey: ian.privateKey,
-        kid: 'did:web:ian.self.xyz#key-1',
+        kid: 'did:web:ian.example.agent#key-1',
       },
     });
 
@@ -283,9 +283,9 @@ describe('phase 4 — end-to-end pairing demo', () => {
       proposal: parsed,
       counterpartyKey: {
         privateKey: nick.privateKey,
-        kid: 'did:web:nick.self.xyz#key-1',
+        kid: 'did:web:nick.example.agent#key-1',
       },
-      counterpartyDid: 'did:web:nick.self.xyz',
+      counterpartyDid: 'did:web:nick.example.agent',
       catalog,
     });
 
@@ -294,8 +294,8 @@ describe('phase 4 — end-to-end pairing demo', () => {
       ok: true,
     });
     expect(Object.keys(signedProposal.sigs).sort()).toEqual([
-      'did:web:ian.self.xyz',
-      'did:web:nick.self.xyz',
+      'did:web:ian.example.agent',
+      'did:web:nick.example.agent',
     ]);
 
     /* ------------------------------------------------------------------ *

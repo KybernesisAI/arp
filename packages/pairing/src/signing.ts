@@ -10,7 +10,7 @@ import type { SignatureEntry } from './types.js';
 export interface KeyPair {
   /** Raw 32-byte Ed25519 seed. */
   privateKey: Uint8Array;
-  /** Verification-method id — e.g. `did:web:ian.self.xyz#key-1`. */
+  /** Verification-method id — e.g. `did:web:ian.example.agent#key-1`. */
   kid: string;
 }
 

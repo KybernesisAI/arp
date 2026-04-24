@@ -1,6 +1,6 @@
 {
   "agent_did": "did:web:samantha.agent",
-  "principal_did": "did:web:ian.self.xyz",
+  "principal_did": "did:web:ian.example.agent",
   "public_key_multibase": "z-REPLACE-WITH-OUTPUT-OF-fixtures/gen-test-handoff.mjs",
   "well_known_urls": {
     "did": "https://samantha.agent/.well-known/did.json",

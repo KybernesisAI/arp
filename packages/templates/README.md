@@ -22,7 +22,7 @@ import { buildDidDocument } from '@kybernesis/arp-templates';
 
 const didDoc = buildDidDocument({
   agentDid: 'did:web:samantha.agent',
-  controllerDid: 'did:web:ian.self.xyz',
+  controllerDid: 'did:web:ian.example.agent',
   publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
   endpoints: {
     didcomm: 'https://samantha.agent/didcomm',
@@ -55,7 +55,7 @@ import { buildHandoffBundle } from '@kybernesis/arp-templates';
 
 const bundle = buildHandoffBundle({
   agentDid: 'did:web:samantha.agent',
-  principalDid: 'did:web:ian.self.xyz',
+  principalDid: 'did:web:ian.example.agent',
   publicKeyMultibase: 'z6Mk...',
   agentOrigin: 'https://samantha.agent',
   dnsRecordsPublished: ['A', '_arp TXT', '_did TXT', '_didcomm TXT', '_principal TXT'],

@@ -196,7 +196,10 @@ afterEach(async () => {
 
 async function expectAuditPass(baseUrl: string) {
   const summary = await runAudit('localhost', baseUrl);
-  expect(summary.total).toBe(8);
+  // Phase 9 slice 9c: suite grew 8 → 11 (v2.1 §6 trio). Owner-scoped
+  // probes skip locally because no ownerLabel / registrarSetupUrl is
+  // provided; all 11 must still resolve without a fail.
+  expect(summary.total).toBe(11);
   const failed = summary.probes.filter((p) => !p.pass);
   expect(failed, JSON.stringify(summary.probes, null, 2)).toHaveLength(0);
 }

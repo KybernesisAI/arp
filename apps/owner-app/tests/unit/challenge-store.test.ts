@@ -3,9 +3,9 @@ import { issueChallenge, consumeChallenge } from '../../lib/challenge-store';
 
 describe('challenge-store', () => {
   it('consumes a freshly issued challenge exactly once', () => {
-    issueChallenge('did:web:ian.self.xyz', 'nonce-1');
+    issueChallenge('did:web:ian.example.agent', 'nonce-1');
     expect(consumeChallenge('nonce-1')).toEqual({
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       issuedAt: expect.any(Number),
     });
     expect(consumeChallenge('nonce-1')).toBeNull();

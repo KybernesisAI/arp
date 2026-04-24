@@ -53,6 +53,11 @@ vi.mock('@/lib/db', async () => ({
   },
 }));
 
+// Slice 9c rate-limiting on /onboard calls `headers()` before anything
+// else, so we must mock both `cookies` and `headers`. Using a per-test IP
+// counter keeps rate-limit buckets isolated across test runs.
+let headersForTest: Map<string, string> = new Map([['x-forwarded-for', '203.0.113.1']]);
+
 vi.mock('next/headers', async () => ({
   cookies: async () => ({
     get: (name: string) => {
@@ -66,6 +71,11 @@ vi.mock('next/headers', async () => ({
       cookieStore.delete(name);
     },
   }),
+  headers: async () => {
+    const h = new Headers();
+    for (const [k, v] of headersForTest) h.set(k, v);
+    return h;
+  },
 }));
 
 // Import after mocks.
@@ -149,6 +159,12 @@ describe('Phase 9b — v2.1 registrar flow (integration)', () => {
     const built = await createPgliteDb();
     currentDb = { db: built.db as unknown as CloudDbClient, close: built.close };
     cookieStore.clear();
+    // Unique IP per test keeps rate-limit buckets isolated across a
+    // single-file run. PGlite is ephemeral per test via beforeEach, so
+    // resetting here is belt-and-braces only.
+    headersForTest = new Map([
+      ['x-forwarded-for', `203.0.113.${Math.floor(Math.random() * 254) + 1}`],
+    ]);
   });
   afterEach(async () => {
     if (currentDb) {
