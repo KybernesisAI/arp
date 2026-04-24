@@ -1,0 +1,168 @@
+export const metadata = {
+  title: "Introducing ARP",
+  description:
+    "A protocol for how autonomous agents talk, delegate, and get revoked. Open source. MIT licensed.",
+  robots: { index: false, follow: false },
+};
+
+<div className="mb-10 border border-signal-yellow bg-paper-2 p-4 font-mono text-kicker uppercase tracking-[0.14em] text-ink">
+  [DRAFT — FOR PUBLICATION REVIEW] — this post is the slice-9e draft of our
+  launch post. Copy, framing, links, and examples are subject to change
+  before publication. Do not share this URL.
+</div>
+
+# Introducing ARP
+
+**A protocol for how autonomous agents talk, delegate, and get revoked.**
+
+By *Ian Borders* · [DRAFT]
+
+---
+
+We're releasing the Agent Relationship Protocol — **ARP** — for public
+review. ARP is the open communication and permissions layer for
+agent-to-agent software. It is not a framework. It is not a hosted SaaS.
+It's a protocol, a reference implementation, and a small set of tools you
+can pick up today.
+
+This post explains what ARP is, who it's for, why we built it, and how to
+get started.
+
+## The problem
+
+Agents are going to talk to each other. They're already doing it — through
+bespoke integrations, shared OpenAPI specs, MCP tools, LangGraph flows, and
+every kind of glue code in between. What's missing is a **contract between
+frameworks**: a shared way for two agents built by two different teams to
+
+1. prove who they are,
+2. delegate a specific capability for a specific duration,
+3. produce an auditable record of every exchange, and
+4. revoke access cleanly when the work is done.
+
+Today every team reinvents that contract, and the result is the exact
+situation you'd expect: permissions are ad-hoc, audit trails are
+incomplete, and "who's allowed to do what" lives in a tangle of code paths
+nobody wants to touch.
+
+## What ARP is
+
+ARP is seven layers, each tightly scoped:
+
+- **Identity** — sovereign names. Agents live at `.agent` Handshake
+  domains. Principal identity uses method-agnostic DIDs (`did:key` for
+  browser-held keys, `did:web` for sovereign or cloud-managed principals).
+- **Permissions** — 50 reusable scope templates that compile to Cedar
+  policy. Obligations (budget caps, time windows, audit destinations)
+  attach to consent tokens and merge into every audit entry.
+- **Pairing** — a two-step invitation + accept flow that produces a signed
+  consent token. No shared passwords. No OAuth client secrets.
+- **Transport** — signed DIDComm JWMs over DID-pinned TLS. Sidecar runs
+  anywhere Docker does; the framework adapter plugs in your existing
+  agent code.
+- **Audit** — a hash-chained log that tamper-detects per-tenant. Every
+  inbound and outbound message signs a link in the chain.
+- **TLS pinning** — no Let's Encrypt for the agent-facing path. The
+  sidecar generates a self-signed cert; the fingerprint is pinned in the
+  DID document. Web PKI only shows up at human-facing endpoints.
+- **Policy evaluation** — Cedar with an ARP extension for obligation
+  annotations. Integer-cents arithmetic, epoch-ms time, no surprises.
+
+These layers compose into a single pattern: **an agent is a name plus a
+set of connections plus a policy**, and every message that crosses the
+wire is a decision about a scope on a connection.
+
+## Who it's for
+
+Three audiences, three ways in:
+
+- **You're implementing an agent-to-agent integration.** Read the spec.
+  Start with `/spec/v0.1/overview`.
+- **You're shipping an agent in a framework you already own
+  (KyberBot, OpenClaw, Hermes, LangGraph, etc.).** Install the SDK, wire
+  an adapter, attach the sidecar. `/docs/getting-started`.
+- **You run a `.agent` TLD registrar.** The v2.1 registrar integration
+  spec is at `/spec/v0.1/registrar-integration`. Partners can bind their
+  customers in one click.
+
+ARP is deliberately minimal at v0.1. We ship:
+
+- A shared contract (types, schemas, the 50-scope catalog, Cedar
+  templates).
+- A runtime core (PDP, transport, registry, audit, resolver, TLS).
+- A sidecar image (`ghcr.io/kybernesisai/sidecar` — coming at 1.0 launch).
+- Five reference adapters — KyberBot, OpenClaw, Hermes-Agent, NanoClaw,
+  LangGraph.
+- An SDK in TypeScript (Python next), plus a `create-adapter` CLI.
+- A compliance testkit with 11 probes.
+- ARP Cloud — the hosted multi-tenant runtime at `cloud.arp.run`, free
+  tier included.
+
+## Why now
+
+Three things are true simultaneously:
+
+1. LLM-backed agents are shipping in real products.
+2. The teams shipping them do not agree on a permissions model.
+3. Nobody wants another centralised trust anchor.
+
+ARP's answer is to use open primitives that already exist — Handshake,
+DIDs, DIDComm, Cedar — and assemble them into the shortest credible path
+from "my agent has a name" to "my agent can safely delegate work to
+yours."
+
+## Get started in five minutes
+
+```sh
+npx @kybernesis/arp-testkit audit samantha.agent
+```
+
+That's the compliance probe. Point it at any `.agent` domain and it'll
+return an audit of how well that agent conforms to ARP v0.1 — including
+the three new v2.1 probes for principal identity, representation JWT
+signer binding, and registrar-setup quality.
+
+To run an agent of your own:
+
+```sh
+docker run -p 443:443 -v ~/.arp:/data ghcr.io/kybernesisai/sidecar:latest
+```
+
+Or sign up at [cloud.arp.run](https://cloud.arp.run) and skip the
+sidecar entirely. Free tier included.
+
+## What we're asking for
+
+This is v0.1 — **public review**. We want:
+
+- Readers — tell us what's clear and what isn't.
+- Implementers — tell us where the spec pinches and where a reference
+  helper would save you a day.
+- Registrars — come read the v2.1 integration spec; it's designed
+  around your constraints, not ours.
+
+File issues at [github.com/KybernesisAI/arp](https://github.com/KybernesisAI/arp).
+Substantive changes go through the RFC process — see
+[/rfcs](/rfcs).
+
+## What's next
+
+Post-v0.1 plans (none of these are blocking for launch):
+
+- **Multi-principal agents.** A single agent serving multiple owners at
+  the same time. RFC draft forthcoming.
+- **Mobile apps.** iOS + Android owner apps in Phase 10 — the scaffold is
+  already in tree at `github.com/KybernesisAI/arp-mobile`.
+- **Framework coverage.** CrewAI, MCP-native adapters, Go + Rust SDKs —
+  community-contributed first.
+
+## Thanks
+
+ARP exists because Headless Domains opened the `.agent` TLD and gave us
+something to build on. The reference implementation exists because the
+Kybernesis team (and a lot of patient reviewers) stress-tested seven
+phases of build work across a single repo, in the open, on `main`.
+
+More to come.
+
+— Ian
