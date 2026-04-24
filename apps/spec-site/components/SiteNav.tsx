@@ -9,6 +9,7 @@ const NAV_LINKS: Array<{ href: string; label: string; external?: boolean }> = [
   { href: '/scope-catalog', label: 'SCOPES' },
   { href: '/schema', label: 'SCHEMA' },
   { href: '/rfcs', label: 'RFCS' },
+  { href: '/status', label: 'STATUS' },
 ];
 
 export function SiteNav(): React.JSX.Element {
