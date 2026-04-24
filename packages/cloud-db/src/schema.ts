@@ -364,6 +364,35 @@ export const userCredentials = pgTable(
   }),
 );
 
+// -------------------------------------------------------- pairing_invitations
+//
+// Phase 10a: browser-only URL-fragment pairing. The tenant's browser client
+// signs a PairingProposal with the principal did:key, then POSTs it to
+// /api/pairing/invitations. The row persists the signed payload so the
+// issuing tenant can list, cancel, and audit pending invitations. The payload
+// reaches the invitee only via the URL fragment (#) — browsers strip the
+// fragment before sending the HTTP request, so this row is the only
+// server-side copy.
+export const pairingInvitations = pgTable(
+  'pairing_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    issuerAgentDid: text('issuer_agent_did').notNull(),
+    requestedScopes: jsonb('requested_scopes').notNull(),
+    challenge: text('challenge').notNull(),
+    payload: text('payload').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxTenant: index('idx_pairing_invitations_tenant').on(t.tenantId),
+    idxIssuerAgent: index('idx_pairing_invitations_issuer_agent').on(t.issuerAgentDid),
+  }),
+);
+
 // -------------------------------------------------------- webauthn_challenges
 //
 // Phase 9d: short-lived (60s TTL) challenges issued by /api/webauthn/*/options
@@ -404,3 +433,4 @@ export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
 export type RateLimitHitRow = typeof rateLimitHits.$inferSelect;
 export type UserCredentialRow = typeof userCredentials.$inferSelect;
 export type WebauthnChallengeRow = typeof webauthnChallenges.$inferSelect;
+export type PairingInvitationRow = typeof pairingInvitations.$inferSelect;
