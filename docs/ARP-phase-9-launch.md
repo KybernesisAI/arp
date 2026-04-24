@@ -378,7 +378,7 @@ Plus manual:
 
 ## 8. v0 decisions (do not reopen)
 
-- Fumadocs for docs (not Mintlify, not raw MDX)
+- ~~Fumadocs for docs (not Mintlify, not raw MDX)~~ **Amended in slice 9a (PR #19):** `@next/mdx` — Next.js's first-party MDX pipeline. Fumadocs v16 (the only release supporting Next 16 + React 19.2) forces Tailwind 4; the Phase-8.75 design system is Tailwind-3-native, and a migration cascade was out of scope. `@next/mdx` is not a hand-roll — it uses standard remark/rehype plugins. If/when search or versioned-TOC becomes a launch blocker, add Pagefind (static search) at launch prep.
 - GitHub Discussions primary; expand to Discord only with demand
 - Plausible for privacy-respecting analytics
 - Instatus or custom Next.js status page (not full incident-management vendor)
