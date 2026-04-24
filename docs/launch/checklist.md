@@ -194,19 +194,24 @@ Do NOT unpublish — it's destructive + permanent for 72 hours.
 
 ### 3.2 GHCR sidecar image push
 
-**Prereq:** `GHCR_TOKEN` with `write:packages` on `KybernesisAI` org.
-`.github/workflows/image-publish.yml` configured.
+**Prereq:** `.github/workflows/image-publish.yml` configured. **No
+`GHCR_TOKEN` secret required** — the workflow uses the auto-provided
+`GITHUB_TOKEN` which has `packages: write` granted at the job level, so
+it can push `ghcr.io/KybernesisAI/sidecar:*` without extra credentials.
+(Only need a PAT if pushing to a different org than the one running
+the workflow.)
 
 **Action:**
 
 1. Trigger the image-publish workflow: `gh workflow run image-publish.yml`.
-2. Or manually from a machine with Docker:
+2. Or manually from a machine with Docker (requires a local PAT with
+   `write:packages` only for this ad-hoc path):
    ```sh
    docker build -t ghcr.io/kybernesisai/sidecar:1.0.0 \
                 -t ghcr.io/kybernesisai/sidecar:latest \
                 -f apps/sidecar/Dockerfile .
    bash scripts/validate-image-size.sh
-   echo $GHCR_TOKEN | docker login ghcr.io -u KybernesisAI --password-stdin
+   echo $GITHUB_PAT | docker login ghcr.io -u <your-gh-user> --password-stdin
    docker push ghcr.io/kybernesisai/sidecar:1.0.0
    docker push ghcr.io/kybernesisai/sidecar:latest
    ```
