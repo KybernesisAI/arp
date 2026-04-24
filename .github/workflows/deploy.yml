@@ -62,10 +62,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Note: `includeFilesOutsideRootDirectory` is not a PATCH field on
+          # v10 projects. Vercel's pnpm-workspace detection handles parent-file
+          # access automatically when rootDirectory points into a workspace.
           body=$(cat <<'JSON'
           {
             "rootDirectory": "apps/spec-site",
-            "includeFilesOutsideRootDirectory": true,
             "installCommand": "pnpm install --frozen-lockfile",
             "buildCommand": "cd ../.. && pnpm turbo run build --filter=@kybernesis/arp-spec-site...",
             "outputDirectory": ".next"
