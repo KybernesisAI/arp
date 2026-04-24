@@ -199,4 +199,25 @@ describe('POST /api/push/register', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('429s on burst: 11th hit inside a minute for the same tenant', async () => {
+    const tenantId = await seedTenant();
+    sessionOverride = { principalDid: PRINCIPAL_DID, tenantId };
+    // Rate-limit is 10/min per tenant.
+    for (let i = 0; i < 10; i++) {
+      const res = await makeRequest({
+        device_token: `device-token-${i}`,
+        platform: 'ios',
+        bundle_id: 'com.arp.owner',
+      });
+      expect(res.status).toBe(200);
+    }
+    const tripped = await makeRequest({
+      device_token: 'one-too-many',
+      platform: 'ios',
+      bundle_id: 'com.arp.owner',
+    });
+    expect(tripped.status).toBe(429);
+    expect(tripped.headers.get('retry-after')).toBeTruthy();
+  });
 });

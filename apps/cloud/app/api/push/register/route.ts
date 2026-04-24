@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
+import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -21,9 +22,23 @@ const Body = z.object({
   bundle_id: z.string().min(1).max(255),
 });
 
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(req: Request): Promise<Response> {
   try {
     const { tenantDb } = await requireTenantDb();
+
+    // Rate-limit: 10/min per tenant. Legitimate device churn is rare
+    // (install, reinstall, upgrade); a burst of tokens is a red flag
+    // (enumeration, bot farm). Keyed on tenant_id, not IP, so a shared
+    // corporate NAT doesn't hammer everyone else.
+    const limitResult = await checkRateLimit({
+      bucket: `push-register:tenant:${tenantDb.tenantId}`,
+      windowSeconds: 60,
+      limit: 10,
+    });
+    if (!limitResult.ok) {
+      return rateLimitedResponse(limitResult.retryAfter);
+    }
+
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(

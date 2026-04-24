@@ -269,6 +269,29 @@ export const pushRegistrations = pgTable(
   }),
 );
 
+// ------------------------------------------------------------- rate_limit_hits
+//
+// Phase 9c: DB-backed fixed-window rate limiter. The `bucket` column encodes
+// route + key + window-start so the unique index doubles as a lookup key; the
+// rate-limit helper does an INSERT … ON CONFLICT DO UPDATE SET hits = hits + 1
+// for an atomic increment. Expired windows are swept opportunistically by the
+// helper (no cron required).
+export const rateLimitHits = pgTable(
+  'rate_limit_hits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bucket: text('bucket').notNull(),
+    hits: integer('hits').notNull().default(0),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    windowEnd: timestamp('window_end', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxBucket: uniqueIndex('rate_limit_hits_bucket').on(t.bucket),
+    idxWindowEnd: index('idx_rate_limit_hits_window_end').on(t.windowEnd),
+  }),
+);
+
 export type TenantRow = typeof tenants.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type ConnectionRow = typeof connections.$inferSelect;
@@ -281,3 +304,4 @@ export type PrincipalSessionRow = typeof principalSessions.$inferSelect;
 export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
+export type RateLimitHitRow = typeof rateLimitHits.$inferSelect;

@@ -19,15 +19,33 @@ import { tenants } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
 import { decodeDidKeyPublicKey } from '@/lib/principal-keys';
 import { ed25519RawToMultibase } from '@kybernesis/arp-transport';
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+  rateLimitedResponse,
+} from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ uuid: string }> },
-): Promise<NextResponse> {
+): Promise<Response> {
+  // Rate-limit: 120/min per IP. Public-read endpoint; Vercel's edge cache
+  // absorbs most legitimate traffic (cache-control: public, max-age=300).
+  // This protects the origin from aggressive uncached traffic.
+  const ip = clientIpFromRequest(req);
+  const limitResult = await checkRateLimit({
+    bucket: `user-did:ip:${ip}`,
+    windowSeconds: 60,
+    limit: 120,
+  });
+  if (!limitResult.ok) {
+    return rateLimitedResponse(limitResult.retryAfter);
+  }
+
   const { uuid } = await ctx.params;
   if (!UUID_REGEX.test(uuid)) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
