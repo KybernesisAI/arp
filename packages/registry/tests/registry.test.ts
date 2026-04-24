@@ -11,7 +11,7 @@ const PEER_DID = 'did:web:ghost.agent';
 function token(overrides: Partial<ConnectionToken> = {}): ConnectionToken {
   return {
     connection_id: 'conn_alpha01',
-    issuer: 'did:web:ian.self.xyz',
+    issuer: 'did:web:ian.example.agent',
     subject: SELF_DID,
     audience: PEER_DID,
     purpose: 'project:alpha',

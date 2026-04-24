@@ -10,7 +10,7 @@ import { env } from './env';
  *
  * JSON shape (example):
  *   {
- *     "did:web:ian.self.xyz": { "publicKeyHex": "..." }
+ *     "did:web:ian.example.agent": { "publicKeyHex": "..." }
  *   }
  */
 interface PrincipalKeyEntry {

@@ -6,7 +6,7 @@ import { seededRng, randomDidWeb } from './helpers.js';
 describe('buildRepresentationVc', () => {
   it('produces a schema-valid VC with defaults', () => {
     const vc = buildRepresentationVc({
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentDid: 'did:web:samantha.agent',
     });
     expect(RepresentationVcSchema.safeParse(vc).success).toBe(true);
@@ -16,7 +16,7 @@ describe('buildRepresentationVc', () => {
 
   it('accepts explicit iat + exp', () => {
     const vc = buildRepresentationVc({
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentDid: 'did:web:samantha.agent',
       iat: 1_700_000_000,
       exp: 1_800_000_000,
@@ -27,7 +27,7 @@ describe('buildRepresentationVc', () => {
 
   it('supports scoped representation', () => {
     const vc = buildRepresentationVc({
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentDid: 'did:web:samantha.agent',
       scope: 'scoped',
     });
@@ -36,7 +36,7 @@ describe('buildRepresentationVc', () => {
 
   it('applies default constraints', () => {
     const vc = buildRepresentationVc({
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentDid: 'did:web:samantha.agent',
     });
     expect(vc.vc.credentialSubject.constraints.maxConcurrentConnections).toBe(100);
@@ -45,7 +45,7 @@ describe('buildRepresentationVc', () => {
 
   const rng = seededRng(0x1de01);
   for (let i = 0; i < 12; i += 1) {
-    const principal = randomDidWeb(rng, 'self.xyz');
+    const principal = randomDidWeb(rng, 'example.agent');
     const agent = randomDidWeb(rng, 'agent');
     it(`property #${i + 1}: random DIDs produce valid VCs`, () => {
       const vc = buildRepresentationVc({ principalDid: principal, agentDid: agent });

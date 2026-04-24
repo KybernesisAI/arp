@@ -79,53 +79,53 @@ describe('pairing round-trip', () => {
   it('proposal → URL → parse → countersign → verify', async () => {
     const catalog = loadScopesFromDirectory(SCOPES_DIR);
 
-    const ian = await newKey('did:web:ian.self.xyz#key-1');
-    const nick = await newKey('did:web:nick.self.xyz#key-1');
+    const ian = await newKey('did:web:ian.example.agent#key-1');
+    const nick = await newKey('did:web:nick.example.agent#key-1');
     const samantha = await newKey('did:web:samantha.agent#key-1');
     const ghost = await newKey('did:web:ghost.agent#key-1');
 
     const resolver = mapResolver([
       [
-        'did:web:ian.self.xyz',
+        'did:web:ian.example.agent',
         didDoc({
-          did: 'did:web:ian.self.xyz',
-          controller: 'did:web:ian.self.xyz',
+          did: 'did:web:ian.example.agent',
+          controller: 'did:web:ian.example.agent',
           publicKey: ian.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
-        'did:web:nick.self.xyz',
+        'did:web:nick.example.agent',
         didDoc({
-          did: 'did:web:nick.self.xyz',
-          controller: 'did:web:nick.self.xyz',
+          did: 'did:web:nick.example.agent',
+          controller: 'did:web:nick.example.agent',
           publicKey: nick.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
       [
         'did:web:samantha.agent',
         didDoc({
           did: 'did:web:samantha.agent',
-          controller: 'did:web:ian.self.xyz',
+          controller: 'did:web:ian.example.agent',
           publicKey: samantha.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
         'did:web:ghost.agent',
         didDoc({
           did: 'did:web:ghost.agent',
-          controller: 'did:web:nick.self.xyz',
+          controller: 'did:web:nick.example.agent',
           publicKey: ghost.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
     ]);
 
     const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
     const proposal = await createPairingProposal({
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',
@@ -144,7 +144,7 @@ describe('pairing round-trip', () => {
     });
 
     expect(proposal.cedar_policies.length).toBeGreaterThan(0);
-    expect(proposal.sigs['did:web:ian.self.xyz']).toBeDefined();
+    expect(proposal.sigs['did:web:ian.example.agent']).toBeDefined();
 
     const url = buildInvitationUrl(
       proposal,
@@ -163,15 +163,15 @@ describe('pairing round-trip', () => {
     const { token, proposal: signed } = await countersignProposal({
       proposal: parsed,
       counterpartyKey: nick.key,
-      counterpartyDid: 'did:web:nick.self.xyz',
+      counterpartyDid: 'did:web:nick.example.agent',
       catalog,
     });
 
     // Schema-valid
     expect(() => ConnectionTokenSchema.parse(token)).not.toThrow();
     expect(Object.keys(token.sigs).sort()).toEqual([
-      'did:web:ian.self.xyz',
-      'did:web:nick.self.xyz',
+      'did:web:ian.example.agent',
+      'did:web:nick.example.agent',
     ]);
 
     // Dual-signed proposal verifies
@@ -186,53 +186,53 @@ describe('pairing round-trip', () => {
   it('tampering any field causes verification to fail', async () => {
     const catalog = loadScopesFromDirectory(SCOPES_DIR);
 
-    const ian = await newKey('did:web:ian.self.xyz#key-1');
-    const nick = await newKey('did:web:nick.self.xyz#key-1');
+    const ian = await newKey('did:web:ian.example.agent#key-1');
+    const nick = await newKey('did:web:nick.example.agent#key-1');
     const samantha = await newKey('did:web:samantha.agent#key-1');
     const ghost = await newKey('did:web:ghost.agent#key-1');
 
     const resolver = mapResolver([
       [
-        'did:web:ian.self.xyz',
+        'did:web:ian.example.agent',
         didDoc({
-          did: 'did:web:ian.self.xyz',
-          controller: 'did:web:ian.self.xyz',
+          did: 'did:web:ian.example.agent',
+          controller: 'did:web:ian.example.agent',
           publicKey: ian.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
-        'did:web:nick.self.xyz',
+        'did:web:nick.example.agent',
         didDoc({
-          did: 'did:web:nick.self.xyz',
-          controller: 'did:web:nick.self.xyz',
+          did: 'did:web:nick.example.agent',
+          controller: 'did:web:nick.example.agent',
           publicKey: nick.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
       [
         'did:web:samantha.agent',
         didDoc({
           did: 'did:web:samantha.agent',
-          controller: 'did:web:ian.self.xyz',
+          controller: 'did:web:ian.example.agent',
           publicKey: samantha.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
         'did:web:ghost.agent',
         didDoc({
           did: 'did:web:ghost.agent',
-          controller: 'did:web:nick.self.xyz',
+          controller: 'did:web:nick.example.agent',
           publicKey: ghost.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
     ]);
 
     const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
     const proposal = await createPairingProposal({
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',
@@ -246,7 +246,7 @@ describe('pairing round-trip', () => {
     const { token } = await countersignProposal({
       proposal,
       counterpartyKey: nick.key,
-      counterpartyDid: 'did:web:nick.self.xyz',
+      counterpartyDid: 'did:web:nick.example.agent',
       catalog,
     });
 
@@ -287,7 +287,7 @@ describe('pairing round-trip', () => {
     ).toBe(false);
 
     // Tamper with issuer
-    const tamperedIssuer = { ...token, issuer: 'did:web:evil.self.xyz' };
+    const tamperedIssuer = { ...token, issuer: 'did:web:evil.example.agent' };
     expect(
       (await verifyConnectionToken(tamperedIssuer, { resolver })).ok,
     ).toBe(false);
@@ -310,11 +310,11 @@ describe('pairing round-trip', () => {
 
   it('countersign refuses when audience-side recompile diverges', async () => {
     const catalog = loadScopesFromDirectory(SCOPES_DIR);
-    const ian = await newKey('did:web:ian.self.xyz#key-1');
-    const nick = await newKey('did:web:nick.self.xyz#key-1');
+    const ian = await newKey('did:web:ian.example.agent#key-1');
+    const nick = await newKey('did:web:nick.example.agent#key-1');
 
     const proposal = await createPairingProposal({
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',
@@ -337,7 +337,7 @@ describe('pairing round-trip', () => {
       countersignProposal({
         proposal: tampered,
         counterpartyKey: nick.key,
-        counterpartyDid: 'did:web:nick.self.xyz',
+        counterpartyDid: 'did:web:nick.example.agent',
         catalog,
       }),
     ).rejects.toThrow(/cedar policy/i);
@@ -345,50 +345,50 @@ describe('pairing round-trip', () => {
 
   it('expired token fails verification', async () => {
     const catalog = loadScopesFromDirectory(SCOPES_DIR);
-    const ian = await newKey('did:web:ian.self.xyz#key-1');
-    const nick = await newKey('did:web:nick.self.xyz#key-1');
+    const ian = await newKey('did:web:ian.example.agent#key-1');
+    const nick = await newKey('did:web:nick.example.agent#key-1');
 
     const resolver = mapResolver([
       [
-        'did:web:ian.self.xyz',
+        'did:web:ian.example.agent',
         didDoc({
-          did: 'did:web:ian.self.xyz',
-          controller: 'did:web:ian.self.xyz',
+          did: 'did:web:ian.example.agent',
+          controller: 'did:web:ian.example.agent',
           publicKey: ian.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
-        'did:web:nick.self.xyz',
+        'did:web:nick.example.agent',
         didDoc({
-          did: 'did:web:nick.self.xyz',
-          controller: 'did:web:nick.self.xyz',
+          did: 'did:web:nick.example.agent',
+          controller: 'did:web:nick.example.agent',
           publicKey: nick.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
       [
         'did:web:samantha.agent',
         didDoc({
           did: 'did:web:samantha.agent',
-          controller: 'did:web:ian.self.xyz',
+          controller: 'did:web:ian.example.agent',
           publicKey: ian.publicKey,
-          principalDid: 'did:web:ian.self.xyz',
+          principalDid: 'did:web:ian.example.agent',
         }),
       ],
       [
         'did:web:ghost.agent',
         didDoc({
           did: 'did:web:ghost.agent',
-          controller: 'did:web:nick.self.xyz',
+          controller: 'did:web:nick.example.agent',
           publicKey: nick.publicKey,
-          principalDid: 'did:web:nick.self.xyz',
+          principalDid: 'did:web:nick.example.agent',
         }),
       ],
     ]);
 
     const proposal = await createPairingProposal({
-      issuer: 'did:web:ian.self.xyz',
+      issuer: 'did:web:ian.example.agent',
       subject: 'did:web:samantha.agent',
       audience: 'did:web:ghost.agent',
       purpose: 'project:alpha',
@@ -402,7 +402,7 @@ describe('pairing round-trip', () => {
     const { token } = await countersignProposal({
       proposal,
       counterpartyKey: nick.key,
-      counterpartyDid: 'did:web:nick.self.xyz',
+      counterpartyDid: 'did:web:nick.example.agent',
       catalog,
     });
 

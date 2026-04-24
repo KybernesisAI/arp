@@ -34,8 +34,14 @@ vi.mock('@/lib/db', async () => {
 
 const { POST } = await import('../app/internal/registrar/bind/route');
 
-function request(body: unknown, opts: { psk?: string | null } = {}): Request {
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+function request(
+  body: unknown,
+  opts: { psk?: string | null; ip?: string } = {},
+): Request {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-forwarded-for': opts.ip ?? '198.51.100.1',
+  };
   const psk = opts.psk === undefined ? PSK : opts.psk;
   if (psk) headers['authorization'] = `Bearer ${psk}`;
   return new Request('http://test.local/internal/registrar/bind', {
@@ -154,5 +160,23 @@ describe('POST /internal/registrar/bind', () => {
     if (!currentDb) throw new Error('db gone');
     const rows = await currentDb.db.select().from(registrarBindings).where(eq(registrarBindings.domain, VALID_BODY.domain));
     expect(rows[0]?.registrar).toBe('futureco');
+  });
+
+  it('429s on burst: 61st hit from the same IP inside a minute', async () => {
+    const ip = '198.51.100.42';
+    // Burst cap is 60/min. Fire 60 valid requests, then expect the 61st to 429.
+    for (let i = 0; i < 60; i++) {
+      // Vary the (domain, owner_label) to avoid the unique constraint.
+      const res = await POST(
+        request(
+          { ...VALID_BODY, owner_label: `ian${i}`, domain: `site${i}.agent` },
+          { ip },
+        ),
+      );
+      expect(res.status).toBe(200);
+    }
+    const tripped = await POST(request(VALID_BODY, { ip }));
+    expect(tripped.status).toBe(429);
+    expect(tripped.headers.get('retry-after')).toBeTruthy();
   });
 });

@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPgliteDb, onboardingSessions } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
+import { installHeadersMock, freshTestIp } from './helpers/cookies';
 
 process.env['ARP_CLOUD_SESSION_SECRET'] =
   process.env['ARP_CLOUD_SESSION_SECRET'] ?? 'test-session-secret-abcdefghij';
@@ -43,6 +44,8 @@ vi.mock('@/lib/session', async () => ({
   },
 }));
 
+const headersMock = installHeadersMock({ 'x-forwarded-for': freshTestIp() });
+
 const OnboardPage = (await import('../app/onboard/page')).default;
 const { POST: OnboardCompletePost } = await import('../app/api/onboard/complete/route');
 
@@ -50,6 +53,8 @@ describe('GET /onboard (server component)', () => {
   beforeEach(async () => {
     const built = await createPgliteDb();
     currentDb = { db: built.db as unknown as CloudDbClient, close: built.close };
+    // Fresh IP per test so the rate-limit bucket starts clean.
+    headersMock.setAll({ 'x-forwarded-for': freshTestIp() });
   });
   afterEach(async () => {
     if (currentDb) {
@@ -232,5 +237,49 @@ describe('POST /api/onboard/complete', () => {
     });
     const res = await OnboardCompletePost(req);
     expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /onboard rate limiting', () => {
+  beforeEach(async () => {
+    const built = await createPgliteDb();
+    currentDb = { db: built.db as unknown as CloudDbClient, close: built.close };
+    // Stable IP across hits so we hit the same rate-limit bucket.
+    headersMock.setAll({ 'x-forwarded-for': '203.0.113.99' });
+  });
+  afterEach(async () => {
+    if (currentDb) {
+      await currentDb.close();
+      currentDb = null;
+    }
+  });
+
+  it('renders the rate-limited page once the burst cap is exceeded', async () => {
+    // Burst cap is 10/min. Render 10 pages, then expect the 11th to show the
+    // rate-limited copy (no onboarding_sessions row).
+    for (let i = 0; i < 10; i++) {
+      await OnboardPage({
+        searchParams: Promise.resolve({
+          domain: 'samantha.agent',
+          registrar: 'headless',
+          callback: 'https://headless.example/callback',
+        }),
+      });
+    }
+    if (!currentDb) throw new Error('db gone');
+    const before = await currentDb.db.select().from(onboardingSessions);
+    expect(before).toHaveLength(10);
+
+    await OnboardPage({
+      searchParams: Promise.resolve({
+        domain: 'samantha.agent',
+        registrar: 'headless',
+        callback: 'https://headless.example/callback',
+      }),
+    });
+    const after = await currentDb.db.select().from(onboardingSessions);
+    // No new row because the rate-limit check short-circuits before the
+    // session is created.
+    expect(after).toHaveLength(10);
   });
 });

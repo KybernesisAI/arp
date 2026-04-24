@@ -113,7 +113,7 @@ describe('cloud-client reconnect regression', () => {
 
     const agentDid = 'did:web:samantha.agent';
     const peerDid = 'did:web:ghost.agent';
-    const principalDid = 'did:web:ian.self.xyz';
+    const principalDid = 'did:web:ian.example.agent';
 
     const agentPriv = ed25519.utils.randomPrivateKey();
     const agentPub = await ed25519.getPublicKeyAsync(agentPriv);

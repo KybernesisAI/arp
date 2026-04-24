@@ -26,7 +26,7 @@ async function buildAgent() {
   const agent = await ArpAgent.fromHandoff(
     {
       agent_did: 'did:web:kb-adapter-test.agent',
-      principal_did: 'did:web:owner.self.xyz',
+      principal_did: 'did:web:owner.example.agent',
       public_key_multibase: pubMb,
       well_known_urls: {
         did: 'http://127.0.0.1:4500/.well-known/did.json',
@@ -66,7 +66,7 @@ async function seedConnection(
     : `@id("p_allow_all")\npermit(principal, action, resource);`;
   const token = {
     connection_id: connectionId,
-    issuer: 'did:web:owner.self.xyz',
+    issuer: 'did:web:owner.example.agent',
     subject: agent.did,
     audience: 'did:web:peer.agent',
     purpose: 'adapter test',

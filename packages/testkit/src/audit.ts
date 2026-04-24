@@ -4,16 +4,21 @@ import {
   didCommProbe,
   didResolutionProbe,
   dnsProbe,
+  noSelfxyzPromptProbe,
   pairingProbe,
+  principalIdentityMethodProbe,
+  representationJwtSignerBindingProbe,
   revocationProbe,
   tlsFingerprintProbe,
   wellKnownProbe,
 } from './probes/index.js';
 
 /**
- * Default suite of 8 probes run by `arp-testkit audit <domain>`. Order is
+ * Default suite of 11 probes run by `arp-testkit audit <domain>`. Order is
  * stable so reports line up run-to-run and the most foundational checks
- * (DNS → well-known → DID → TLS) fail early if the wiring is off.
+ * (DNS → well-known → DID → TLS) fail early if the wiring is off. Phase 9
+ * added the v2.1 trio: principal-identity-method, no-selfxyz-prompt (warn-
+ * only), representation-jwt-signer-binding.
  */
 export const DEFAULT_PROBE_SUITE: ReadonlyArray<{ key: string; probe: Probe }> = [
   { key: 'dns', probe: dnsProbe },
@@ -24,6 +29,9 @@ export const DEFAULT_PROBE_SUITE: ReadonlyArray<{ key: string; probe: Probe }> =
   { key: 'pairing-probe', probe: pairingProbe },
   { key: 'revocation', probe: revocationProbe },
   { key: 'cross-connection', probe: crossConnectionProbe },
+  { key: 'principal-identity-method', probe: principalIdentityMethodProbe },
+  { key: 'no-selfxyz-prompt', probe: noSelfxyzPromptProbe },
+  { key: 'representation-jwt-signer-binding', probe: representationJwtSignerBindingProbe },
 ];
 
 export interface AuditOptions {

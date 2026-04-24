@@ -58,7 +58,7 @@ describe('billing (phase-7 task 8)', () => {
     // Insert one tenant.
     const rows = await db
       .insert(tenants)
-      .values({ principalDid: 'did:web:ian.self.xyz' })
+      .values({ principalDid: 'did:web:ian.example.agent' })
       .returning({ id: tenants.id });
     const tenantId = rows[0]?.id;
     if (!tenantId) throw new Error('no tenant');

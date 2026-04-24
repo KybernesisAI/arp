@@ -34,9 +34,9 @@ describe('tenant-db isolation', () => {
     const built = await createPgliteDb();
     db = built.db;
     close = built.close;
-    t1 = await seedTenant(db, 'did:web:ian.self.xyz');
-    t2 = await seedTenant(db, 'did:web:nick.self.xyz');
-    await seedTenant(db, 'did:web:alice.self.xyz');
+    t1 = await seedTenant(db, 'did:web:ian.example.agent');
+    t2 = await seedTenant(db, 'did:web:nick.example.agent');
+    await seedTenant(db, 'did:web:alice.example.agent');
   });
 
   afterEach(async () => {
@@ -50,7 +50,7 @@ describe('tenant-db isolation', () => {
 
     const agent1 = await ctx1.createAgent({
       did: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentName: 'Samantha',
       agentDescription: 'ians agent',
       publicKeyMultibase: 'z6Mk1',
@@ -87,7 +87,7 @@ describe('tenant-db isolation', () => {
 
     await ctx1.createAgent({
       did: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentName: 'Samantha',
       agentDescription: '',
       publicKeyMultibase: 'z6Mk1',
@@ -151,7 +151,7 @@ describe('tenant-db isolation', () => {
     const ctx2 = withTenant(db, toTenantId(t2));
     await ctx1.createAgent({
       did: 'did:web:s1.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       agentName: 's1',
       agentDescription: '',
       publicKeyMultibase: 'z',

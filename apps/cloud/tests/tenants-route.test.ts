@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPgliteDb, tenants } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { eq } from 'drizzle-orm';
+import { installCookieMock } from './helpers/cookies';
 
 // Deterministic did:key fixture (seed: (i*7+13) & 0xff for i in 0..31).
 // Generated offline via @noble/ed25519 + ed25519RawToMultibase.
@@ -40,23 +41,8 @@ vi.mock('@/lib/db', async () => {
   };
 });
 
-vi.mock('next/headers', async () => {
-  const store = new Map<string, string>();
-  return {
-    cookies: async () => ({
-      get: (name: string) => {
-        const v = store.get(name);
-        return v ? { name, value: v } : undefined;
-      },
-      set: (name: string, value: string) => {
-        store.set(name, value);
-      },
-      delete: (name: string) => {
-        store.delete(name);
-      },
-    }),
-  };
-});
+// next/headers cookie jar — shared helper from tests/helpers/cookies.ts.
+installCookieMock();
 
 // Import after mocks so the route resolves `@/lib/db` through the mock.
 const { POST } = await import('../app/api/tenants/route');

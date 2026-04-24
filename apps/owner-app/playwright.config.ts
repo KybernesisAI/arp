@@ -32,7 +32,7 @@ export default defineConfig({
         process.env.PLAYWRIGHT_RUNTIME_URL ?? 'http://127.0.0.1:3031',
       ARP_ADMIN_TOKEN: process.env.ARP_ADMIN_TOKEN ?? 'e2e-admin',
       ARP_AGENT_DID: 'did:web:samantha.agent',
-      ARP_PRINCIPAL_DID: 'did:web:ian.self.xyz',
+      ARP_PRINCIPAL_DID: 'did:web:ian.example.agent',
       ARP_SESSION_SECRET: 'e2e-session-secret-000000000000000',
       ARP_OWNER_APP_BASE_URL: BASE_URL,
       ARP_PRINCIPAL_KEYS_PATH: 'tests/e2e/principals.json',

@@ -14,8 +14,10 @@
  */
 
 import type * as React from 'react';
+import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { onboardingSessions } from '@kybernesis/arp-cloud-db';
+import { checkDualRateLimit } from '@/lib/rate-limit';
 import OnboardRedirectForm from './OnboardRedirectForm';
 import { PlateHead, Container, Section, Code } from '@/components/ui';
 
@@ -89,12 +91,52 @@ async function createSession(params: ValidatedParams): Promise<string> {
   return id;
 }
 
+function clientIpFromHeaders(h: Headers): string {
+  const xff = h.get('x-forwarded-for');
+  if (xff) {
+    const first = xff.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  const real = h.get('x-real-ip');
+  if (real) return real.trim();
+  return 'unknown';
+}
+
 export default async function OnboardPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.JSX.Element> {
   const sp = await searchParams;
+
+  // Rate-limit: 10/min burst, 100/hour sustained. Keyed by client IP
+  // (x-forwarded-for; Vercel sets this). Keeps automated scrapers from
+  // hammering the onboarding_sessions table. Happens before param validation
+  // so malformed bursts also count.
+  const ip = clientIpFromHeaders(await headers());
+  const limitResult = await checkDualRateLimit(
+    `onboard:ip:${ip}`,
+    { windowSeconds: 60, limit: 10 },
+    { windowSeconds: 3600, limit: 100 },
+  );
+  if (!limitResult.ok) {
+    return (
+      <Section>
+        <Container>
+          <PlateHead
+            plateNum="O.01"
+            kicker="// ONBOARD · RATE LIMITED"
+            title="Too many onboarding attempts."
+          />
+          <p className="text-body text-ink-2 max-w-[640px]">
+            We&apos;re pacing new-account creation to keep the queue healthy. Try again in about{' '}
+            {limitResult.retryAfter} seconds.
+          </p>
+        </Container>
+      </Section>
+    );
+  }
+
   const validated = validateParams(sp);
 
   if ('reason' in validated) {

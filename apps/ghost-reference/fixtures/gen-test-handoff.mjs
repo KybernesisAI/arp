@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Generate a throwaway test keypair + handoff bundle for ghost-reference.
 // Mirrors samantha-reference/fixtures/gen-test-handoff.mjs; DID is
-// `did:web:ghost.agent` with principal `did:web:nick.self.xyz`.
+// `did:web:ghost.agent` with principal `did:web:nick.example.agent`.
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -38,7 +38,7 @@ writeFileSync(join(outDir, 'data', 'keys', 'private.key'), priv, { mode: 0o600 }
 
 const handoff = {
   agent_did: 'did:web:ghost.agent',
-  principal_did: 'did:web:nick.self.xyz',
+  principal_did: 'did:web:nick.example.agent',
   public_key_multibase: pubMb,
   well_known_urls: {
     did: 'https://ghost.agent/.well-known/did.json',

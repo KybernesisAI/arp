@@ -126,8 +126,13 @@ describe('phase 5 — testkit integration', () => {
 
   it('runAudit full suite completes against local runtime', async () => {
     const summary = await runAudit('localhost', baseUrl);
-    expect(summary.total).toBe(8);
-    // Local-only: dns and pairing-probe skip; remaining should be green.
+    // Phase 9 slice 9c: suite grew from 8 → 11 (v2.1 §6 trio —
+    // principal-identity-method, no-selfxyz-prompt, representation-jwt-
+    // signer-binding). Phase 5's local runtime doesn't publish a
+    // _principal TXT or representation JWT, so the two owner-scoped
+    // probes skip by design; no-selfxyz-prompt also skips without a
+    // registrar URL in context.
+    expect(summary.total).toBe(11);
     const failed = summary.probes.filter((p) => !p.pass);
     expect(failed, JSON.stringify(summary.probes, null, 2)).toHaveLength(0);
   });

@@ -7,7 +7,7 @@ describe('buildHandoffBundle', () => {
   it('produces a schema-valid bundle with derived well-known URLs', () => {
     const bundle = buildHandoffBundle({
       agentDid: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       agentOrigin: 'https://samantha.agent',
       dnsRecordsPublished: [
@@ -29,7 +29,7 @@ describe('buildHandoffBundle', () => {
   it('round-trips through JSON', () => {
     const bundle = buildHandoffBundle({
       agentDid: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       agentOrigin: 'https://samantha.agent',
       dnsRecordsPublished: ['A', '_did TXT'],
@@ -43,7 +43,7 @@ describe('buildHandoffBundle', () => {
   it('honors explicit well-known URL overrides', () => {
     const bundle = buildHandoffBundle({
       agentDid: 'did:web:samantha.agent',
-      principalDid: 'did:web:ian.self.xyz',
+      principalDid: 'did:web:ian.example.agent',
       publicKeyMultibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
       agentOrigin: 'https://samantha.agent',
       wellKnownUrls: {
@@ -61,7 +61,7 @@ describe('buildHandoffBundle', () => {
   const rng = seededRng(0xfeedbeef);
   for (let i = 0; i < 10; i += 1) {
     const agentDid = randomDidWeb(rng);
-    const principalDid = randomDidWeb(rng, 'self.xyz');
+    const principalDid = randomDidWeb(rng, 'example.agent');
     const origin = randomHttps(rng, '').replace(/\/$/, '');
     const multibase = randomMultibaseKey(rng);
     it(`property #${i + 1}: random inputs yield valid bundles`, () => {

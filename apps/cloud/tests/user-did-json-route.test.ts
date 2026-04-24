@@ -30,10 +30,15 @@ vi.mock('@/lib/db', async () => {
 
 const { GET } = await import('../app/u/[uuid]/did.json/route');
 
-async function hit(uuid: string): Promise<Response> {
-  return GET(new Request(`http://test.local/u/${uuid}/did.json`), {
-    params: Promise.resolve({ uuid }),
-  });
+async function hit(uuid: string, ip = '192.0.2.9'): Promise<Response> {
+  return GET(
+    new Request(`http://test.local/u/${uuid}/did.json`, {
+      headers: { 'x-forwarded-for': ip },
+    }),
+    {
+      params: Promise.resolve({ uuid }),
+    },
+  );
 }
 
 describe('GET /u/<uuid>/did.json', () => {
@@ -104,5 +109,19 @@ describe('GET /u/<uuid>/did.json', () => {
 
     const res = await hit(tenantId);
     expect(res.status).toBe(404);
+  });
+
+  it('429s on burst: 121st hit inside a minute from the same IP', async () => {
+    const ip = '192.0.2.200';
+    const unknownUuid = '11111111-2222-3333-4444-555555555555';
+    // Rate-limit is 120/min per IP. 404s still count — limit fires before
+    // the UUID shape check in the handler.
+    for (let i = 0; i < 120; i++) {
+      const res = await hit(unknownUuid, ip);
+      expect(res.status).toBe(404);
+    }
+    const tripped = await hit(unknownUuid, ip);
+    expect(tripped.status).toBe(429);
+    expect(tripped.headers.get('retry-after')).toBeTruthy();
   });
 });

@@ -45,7 +45,7 @@ export async function buildExampleAgent(opts: {
   const port = nextPort++;
   const did = `did:web:phase6-${opts.slug}.agent`;
   const peerDid = `did:web:phase6-${opts.slug}-peer.agent`;
-  const principalDid = `did:web:phase6-${opts.slug}-owner.self.xyz`;
+  const principalDid = `did:web:phase6-${opts.slug}-owner.example.agent`;
 
   const privateKey = ed25519.utils.randomPrivateKey();
   const publicKey = await ed25519.getPublicKeyAsync(privateKey);

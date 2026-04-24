@@ -24,6 +24,11 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { registrarBindings, tenants } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
+import {
+  checkDualRateLimit,
+  clientIpFromRequest,
+  rateLimitedResponse,
+} from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -70,7 +75,20 @@ function verifyPsk(req: Request): boolean {
   }
 }
 
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(req: Request): Promise<Response> {
+  // Rate-limit BEFORE PSK check so a flood of wrong-PSK attempts counts
+  // toward the attacker's IP budget. 60/min burst, 600/hour sustained —
+  // registrars legitimately bulk-register during domain campaigns, so this
+  // is looser than the browser-facing routes.
+  const ip = clientIpFromRequest(req);
+  const limitResult = await checkDualRateLimit(
+    `registrar-bind:ip:${ip}`,
+    { windowSeconds: 60, limit: 60 },
+    { windowSeconds: 3600, limit: 600 },
+  );
+  if (!limitResult.ok) {
+    return rateLimitedResponse(limitResult.retryAfter);
+  }
   if (!verifyPsk(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }

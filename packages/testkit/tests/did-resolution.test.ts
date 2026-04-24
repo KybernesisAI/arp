@@ -4,7 +4,7 @@ import { didResolutionProbe } from '../src/probes/did-resolution.js';
 const validDidDoc = {
   '@context': ['https://www.w3.org/ns/did/v1'],
   id: 'did:web:samantha.agent',
-  controller: 'did:web:ian.self.xyz',
+  controller: 'did:web:ian.example.agent',
   verificationMethod: [
     {
       id: 'did:web:samantha.agent#key-1',
@@ -25,7 +25,7 @@ const validDidDoc = {
     },
   ],
   principal: {
-    did: 'did:web:ian.self.xyz',
+    did: 'did:web:ian.example.agent',
     representationVC: 'https://ian.samantha.agent/.well-known/representation.jwt',
   },
 };

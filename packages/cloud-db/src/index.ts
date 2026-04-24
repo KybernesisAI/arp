@@ -32,6 +32,7 @@ export {
   registrarBindings,
   onboardingSessions,
   pushRegistrations,
+  rateLimitHits,
 } from './schema.js';
 export type {
   TenantRow,
@@ -46,4 +47,5 @@ export type {
   RegistrarBindingRow,
   OnboardingSessionRow,
   PushRegistrationRow,
+  RateLimitHitRow,
 } from './schema.js';

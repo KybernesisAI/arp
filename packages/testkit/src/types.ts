@@ -18,7 +18,10 @@ export type ProbeName =
   | 'didcomm-probe'
   | 'pairing-probe'
   | 'revocation'
-  | 'cross-connection';
+  | 'cross-connection'
+  | 'principal-identity-method'
+  | 'no-selfxyz-prompt'
+  | 'representation-jwt-signer-binding';
 
 export interface ProbeResult {
   name: ProbeName;
@@ -55,6 +58,20 @@ export interface ProbeContext {
    * TCP Host header.
    */
   extraHeaders?: Record<string, string>;
+  /**
+   * Owner label for owner-scoped probes (principal-identity-method,
+   * representation-jwt-signer-binding). `ian` on `samantha.agent` =>
+   * TXT record at `_principal.ian.samantha.agent`, representation JWT
+   * at `https://ian.samantha.agent/.well-known/representation.jwt`.
+   *
+   * If unset, owner-scoped probes skip with reason `no owner label`.
+   */
+  ownerLabel?: string;
+  /**
+   * Registrar ARP-setup URL, used by the `no-selfxyz-prompt` probe.
+   * Probe is warn-only + optional; if unset or unreachable it skips.
+   */
+  registrarSetupUrl?: string;
 }
 
 export type Probe = (ctx: ProbeContext) => Promise<ProbeResult>;
