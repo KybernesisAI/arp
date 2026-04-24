@@ -11,8 +11,8 @@
     "prebuild": "node scripts/bundle-catalog.mjs",
     "start": "next start",
     "test": "pnpm run prebuild && vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint app lib components"
+    "typecheck": "pnpm run prebuild && tsc --noEmit",
+    "lint": "pnpm run prebuild && eslint app lib components"
   },
   "dependencies": {
     "@kybernesis/arp-scope-catalog": "workspace:*",
