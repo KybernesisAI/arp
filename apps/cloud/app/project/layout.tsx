@@ -82,9 +82,10 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
         legal={{
           copy: '© 2026 · ARP — the open protocol for agent-to-agent software',
           links: [
-            { label: 'Terms [TBD]', href: '#' },
-            { label: 'Privacy [TBD]', href: '#' },
-            { label: 'Security [TBD]', href: '#' },
+            { label: 'Terms', href: '/legal/terms' },
+            { label: 'Privacy', href: '/legal/privacy' },
+            { label: 'DPA', href: '/legal/dpa' },
+            { label: 'Status', href: 'https://status.arp.run' },
           ],
           status: 'STATUS · OPERATIONAL',
         }}

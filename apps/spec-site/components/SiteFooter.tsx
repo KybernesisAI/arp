@@ -135,7 +135,27 @@ export function SiteFooter(): React.JSX.Element {
       <div className="border-t border-rule">
         <div className="mx-auto flex w-full max-w-page items-center justify-between px-8 py-4 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
           <span>© 2026 KYBERNESIS — MIT</span>
-          <span>SPEC v0.1 · SITE REV 9a</span>
+          <div className="flex gap-5">
+            <Link
+              href="https://cloud.arp.run/legal/terms"
+              className="text-muted hover:text-ink"
+            >
+              TERMS
+            </Link>
+            <Link
+              href="https://cloud.arp.run/legal/privacy"
+              className="text-muted hover:text-ink"
+            >
+              PRIVACY
+            </Link>
+            <Link
+              href="https://cloud.arp.run/legal/dpa"
+              className="text-muted hover:text-ink"
+            >
+              DPA
+            </Link>
+            <span>SPEC v0.1 · SITE REV 9e</span>
+          </div>
         </div>
       </div>
     </footer>

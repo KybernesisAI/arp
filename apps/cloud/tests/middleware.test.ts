@@ -114,6 +114,23 @@ describe('rewriteForSurface', () => {
     ).toBeNull();
   });
 
+  it('passes /legal/* through on every surface', () => {
+    // Phase 9e: legal pages are linked from project (arp.run) + cloud
+    // (cloud.arp.run) + app (app.arp.run) footers. They must not be
+    // rewritten into the /cloud/ marketing subtree or the /project/
+    // subtree — the shared /legal layout owns all three routes.
+    expect(rewriteForSurface(mockReq('/legal'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/terms'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/privacy'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/dpa'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal'), 'app')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/terms'), 'app')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal'), 'project')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/terms'), 'project')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/privacy'), 'project')).toBeNull();
+    expect(rewriteForSurface(mockReq('/legal/dpa'), 'project')).toBeNull();
+  });
+
   it('passes app surface through untouched', () => {
     expect(rewriteForSurface(mockReq('/'), 'app')).toBeNull();
     expect(rewriteForSurface(mockReq('/dashboard'), 'app')).toBeNull();

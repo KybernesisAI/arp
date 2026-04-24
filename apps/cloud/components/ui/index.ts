@@ -39,4 +39,5 @@ export { Dot } from './Dot';
 export type { DotProps } from './Dot';
 export { IconShape } from './IconShape';
 export type { IconShapeProps, IconShapeVariant } from './IconShape';
+export { LegalDraftBanner } from './LegalDraftBanner';
 export { cn } from './lib/cn';

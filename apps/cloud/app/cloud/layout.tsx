@@ -98,10 +98,10 @@ export default function CloudMarketingLayout({
         legal={{
           copy: '© 2026 · ARP — the connection layer for agentic software',
           links: [
-            { label: 'Terms [TBD]', href: '#' },
-            { label: 'Privacy [TBD]', href: '#' },
-            { label: 'Acceptable Use [TBD]', href: '#' },
-            { label: 'Cookies [TBD]', href: '#' },
+            { label: 'Terms', href: '/legal/terms' },
+            { label: 'Privacy', href: '/legal/privacy' },
+            { label: 'DPA', href: '/legal/dpa' },
+            { label: 'Status', href: 'https://status.arp.run' },
           ],
           status: 'STATUS · OPERATIONAL',
         }}
