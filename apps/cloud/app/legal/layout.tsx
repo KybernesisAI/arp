@@ -1,11 +1,12 @@
-// LEGAL-REVIEW-PENDING — layout wraps the three skeleton legal pages so
-// the same editorial container + noindex metadata applies uniformly.
+// Layout wraps the three legal pages with a uniform editorial container
+// and shared nav. Metadata defaults to indexable; individual pages can
+// opt out if needed.
 import type { Metadata } from 'next';
 import type * as React from 'react';
 import { Container, Link, Nav } from '@/components/ui';
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: false },
+  title: { default: 'Legal', template: '%s — Legal — ARP' },
 };
 
 const LEGAL_NAV = [
@@ -58,8 +59,7 @@ export default function LegalLayout({
         <Container>
           <div className="grid grid-cols-12 gap-4 items-center">
             <div className="col-span-12 md:col-span-6">
-              <b className="text-ink font-medium">ARP</b> · LEGAL — DRAFT /
-              PENDING COUNSEL REVIEW
+              <b className="text-ink font-medium">ARP</b> · LEGAL
             </div>
             <div className="col-span-12 md:col-span-6 md:text-right">
               © 2026 KYBERNESIS

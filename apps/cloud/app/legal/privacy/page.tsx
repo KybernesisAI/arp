@@ -1,23 +1,14 @@
-// LEGAL-REVIEW-PENDING — skeleton only. Do NOT publish without counsel
-// review. The sections below follow a standard Privacy Policy outline
-// (data collected → data shared → retention → user rights); no specific
-// privacy commitment binds ARP / Kybernesis until counsel signs off.
 import type { Metadata } from 'next';
 import type * as React from 'react';
-import { LegalDraftBanner } from '@/components/ui';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy (Draft) · ARP',
-  description:
-    'DRAFT privacy policy for ARP Cloud. Pending legal review; do not rely on.',
-  robots: { index: false, follow: false },
+  title: 'Privacy Policy · ARP',
+  description: 'Privacy policy for ARP Cloud.',
 };
 
 export default function PrivacyPage(): React.JSX.Element {
   return (
     <>
-      <LegalDraftBanner />
-
       <header>
         <div className="font-mono text-kicker uppercase tracking-[0.14em] text-muted">
           // LEGAL / PRIVACY POLICY
@@ -26,7 +17,7 @@ export default function PrivacyPage(): React.JSX.Element {
           Privacy Policy
         </h1>
         <p className="mt-3 font-mono text-kicker uppercase text-muted">
-          DRAFT · LAST UPDATED 2026-04-24 · PENDING COUNSEL REVIEW
+          LAST UPDATED 2026-04-24
         </p>
       </header>
 
