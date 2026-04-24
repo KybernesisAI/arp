@@ -111,6 +111,19 @@ describe('rewriteForSurface', () => {
     expect(rewriteForSurface(mockReq('/pair/accept'), 'app')).toBeNull();
   });
 
+  it('passes /connections and /connections/[id]/* through on cloud + app surfaces (slice 10b)', () => {
+    // Phase 10b: the connections list / detail / audit / revoke pages are
+    // authenticated app routes. They must remain reachable on cloud.arp.run
+    // (same pattern as /dashboard) without the /cloud/ rewrite swallowing
+    // them, and must pass through untouched on app.arp.run.
+    expect(rewriteForSurface(mockReq('/connections'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/connections/abc-123'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/connections/abc-123/audit'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/connections/abc-123/revoke'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/connections'), 'app')).toBeNull();
+    expect(rewriteForSurface(mockReq('/connections/abc-123'), 'app')).toBeNull();
+  });
+
   it('passes v2.1 routes through on cloud surface (onboard, internal, u)', () => {
     // Phase 9b: registrar-facing + DID-doc routes must resolve at the top
     // level on cloud.arp.run so external registrars can link directly.

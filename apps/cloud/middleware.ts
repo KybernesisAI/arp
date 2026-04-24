@@ -127,6 +127,10 @@ export function isAppOwnedPath(pathname: string): boolean {
     // a non-existent route. Also enables the "open invite link in another
     // browser" smoke flow without forcing users onto app.arp.run.
     '/pair',
+    // Phase 10b: connection list / detail / audit / revoke pages are
+    // authenticated surfaces. They must resolve at the top level on both
+    // cloud.arp.run (marketing host passthrough) and app.arp.run.
+    '/connections',
     // /legal/* pages are referenced from footers on all three surfaces
     // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
     // /legal layout regardless of which host the user is on.

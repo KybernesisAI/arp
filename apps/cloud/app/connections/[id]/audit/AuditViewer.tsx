@@ -103,9 +103,7 @@ export function AuditViewer({
     if (refreshed) return;
     setRefreshed(true);
     void fetchPage(false, null);
-    // Intentional: run once after mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshed, fetchPage]);
 
   const applyFilter = useCallback(
     (next: { direction?: DirectionFilter; decision?: DecisionFilter }) => {

@@ -64,9 +64,17 @@ export default async function AgentPage(props: {
               {connections.length}
             </span>
           </h2>
-          <Badge tone={connections.length > 0 ? 'blue' : 'muted'}>
-            {connections.length > 0 ? 'ACTIVE' : 'IDLE'}
-          </Badge>
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/connections?agentDid=${encodeURIComponent(agent.did)}`}
+              variant="mono"
+            >
+              See all →
+            </Link>
+            <Badge tone={connections.length > 0 ? 'blue' : 'muted'}>
+              {connections.length > 0 ? 'ACTIVE' : 'IDLE'}
+            </Badge>
+          </div>
         </header>
         {connections.length === 0 ? (
           <p className="text-body text-ink-2">No active connections.</p>
