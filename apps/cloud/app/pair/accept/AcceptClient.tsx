@@ -10,11 +10,8 @@ import {
   Pre,
 } from '@/components/ui';
 import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
-import {
-  PairingProposalSchema,
-  countersignProposal,
-  type PairingProposal,
-} from '@kybernesis/arp-pairing';
+import { countersignProposalClient } from '@/lib/pairing-client';
+import type { PairingProposal } from '@kybernesis/arp-pairing';
 import type { ConsentView } from '@kybernesis/arp-consent-ui';
 
 interface AgentChoice {
@@ -38,6 +35,10 @@ interface AcceptState {
  * countersigning — which the cloud access logs do capture, but that's by
  * design (we already hold the signed payload server-side as the authoritative
  * audit trail).
+ *
+ * See `@/lib/pairing-client` for why countersigning lives in this file's
+ * adjacent helper module rather than calling `@kybernesis/arp-pairing`
+ * directly (root transport entry pulls in sqlite).
  */
 export function AcceptClient({
   principalDid,
@@ -63,17 +64,16 @@ export function AcceptClient({
           return;
         }
         const json = atobUrl(hash);
-        const parsed = PairingProposalSchema.safeParse(JSON.parse(json));
-        if (!parsed.success) {
+        let proposal: PairingProposal;
+        try {
+          proposal = JSON.parse(json) as PairingProposal;
+        } catch (err) {
           setState({
             stage: 'error',
-            error: `invitation failed schema validation: ${parsed.error.issues
-              .map((i) => `${i.path.join('.')}: ${i.message}`)
-              .join('; ')}`,
+            error: `invitation not valid JSON: ${(err as Error).message}`,
           });
           return;
         }
-        const proposal = parsed.data;
 
         // Fetch the tenant's agents + a consent view from the server —
         // the consent-UI renderer needs the scope catalog (fs-backed) so
@@ -126,7 +126,7 @@ export function AcceptClient({
       }
 
       const rawPrivateKey = await extractPrivateKey();
-      const signed = await countersignProposal({
+      const dual = await countersignProposalClient({
         proposal: state.proposal,
         counterpartyKey: {
           privateKey: rawPrivateKey,
@@ -139,7 +139,7 @@ export function AcceptClient({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          proposal: signed.proposal,
+          proposal: dual,
           acceptingAgentDid: state.acceptingAgentDid,
         }),
       });

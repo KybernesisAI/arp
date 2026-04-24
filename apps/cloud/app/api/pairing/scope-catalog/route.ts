@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { compileBundle } from '@kybernesis/arp-scope-catalog';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { getScopeCatalog } from '@/lib/catalog';
 
@@ -19,6 +20,8 @@ export const runtime = 'nodejs';
 
 const Body = z.object({
   ids: z.array(z.string().min(1)).min(1).max(50),
+  audienceDid: z.string().min(1),
+  paramsMap: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -29,11 +32,18 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     }
     const catalog = getScopeCatalog();
-    const byId = new Map(catalog.map((s) => [s.id, s]));
-    const out = parsed.data.ids
-      .map((id) => byId.get(id))
-      .filter((s): s is NonNullable<typeof s> => s !== undefined);
-    return NextResponse.json({ catalog: out });
+    const compiled = compileBundle({
+      scopeIds: parsed.data.ids,
+      paramsMap: parsed.data.paramsMap ?? {},
+      audienceDid: parsed.data.audienceDid,
+      catalog,
+    });
+    return NextResponse.json({
+      compiled: {
+        policies: compiled.policies,
+        obligations: compiled.obligations,
+      },
+    });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

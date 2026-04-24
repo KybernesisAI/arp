@@ -13,10 +13,10 @@ import {
 } from '@/components/ui';
 import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
 import {
-  createPairingProposal,
-  type PairingProposal,
-} from '@kybernesis/arp-pairing';
-import { loadScopesFromDirectory } from '@kybernesis/arp-scope-catalog';
+  createSignedProposalClient,
+  type CompiledBundle,
+} from '@/lib/pairing-client';
+import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
 
 export interface AgentOption {
   did: string;
@@ -52,13 +52,10 @@ interface GeneratedState {
  * we hit the server. The server's only job is to persist the signed
  * proposal + return the shareable URL.
  *
- * Scope catalog note: bundles reference scope ids whose `ScopeTemplate`
- * definitions live in the `@kybernesis/arp-scope-catalog` package. In a
- * client bundle we can't call the fs-backed `loadScopesFromDirectory` at
- * runtime, so bundle selection here is opportunistic — the server
- * re-compiles the chosen scopes against the authoritative catalog on
- * accept (see `/api/pairing/accept::cedar_policy_mismatch` guard). This
- * component only needs to pass scope ids + user-supplied params.
+ * Scope-catalog flow: pick a bundle id → the server compiles the cedar
+ * policies + obligations via /api/pairing/scope-catalog (the catalog
+ * loader is fs-backed and can't run in the browser bundle) → the client
+ * signs + posts. Server re-compiles on accept to catch any forgery.
  */
 export function PairForm({
   principalDid,
@@ -72,7 +69,6 @@ export function PairForm({
   bundles: BundleOption[];
 }): React.JSX.Element {
   void scopes;
-  void loadScopesFromDirectory; // keep the import tree-shakeable-aware
   const [issuerAgent, setIssuerAgent] = useState(agents[0]?.did ?? '');
   const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
   const [purpose, setPurpose] = useState('Test connection');
@@ -106,31 +102,25 @@ export function PairForm({
       const expiresAt = new Date(
         Date.now() + expiresDays * 24 * 60 * 60 * 1000,
       ).toISOString();
-      // We don't have the full ScopeTemplate objects client-side; createPairingProposal
-      // needs them to compile cedar policies + aggregate obligations. Fall back to
-      // requesting server-side compilation for the client: fetch the compiled bundle
-      // from the server and thread it through. For 10a, the server re-compiles on
-      // accept so a benign placeholder cedar policy works — but cleaner is to have
-      // a server endpoint return the compiled bundle. To keep slice 10a small and
-      // self-contained, we POST a pre-built proposal shape to the new compile helper
-      // below (wired into /api/pairing/invitations server side via a 400 response
-      // with the recompile on the accept path). Here we synthesise a minimal
-      // ScopeTemplate array that createPairingProposal accepts; the server rejects
-      // forgeries in the cedar_policy_mismatch guard.
-      const scopeTemplates = await fetchScopeCatalog(
-        selectedBundle.scopes.map((s) => s.id),
+      const scopeSelections: ScopeSelection[] = selectedBundle.scopes.map((s) => ({
+        id: s.id,
+        params: {},
+      }));
+      const compiled = await compileBundleRemotely(
+        scopeSelections.map((s) => s.id),
+        audienceDid,
       );
 
       const rawPrivateKey = await extractPrivateKey();
-      const proposal = await createPairingProposal({
+      const proposal = await createSignedProposalClient({
         issuer: principalDid,
         subject: issuerAgent,
         audience: audienceDid,
         purpose,
-        scopeSelections: selectedBundle.scopes.map((s) => ({ id: s.id, params: {} })),
+        scopeSelections,
+        compiled,
         expiresAt,
         scopeCatalogVersion: 'v1',
-        catalog: scopeTemplates,
         issuerKey: {
           privateKey: rawPrivateKey,
           kid: `${principalDid}#key-1`,
@@ -173,8 +163,8 @@ export function PairForm({
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 1500);
     } catch {
-      // clipboard.writeText may be blocked in some iframe contexts; fall
-      // back to a visual hint so the user knows to copy manually.
+      // clipboard API may be blocked in some iframe contexts; leave the
+      // state idle so the user can copy manually from the Pre block.
       setCopyState('idle');
     }
   }
@@ -323,56 +313,23 @@ export function PairForm({
   );
 }
 
-/**
- * Fetch the server-side scope catalog filtered to the requested scope ids.
- * Scoped inline so we don't ship a full catalog fetch client — the server
- * returns ScopeTemplate JSON objects which `createPairingProposal` consumes
- * verbatim. Falls back to a minimal stub if the fetch fails (the server's
- * recompile guard catches any forgery on accept).
- */
-async function fetchScopeCatalog(
+async function compileBundleRemotely(
   ids: string[],
-): Promise<Parameters<typeof createPairingProposal>[0]['catalog']> {
-  try {
-    const res = await fetch('/api/pairing/scope-catalog', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
-    if (res.ok) {
-      const body = (await res.json()) as { catalog: unknown[] };
-      return body.catalog as Parameters<typeof createPairingProposal>[0]['catalog'];
-    }
-  } catch {
-    // fall through
+  audienceDid: string,
+): Promise<CompiledBundle> {
+  const res = await fetch('/api/pairing/scope-catalog', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ids, audienceDid }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `scope-catalog compile failed: ${res.status}`);
   }
-  // Minimal stub — enough to let createPairingProposal build a proposal.
-  // The server's cedar_policy_mismatch guard will reject it if the catalog
-  // doesn't match the authoritative source of truth, so we fail loudly
-  // downstream.
-  return ids.map((id) => ({
-    id,
-    version: '1.0.0',
-    label: id,
-    description: '',
-    category: id.split('.')[0] ?? 'unknown',
-    risk: 'low',
-    parameters: [],
-    cedar_template: `permit (principal, action, resource);`,
-    consent_text_template: id,
-    obligations_forced: [],
-    implies: [],
-    conflicts_with: [],
-    step_up_required: false,
-  })) as unknown as Parameters<typeof createPairingProposal>[0]['catalog'];
+  const body = (await res.json()) as { compiled: CompiledBundle };
+  return body.compiled;
 }
 
-/**
- * Extract the 32-byte Ed25519 private key from the browser's did:key
- * storage. `getOrCreatePrincipalKey` returns a closure-scoped signer with
- * the key baked in; to plug into `@kybernesis/arp-pairing` we need the raw
- * bytes. `@kybernesis/arp-pairing::signBytes` accepts a 32-byte seed.
- */
 async function extractPrivateKey(): Promise<Uint8Array> {
   const v2 = localStorage.getItem('arp.cloud.principalKey.v2');
   const v1 = localStorage.getItem('arp.cloud.principalKey.v1');
