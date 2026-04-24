@@ -31,9 +31,8 @@ revoked" story in one breath. End on "now go do this yourself."
 - Pause briefly after "ARP is that contract" — it's the thesis line.
 - Emphasise "the private key never leaves their device" — this is the
   single most asked-about design choice.
-- Do not mention Self.xyz, Clerk, Auth0, or any specific competing
-  identity product. The framing is "open protocol vs proprietary
-  product", not "us vs them."
+- Do not mention any specific competing identity product by name. The
+  framing is "open protocol vs proprietary product", not "us vs them."
 
 ## Screen recording setup
 
