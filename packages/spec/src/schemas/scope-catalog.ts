@@ -85,7 +85,7 @@ export const ScopeTemplateSchema = z.object({
   tier_gate: z
     .string()
     .optional()
-    .describe('Minimum VC type required (e.g. "self_xyz.verified_human")'),
+    .describe('Minimum VC type required (e.g. "vc_provider.verified_human"). Opaque string.'),
   step_up_required: z.boolean().default(false),
 });
 

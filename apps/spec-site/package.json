@@ -1,0 +1,49 @@
+{
+  "name": "@kybernesis/arp-spec-site",
+  "version": "0.1.0",
+  "description": "Public ARP spec + docs site served at spec.arp.run / docs.arp.run. Next.js 16 App Router + @next/mdx, themed with the shared ARP design system.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run prebuild && next build",
+    "dev": "pnpm run prebuild && next dev",
+    "prebuild": "node scripts/bundle-catalog.mjs",
+    "start": "next start",
+    "test": "pnpm run prebuild && vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint app lib components"
+  },
+  "dependencies": {
+    "@kybernesis/arp-scope-catalog": "workspace:*",
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-ui": "workspace:*",
+    "@mdx-js/loader": "^3.0.1",
+    "@mdx-js/react": "^3.0.1",
+    "@next/mdx": "^16.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "gray-matter": "^4.0.3",
+    "next": "^16.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "rehype-slug": "^6.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-mdx-frontmatter": "^5.0.0",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "autoprefixer": "^10.4.20",
+    "eslint-config-next": "^14.2.15",
+    "postcss": "^8.5.1",
+    "postcss-import": "^16.1.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.9"
+  }
+}

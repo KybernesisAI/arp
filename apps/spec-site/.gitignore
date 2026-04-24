@@ -1,0 +1,8 @@
+.next
+.generated
+.vercel
+out
+dist
+node_modules
+*.tsbuildinfo
+next-env.d.ts

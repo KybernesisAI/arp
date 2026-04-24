@@ -1,0 +1,25 @@
+export const metadata = {
+  title: 'Transport',
+  description: 'Signed JWM envelopes over DID-pinned TLS. Mailbox semantics + delivery guarantees.',
+};
+
+# Transport
+
+ARP messages are signed JWMs (JSON Web Messages, DIDComm profile) exchanged
+over pinned TLS. The sole package that imports DIDComm-adjacent libraries
+is `@kybernesis/arp-transport` — every other layer talks to it via the
+`Transport` interface so a future A2A (Agent-to-Agent) transport can drop
+in without touching the runtime.
+
+## Normative rules
+
+- Each envelope MUST carry `iss`, `aud`, `cid` (connection token id), and
+  a monotonically-increasing `seq`.
+- Envelope signatures MUST verify against a key listed in the sender's
+  resolved DID document at send time. Key rotation is handled via the
+  DID document's `verificationMethod` array — old keys remain valid for
+  a 90-day grace window.
+- Inbound mailboxes MUST deduplicate on `(iss, seq)`. Replay is
+  actively refused.
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

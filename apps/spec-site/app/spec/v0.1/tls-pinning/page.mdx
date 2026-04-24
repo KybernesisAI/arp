@@ -1,0 +1,35 @@
+export const metadata = {
+  title: 'TLS pinning',
+  description: 'Why ARP does not use Let\'s Encrypt for agent-to-agent, and how the fingerprint is pinned.',
+};
+
+# TLS pinning
+
+The agent-to-agent path uses **self-signed TLS certificates pinned in the
+DID document**. The Web PKI path is reserved for human-facing endpoints
+(gateway, SaaS, tunnel endpoints) where browsers need a trust anchor.
+
+## Why
+
+Web PKI encodes trust in *certificate authorities*. ARP encodes trust in
+*DIDs*. Delegating agent identity to a CA would flatten that into Web PKI
+and lose the sovereignty story. Pinning the fingerprint in the DID document
+keeps the agent's identity and its TLS identity co-located.
+
+## How
+
+The sidecar generates an ed25519 keypair and a matching self-signed cert
+on first boot. The cert fingerprint is embedded in the DID document under
+the `service` block of the DIDComm endpoint. A calling agent fetches the
+DID document, extracts the fingerprint, and refuses the connection if the
+presented cert does not match.
+
+## Normative rules
+
+- The fingerprint MUST be the SHA-256 of the DER-encoded cert, multibase-
+  encoded with prefix `z`.
+- Clients MUST fail closed on fingerprint mismatch.
+- Rotation: the old fingerprint remains in the DID document for a 30-day
+  grace window after a cert rotation event is announced.
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

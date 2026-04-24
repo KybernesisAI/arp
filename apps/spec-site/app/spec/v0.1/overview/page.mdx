@@ -1,0 +1,53 @@
+export const metadata = {
+  title: 'Spec overview',
+  description: 'ARP v0.1 — what conformance means and how the document is organised.',
+};
+
+# ARP v0.1 — Spec overview
+
+ARP is a **protocol** for how autonomous agents identify each other, agree
+on what they are allowed to do on each other's behalf, and exchange messages
+over a transport that can be audited and revoked. This site publishes the
+**v0.1 draft** for public review.
+
+This page gives you the shape of the document. Every section has a
+normative counterpart under `/spec/v0.1/*` and a runnable reference
+implementation inside the [arp monorepo](https://github.com/KybernesisAI/arp).
+
+## Shape of the spec
+
+| Chapter | Scope |
+|---|---|
+| [Architecture](/spec/v0.1/architecture) | The seven-layer stack. How identity, pairing, policy, transport, TLS, registry, and audit fit together. |
+| [Identity](/spec/v0.1/identity) | Agents live at `.agent` domains. Principals use method-agnostic DIDs. |
+| [Pairing](/spec/v0.1/pairing) | How two agents exchange a connection token and bind their first conversation. |
+| [Policy](/spec/v0.1/policy) | Cedar with the `@obligation(...)` annotation. The 50-scope catalog compiles here. |
+| [Transport](/spec/v0.1/transport) | DIDComm envelopes over DID-pinned TLS. Mailbox semantics. |
+| [TLS pinning](/spec/v0.1/tls-pinning) | Why we don't use Let's Encrypt for agent-to-agent, and how the fingerprint is pinned. |
+| [Registrar integration](/spec/v0.1/registrar-integration) | What a `.agent` registrar publishes and hosts. Includes the v2.1 amendment. |
+
+## What conformance means
+
+An implementation is **ARP v0.1 conformant** when:
+
+1. Every well-known document it publishes validates against the matching
+   JSON Schema in `@kybernesis/arp-spec/json-schema/*.json`.
+2. Every issued connection token carries obligations that merge into the
+   audit log per the rule in `§Policy`.
+3. The `@kybernesis/arp-testkit` compliance suite returns 11/11 against a
+   live `<domain>` — the 8 original probes plus the 3 added for the v2.1
+   amendment (principal-identity-method, no-external-provider-prompt,
+   representation-jwt-signer-binding).
+4. The sole DIDComm-adjacent import site is the transport package — no
+   other layer touches envelope signing / verification libraries directly.
+
+## What this draft is not
+
+- **A product specification.** ARP Cloud, the sidecar image, the reference
+  owner app — those are implementations, not the contract. They may change
+  independently of v0.1 as long as the on-the-wire shapes remain valid.
+- **A framework.** ARP is below your framework choice. LangGraph, KyberBot,
+  OpenClaw, Hermes, NanoClaw, and your own stack all plug in via thin
+  adapters that speak the contract.
+- **Final.** v0.1 is explicitly pre-1.0. Breaking changes go through the
+  [RFC process](/rfcs) before landing in v1.0.

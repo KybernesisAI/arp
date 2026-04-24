@@ -105,7 +105,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Peer-counterparty VC type IDs required (e.g. \"self_xyz.verified_human\")"
+      "description": "Peer-counterparty VC type IDs required (e.g. \"vc_provider.verified_human\"). Opaque strings — the PDP does not interpret them."
     },
     "policy": {
       "type": "object",

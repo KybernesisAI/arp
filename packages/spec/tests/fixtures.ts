@@ -16,7 +16,7 @@ import type {
 export const VALID_DID_DOC: DidDocument = {
   '@context': ['https://www.w3.org/ns/did/v1'],
   id: 'did:web:samantha.agent',
-  controller: 'did:web:ian.self.xyz',
+  controller: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   verificationMethod: [
     {
       id: 'did:web:samantha.agent#key-1',
@@ -42,7 +42,7 @@ export const VALID_DID_DOC: DidDocument = {
     },
   ],
   principal: {
-    did: 'did:web:ian.self.xyz',
+    did: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
     representationVC: 'https://ian.samantha.agent/.well-known/representation.jwt',
   },
 };
@@ -80,7 +80,7 @@ export const VALID_ARP_JSON: ArpJson = {
 };
 
 export const VALID_REPRESENTATION_VC: RepresentationVc = {
-  iss: 'did:web:ian.self.xyz',
+  iss: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   sub: 'did:web:samantha.agent',
   iat: 1745280000,
   exp: 1776816000,
@@ -89,7 +89,7 @@ export const VALID_REPRESENTATION_VC: RepresentationVc = {
     type: ['VerifiableCredential', 'AgentRepresentation'],
     credentialSubject: {
       id: 'did:web:samantha.agent',
-      representedBy: 'did:web:ian.self.xyz',
+      representedBy: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
       scope: 'full',
       constraints: {
         maxConcurrentConnections: 100,
@@ -100,7 +100,7 @@ export const VALID_REPRESENTATION_VC: RepresentationVc = {
 };
 
 export const VALID_REVOCATIONS: Revocations = {
-  issuer: 'did:web:ian.self.xyz',
+  issuer: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   updated_at: '2026-04-22T00:00:00Z',
   revocations: [
     {
@@ -117,14 +117,14 @@ export const VALID_REVOCATIONS: Revocations = {
   ],
   signature: {
     alg: 'EdDSA',
-    kid: 'did:web:ian.self.xyz#key-1',
+    kid: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#key-1',
     value: 'dGVzdC1zaWduYXR1cmU',
   },
 };
 
 export const VALID_CONNECTION_TOKEN: ConnectionToken = {
   connection_id: 'conn_7a3f00112233',
-  issuer: 'did:web:ian.self.xyz',
+  issuer: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   subject: 'did:web:samantha.agent',
   audience: 'did:web:ghost.agent',
   purpose: 'project:alpha',
@@ -142,7 +142,7 @@ export const VALID_CONNECTION_TOKEN: ConnectionToken = {
 
 export const VALID_HANDOFF_BUNDLE: HandoffBundle = {
   agent_did: 'did:web:samantha.agent',
-  principal_did: 'did:web:ian.self.xyz',
+  principal_did: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   public_key_multibase: 'z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp',
   well_known_urls: {
     did: 'https://samantha.agent/.well-known/did.json',

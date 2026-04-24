@@ -1,0 +1,29 @@
+export const metadata = {
+  title: 'Policy',
+  description: 'Cedar with the @obligation(...) annotation. The 50-scope catalog compiles here.',
+};
+
+# Policy
+
+Policy evaluation is Cedar. ARP adds one thing: the `@obligation(...)`
+annotation, which attaches non-enforcing metadata to a policy rule.
+Obligations carry budget caps, time windows, audit destinations, and
+similar operational constraints that the PDP does not enforce but the
+runtime MUST surface to the caller.
+
+See [Policies &amp; Cedar](/docs/policies-and-cedar) for ten worked
+examples and [scope catalog](/scope-catalog) for the 50 reusable templates
+that compile to Cedar bundles.
+
+## Normative rules
+
+- The PDP context MUST use integer cents for money and epoch milliseconds
+  for time. No floats. No ISO strings.
+- Obligations MUST merge into the audit entry and outbound reply. The
+  reference implementation does this once per request in
+  `@kybernesis/arp-runtime/runtime.ts::effectiveObligations`.
+- Bare entity types in user policies are normalised by the catalog
+  compiler; authors MAY write `User::"alice"` or `User::Alice` and the
+  compiler lifts them both to the namespace declared in the bundle.
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

@@ -172,7 +172,7 @@
           },
           "tier_gate": {
             "type": "string",
-            "description": "Minimum VC type required (e.g. \"self_xyz.verified_human\")"
+            "description": "Minimum VC type required (e.g. \"vc_provider.verified_human\"). Opaque string."
           },
           "step_up_required": {
             "type": "boolean",

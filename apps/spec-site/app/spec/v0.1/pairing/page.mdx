@@ -1,0 +1,28 @@
+export const metadata = {
+  title: 'Pairing',
+  description: 'How two agents exchange a connection token and bind their first conversation.',
+};
+
+# Pairing
+
+Two agents that have never spoken before go through a deterministic four-step
+dance to establish a connection:
+
+1. **Discovery.** The initiator resolves the responder's `.agent` domain,
+   fetches its `agent-card.json` at `/.well-known/arp/agent-card.json`,
+   and checks that the requested scopes are in the card's advertised
+   catalog.
+2. **Consent.** The initiator's owner is shown a Cedar-derived consent
+   screen listing the capabilities and obligations that will apply. On
+   approval, a signed connection-token request goes to the responder.
+3. **Approval.** The responder's owner approves, the responder signs the
+   connection token with the PDP's effective policy baked in, and the
+   token returns.
+4. **Seal.** Both sides record the token in their audit chain and open a
+   DIDComm channel whose outer envelope references the connection
+   token's `cid`.
+
+The full shapes are in `@kybernesis/arp-spec/json-schema/connection-token.json`
+and the worked examples live in [Policies & Cedar](/docs/policies-and-cedar).
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

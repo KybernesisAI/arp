@@ -39,7 +39,10 @@ export const RevocationEntrySchema = z.discriminatedUnion('type', [
 
 export const RevocationSignatureSchema = z.object({
   alg: z.literal('EdDSA'),
-  kid: z.string().min(1).describe('Signing key reference (e.g. "did:web:ian.self.xyz#key-1")'),
+  kid: z
+    .string()
+    .min(1)
+    .describe('Signing key reference (e.g. "did:key:z6Mk…#key-1")'),
   value: z.string().min(1).describe('Base64url-encoded signature bytes'),
 });
 

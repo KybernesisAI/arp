@@ -1,0 +1,186 @@
+export const metadata = {
+  title: 'Registrar integration',
+  description: 'What a .agent TLD registrar publishes, hosts, and signs. v0.1 of the spec consolidates the v2 + v2.1 amendments.',
+};
+
+# Registrar integration
+
+A `.agent` domain registrar implements ARP by publishing a small set of
+DNS records, hosting a handful of well-known documents, and signing a
+representation JWT on the owner's behalf. This page consolidates the
+authoritative contract — v2 of the integration spec plus the v2.1
+amendment that removed the external-identity-provider prompt.
+
+> **Normative:** implementations MUST follow this page. If anything here
+> conflicts with `docs/ARP-tld-integration-spec-v2.md` or
+> `docs/ARP-tld-integration-spec-v2.1.md`, this page wins (v2.1 narrows
+> v2; this page is the merged result).
+
+## What the registrar is responsible for
+
+1. Selling `.agent` domains at the apex (e.g. `samantha.agent`) and
+   provisioning owner subdomains (`ian.samantha.agent`) for each principal
+   who completes the ARP setup flow.
+2. Publishing four DNS records per ARP-configured domain:
+   - `A` / `AAAA` at the apex, pointing at the sidecar or cloud gateway.
+   - `TXT` at `_arp.samantha.agent` advertising the ARP version.
+   - `TXT` at `_principal.ian.samantha.agent` carrying the principal DID.
+   - `CNAME` at `ian.samantha.agent` pointing at the owner-subdomain
+     hoster (the registrar or the cloud gateway, depending on install
+     mode).
+3. Hosting the well-known documents under HTTPS at the apex:
+   - `/.well-known/did.json`
+   - `/.well-known/arp/agent-card.json`
+   - `/.well-known/arp/arp.json`
+   - `/.well-known/arp/revocations.json`
+4. Hosting the signed representation JWT at
+   `{owner}.samantha.agent/.well-known/representation.jwt`.
+
+## The \_principal TXT record
+
+The TXT at `_principal.<owner>.<domain>` carries the principal DID and a
+pointer to the signed representation JWT. Format:
+
+```
+did=did:key:z6Mk…; rep=https://ian.samantha.agent/.well-known/representation.jwt
+```
+
+Accepted values for `did=`:
+
+| Form | When used | Resolver path |
+|---|---|---|
+| `did:key:z6Mk…` | Browser-generated keypair, user retains recovery phrase | Public key decoded directly from DID; no HTTPS fetch |
+| `did:web:arp.cloud:u:<uuid>` | ARP Cloud-managed account | Fetched from `https://arp.cloud/u/<uuid>/did.json` |
+
+Any DID matching `^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$` parses. Registrars
+SHOULD NOT hard-code a specific DID method in the UX — they collect the
+DID opaquely and let the resolver handle method differences.
+
+## The two-option owner-binding UX
+
+When a buyer checks "Set up as an ARP agent" during registration, the
+registrar MUST present the two-option chooser below. No free-form DID
+text input, no external-provider redirect.
+
+### Option A — "Use ARP Cloud account" (recommended default)
+
+1. User clicks "Use ARP Cloud account."
+2. Registrar redirects the user's browser to
+   `https://arp.cloud/onboard?domain=<sld>&registrar=<name>&callback=<url-encoded>`.
+3. ARP Cloud handles signup — identity generation, tenant creation — and
+   redirects back to the callback URL with
+   `?principal_did=did:web:arp.cloud:u:<uuid>&signed_representation_jwt=<jwt>`.
+4. Registrar publishes the `_principal` TXT + hosts the representation
+   JWT per the well-known contract.
+
+### Option B — "Generate now (advanced)"
+
+1. User clicks "Generate now (advanced)."
+2. Registrar UI runs in-browser Ed25519 keypair generation:
+
+   ```js
+   const privateKey = ed25519.utils.randomPrivateKey();
+   const publicKey  = await ed25519.getPublicKeyAsync(privateKey);
+   const did        = `did:key:z${multibase.encode(0xed01, publicKey)}`;
+   ```
+
+3. The UI displays a 12-word recovery phrase derived from the key and
+   requires the user to confirm they have saved it.
+4. The private key downloads as `principal-key.txt`. The registrar MUST
+   NOT persist or transmit it.
+5. The UI signs the representation JWT locally with the private key.
+6. The registrar receives the public key (multibase), the principal DID,
+   and the signed JWT only.
+
+### UI requirements
+
+- Both options MUST appear on the same screen.
+- Option A button label: "Use ARP Cloud account (recommended)."
+- Option B button label: "Generate now (advanced)."
+- Option B MUST require explicit recovery-phrase confirmation before
+  proceeding ("I've saved my recovery phrase").
+- No external-identity-provider sign-in widget. The protocol is
+  agnostic to which VCs the user later chooses to present.
+
+## The representation JWT
+
+The representation JWT attests that the principal controls the agent.
+Served at `{owner}.<domain>/.well-known/representation.jwt`.
+
+Payload:
+
+```json
+{
+  "iss": "did:key:z6Mk…",
+  "sub": "did:web:samantha.agent",
+  "iat": 1714003200,
+  "exp": 1729555200,
+  "vc": {
+    "type": ["VerifiableCredential", "RepresentationCredential"],
+    "credentialSubject": {
+      "id": "did:web:samantha.agent",
+      "representedBy": "did:key:z6Mk…"
+    }
+  }
+}
+```
+
+JWS header:
+
+```json
+{
+  "alg": "EdDSA",
+  "kid": "did:key:z6Mk…#key-1",
+  "typ": "JWT"
+}
+```
+
+The signer of the JWT is one of:
+
+- **Option A path.** ARP Cloud signs the JWT server-side using the
+  cloud-managed principal key; `kid` = `did:web:arp.cloud:u:<uuid>#key-1`.
+- **Option B path.** The browser keypair signs the JWT inline before
+  upload; `kid` = `did:key:z…#key-1`.
+
+Both produce the same JWS compact-serialisation format. JWT schema is in
+`@kybernesis/arp-spec/json-schema/representation-vc.json`.
+
+## Cloud callback contract
+
+The v2.1 amendment exposes a stub callback receiver on the cloud side:
+
+```
+POST https://arp.cloud/internal/registrar/bind
+  Authorization: Bearer <pre-shared-key>
+  Content-Type: application/json
+  Body: {
+    "domain":                "samantha.agent",
+    "owner_label":           "ian",
+    "principal_did":         "did:web:arp.cloud:u:<uuid>",
+    "public_key_multibase":  "z6Mk…",
+    "representation_jwt":    "eyJhbGciOiJFZERTQSJ9…"
+  }
+  Response (200): {
+    "ok": true,
+    "tenant_id": "<opaque>"
+  }
+```
+
+Registrars MAY call this endpoint after publishing the `_principal` TXT
+and hosting the representation JWT so ARP Cloud mirrors the state for
+"Use ARP Cloud account" users. The pre-shared key rotates at launch;
+the initial key is delivered out-of-band.
+
+## Reserved names
+
+Registrars MUST reject registration of the following labels (enforced at
+checkout):
+
+```
+abuse, admin, arp, cloud, cloud-gateway, compliance, did, gateway,
+hns, legal, mx, postmaster, root, security, spec, tld, www
+```
+
+See `docs/ARP-tld-integration-spec-v2.md` for the historical v2 record,
+and `docs/ARP-tld-integration-spec-v2.1.md` for the formal v2.1
+amendment this page consolidates.

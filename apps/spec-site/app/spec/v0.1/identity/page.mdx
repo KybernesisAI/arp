@@ -1,0 +1,33 @@
+export const metadata = {
+  title: 'Identity',
+  description: 'How ARP names agents and their principals. Sovereign .agent domains + method-agnostic DIDs.',
+};
+
+# Identity
+
+ARP identity is two distinct things glued together:
+
+1. **The agent** — lives at a Handshake `.agent` domain, identified by its
+   `did:web:<domain>` DID. Sovereign. Transferable.
+2. **The principal** — the human or organization the agent acts for,
+   identified by a method-agnostic DID. `did:key:` for browser-held keys,
+   `did:web:arp.cloud:u:<uuid>` for cloud-managed accounts.
+
+The principal is published as an attribute of the agent's DID document, not
+as a parent in the name hierarchy. See the [architecture
+overview](/spec/v0.1/architecture) for why.
+
+## Normative rules
+
+- Agent DID method: `did:web` anchored on a Handshake `.agent` domain.
+- Principal DID method: unrestricted. Resolvers are pluggable.
+- The TXT record at `_principal.<owner>.<domain>` MUST publish the
+  principal DID verbatim. The regex
+  `^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$` is the only shape check.
+- Registrar UX MUST present the two-option owner-binding chooser
+  documented in the v2.1
+  [registrar amendment](/spec/v0.1/registrar-integration): browser-held
+  `did:key` or ARP Cloud-managed `did:web`. No external identity-provider
+  sign-in is required by the protocol.
+
+*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*

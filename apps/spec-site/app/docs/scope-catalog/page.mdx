@@ -1,0 +1,735 @@
+export const metadata = {
+  title: "Scope catalog v1",
+  description: "The 50 reusable capability templates that make up the v1 scope catalog. Pair with the interactive viewer.",
+};
+
+# Scope catalog v1
+
+**Purpose:** the canonical set of ~50 scope templates that compile into Cedar policies. This is the UX surface humans interact with when approving an agent connection — they never write Cedar, they pick scopes from this catalog.
+
+**Relationship to other docs:**
+- `ARP-policy-examples.md` — shows Cedar at the policy layer
+- `ARP-our-codebase.md` — `arp-scope-catalog` is one of our packages
+- `ARP-tld-integration-spec-v2.md` — catalog is served at `/.well-known/scope-catalog.json`
+
+---
+
+## 1. Scope-template data model
+
+Every scope template is a structured record with this shape:
+
+```yaml
+id: string                      # stable OAuth-style dotted ID
+version: string                 # semver, pinned per scope
+label: string                   # short human-readable name (UI button/row)
+description: string             # longer explanation (UI tooltip / expanded view)
+category: enum                  # for UI grouping (§3)
+risk: enum                      # low | medium | high | critical
+parameters:                     # optional fill-in-the-blanks
+  - name: string
+    type: enum                  # ProjectID | Integer | Duration | Timezone | etc.
+    required: bool
+    default: any
+    validation: string          # regex or enum values
+cedar_template: string          # handlebars-style template compiled per-connection
+consent_text_template: string   # rendered in plain English for the consent UI
+obligations_forced: [string]    # obligations always attached (e.g., require_fresh_consent)
+implies: [string]               # scope IDs automatically included
+conflicts_with: [string]        # scope IDs that cannot coexist
+tier_gate: string               # optional minimum VC requirement (e.g., vc_provider.adult)
+                                # **tier_gate** — a VC type identifier (opaque string). Example values use
+                                # `vc_provider.*` prefixes for historical continuity; any VC provider's type
+                                # strings work. See `ARP-policy-examples.md §6.9`.
+step_up_required: bool          # does granting need fresh principal consent beyond pairing?
+```
+
+Full YAML catalog is the source of truth; compiled JSON is served at `/.well-known/scope-catalog.json`.
+
+---
+
+## 2. Risk tiers
+
+| Tier | Meaning | UX treatment |
+|---|---|---|
+| **low** | Read-only metadata, no content, no side effects | One-tap approve |
+| **medium** | Content reads, content writes, scoped mutations, money under caps | Inline approval |
+| **high** | External sharing, autonomous sending, deletions, broad data classes | Expanded consent screen with confirm-phrase |
+| **critical** | Key rotation, re-delegation, identity-adjacent actions | Biometric confirmation + waiting period |
+
+Risk determines default obligations (e.g., `high` forces `audit_level: verbose` and `require_fresh_consent` every 7 days).
+
+---
+
+## 3. Categories
+
+```
+identity      — connection meta, credentials, introductions
+calendar      — time, availability, meetings
+messaging     — email, chat, relay
+files         — projects, documents, folders
+contacts      — address book, attributes, introductions
+tasks         — todos, assignments, project mgmt
+notes         — notes, knowledge base, RAG
+payments      — quotes, authorizations, refunds, history
+work          — status, reports, professional context
+credentials   — VC presentation, proof requests, reputation
+tools         — MCP / function invocation
+delegation    — re-delegation, forwarding, multi-hop
+location      — presence, geo, physical context (v0.2+)
+health        — health data (v0.2+)
+```
+
+---
+
+## 4. The full catalog (50 scopes)
+
+| # | Scope ID | Label | Cat | Risk | Params |
+|---|---|---|---|---|---|
+| 1 | `identity.card.read` | Read agent card | identity | low | — |
+| 2 | `identity.principal.verify` | Verify owner binding | identity | low | — |
+| 3 | `identity.introduction.request` | Request introduction | identity | medium | `to_agent` |
+| 4 | `connection.extend` | Extend connection expiry | identity | medium | `days` |
+| 5 | `connection.rescope.request` | Request new scopes | identity | medium | — |
+| 6 | `calendar.availability.read` | Check availability (free/busy only) | calendar | low | `days_ahead` |
+| 7 | `calendar.events.read` | Read event details | calendar | medium | `window_days`, `include_private` |
+| 8 | `calendar.events.propose` | Propose a meeting | calendar | medium | `max_attendees`, `max_duration_min` |
+| 9 | `calendar.events.create` | Create events directly | calendar | high | `max_per_day` |
+| 10 | `calendar.events.modify` | Modify existing events | calendar | high | — |
+| 11 | `calendar.events.cancel` | Cancel events | calendar | high | — |
+| 12 | `messaging.email.summary` | Email summaries only | messaging | medium | `label_filter` |
+| 13 | `messaging.email.thread.read` | Read email threads | messaging | high | `label_filter` |
+| 14 | `messaging.email.draft.compose` | Compose drafts (no send) | messaging | medium | — |
+| 15 | `messaging.email.send.reviewed` | Send after human review | messaging | high | `recipient_allowlist` |
+| 16 | `messaging.relay.to_principal` | Relay message to owner | messaging | low | — |
+| 17 | `messaging.chat.send` | Send chat message | messaging | medium | `channel_allowlist` |
+| 18 | `files.projects.list` | List projects | files | low | — |
+| 19 | `files.project.metadata.read` | Read project metadata | files | low | `project_id` |
+| 20 | `files.project.files.list` | List files in a project | files | low | `project_id` |
+| 21 | `files.project.files.read` | Read file contents | files | medium | `project_id`, `max_size_mb` |
+| 22 | `files.project.files.summarize` | Summaries only (derive) | files | low | `project_id`, `max_output_words` |
+| 23 | `files.project.files.write` | Create/modify files | files | high | `project_id`, `max_size_mb` |
+| 24 | `files.project.files.delete` | Delete files | files | critical | `project_id` |
+| 25 | `files.share.external` | Share files outside circle | files | critical | `project_id`, `recipient_allowlist` |
+| 26 | `contacts.search` | Look up contacts | contacts | medium | `attribute_allowlist` |
+| 27 | `contacts.attributes.read` | Read specific contact attributes | contacts | medium | `attributes` |
+| 28 | `contacts.introduce` | Request contact introduction | contacts | medium | — |
+| 29 | `contacts.share` | Share a contact card | contacts | high | `recipient_allowlist` |
+| 30 | `tasks.list` | List tasks | tasks | low | `project_id` |
+| 31 | `tasks.read` | Read task details | tasks | low | `project_id` |
+| 32 | `tasks.create` | Create tasks | tasks | medium | `project_id`, `max_per_day` |
+| 33 | `tasks.status.update` | Update task status | tasks | medium | `project_id` |
+| 34 | `tasks.assign` | Assign tasks to humans | tasks | high | `project_id` |
+| 35 | `notes.search` | Search notes | notes | medium | `collection_id` |
+| 36 | `notes.read` | Read notes | notes | medium | `collection_id` |
+| 37 | `notes.write` | Create/update notes | notes | medium | `collection_id`, `max_per_day` |
+| 38 | `knowledge.query` | Query knowledge base | notes | medium | `kb_id`, `max_tokens` |
+| 39 | `payments.quote.request` | Request a price quote | payments | low | — |
+| 40 | `payments.authorize.capped` | Authorize payment under cap | payments | high | `max_per_txn_usd`, `max_per_30d_usd` |
+| 41 | `payments.history.read` | Read past transactions | payments | medium | `days_back` |
+| 42 | `payments.refund.request` | Request refund | payments | medium | — |
+| 43 | `work.status.read` | Current work status | work | low | — |
+| 44 | `work.projects.list` | Current active projects | work | low | — |
+| 45 | `work.reports.summary` | Generate status summary | work | medium | `period` |
+| 46 | `credentials.present.request` | Request specific VCs | credentials | medium | `required_vcs` |
+| 47 | `credentials.proof.zk.request` | Request ZK proof of attribute | credentials | medium | `attribute`, `predicate` |
+| 48 | `tools.invoke.read` | Invoke read-only tools | tools | medium | `tool_allowlist` |
+| 49 | `tools.invoke.mutating` | Invoke mutating tools | tools | high | `tool_allowlist`, `max_per_day` |
+| 50 | `delegation.forward.task` | Forward task to another agent | delegation | high | `agent_allowlist`, `scope_attenuation` |
+
+---
+
+## 5. Detailed specs — representative examples
+
+One per category, showing the full template shape and Cedar compilation.
+
+### 5.1 `identity.card.read`
+
+```yaml
+id: identity.card.read
+version: 1.0.0
+label: Read agent card
+description: Allow the peer agent to fetch your agent card (name, supported protocols, public endpoints).
+category: identity
+risk: low
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"read",
+    resource == AgentCard::"self"
+  );
+consent_text_template: "See your public agent card."
+obligations_forced: []
+implies: []
+conflicts_with: []
+step_up_required: false
+```
+
+Consent UI: *"See your public agent card."*
+
+### 5.2 `calendar.availability.read`
+
+```yaml
+id: calendar.availability.read
+version: 1.0.0
+label: Check availability (free/busy only)
+description: Peer can see when you're free or busy, but no event titles, attendees, or details.
+category: calendar
+risk: low
+parameters:
+  - name: days_ahead
+    type: Integer
+    required: true
+    default: 14
+    validation: "1..90"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"check_availability",
+    resource == Calendar::"primary"
+  ) when {
+    context.query_window_days <= {{days_ahead}}
+  };
+  forbid (
+    principal == Agent::"{{audience_did}}",
+    action,
+    resource == Calendar::"primary"
+  ) when {
+    action != Action::"check_availability"
+  };
+consent_text_template: "Check your free/busy (no details) up to {{days_ahead}} days ahead."
+obligations_forced:
+  - type: redact_fields
+    params:
+      fields: ["event.title", "event.attendees", "event.description", "event.location"]
+implies: []
+conflicts_with: []
+step_up_required: false
+```
+
+Consent UI: *"Check your free/busy (no details) up to 14 days ahead."*
+
+### 5.3 `calendar.events.propose`
+
+```yaml
+id: calendar.events.propose
+version: 1.0.0
+label: Propose a meeting
+description: Peer can propose a meeting. Creates a tentative event pending your confirmation.
+category: calendar
+risk: medium
+parameters:
+  - name: max_attendees
+    type: Integer
+    required: true
+    default: 10
+    validation: "1..50"
+  - name: max_duration_min
+    type: Integer
+    required: true
+    default: 60
+    validation: "15..480"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"propose_meeting",
+    resource == Calendar::"primary"
+  ) when {
+    context.proposed_attendee_count <= {{max_attendees}} &&
+    context.proposed_duration_min <= {{max_duration_min}}
+  };
+consent_text_template: "Propose meetings (up to {{max_attendees}} people, {{max_duration_min}} minutes). You confirm before it's booked."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 86400
+implies:
+  - calendar.availability.read
+conflicts_with: []
+step_up_required: false
+```
+
+Consent UI: *"Propose meetings (up to 10 people, 60 minutes). You confirm before it's booked."*
+
+### 5.4 `files.project.files.read`
+
+```yaml
+id: files.project.files.read
+version: 1.0.0
+label: Read file contents
+description: Peer can read the contents of files in a specific project.
+category: files
+risk: medium
+parameters:
+  - name: project_id
+    type: ProjectID
+    required: true
+  - name: max_size_mb
+    type: Integer
+    required: true
+    default: 10
+    validation: "1..100"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action in [Action::"read", Action::"list"],
+    resource in Project::"{{project_id}}"
+  ) when {
+    resource.size_bytes <= {{max_size_mb}} * 1048576 &&
+    !resource.tags.contains("confidential") &&
+    !resource.tags.contains("do-not-share")
+  };
+consent_text_template: "Read files in {{project.name}} (up to {{max_size_mb}} MB each; excludes items tagged confidential)."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - files.project.files.list
+  - files.project.metadata.read
+conflicts_with: []
+step_up_required: false
+```
+
+### 5.5 `messaging.email.send.reviewed`
+
+```yaml
+id: messaging.email.send.reviewed
+version: 1.0.0
+label: Send email (after your review)
+description: Peer drafts emails on your behalf; each send requires your one-tap approval before going out.
+category: messaging
+risk: high
+parameters:
+  - name: recipient_allowlist
+    type: EmailList
+    required: false
+    default: []
+    validation: "rfc5322-or-domain-glob"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"send_email",
+    resource == Email::"outbox"
+  ) when {
+    {{#if recipient_allowlist}}
+    context.recipient_matches_allowlist({{recipient_allowlist}})
+    {{else}}
+    true
+    {{/if}}
+  };
+consent_text_template: "Draft and (with your approval) send emails{{#if recipient_allowlist}} to: {{recipient_allowlist_display}}{{/if}}."
+obligations_forced:
+  - type: require_principal_confirmation
+    params:
+      max_age_seconds: 0
+  - type: audit_level
+    params:
+      level: verbose
+implies:
+  - messaging.email.draft.compose
+conflicts_with: []
+step_up_required: true
+```
+
+### 5.6 `payments.authorize.capped`
+
+```yaml
+id: payments.authorize.capped
+version: 1.0.0
+label: Authorize payments up to a cap
+description: Peer can trigger x402 payments up to the per-transaction and rolling 30-day caps you set.
+category: payments
+risk: high
+parameters:
+  - name: max_per_txn_usd
+    type: Decimal
+    required: true
+    default: 5
+    validation: "0.01..1000"
+  - name: max_per_30d_usd
+    type: Decimal
+    required: true
+    default: 50
+    validation: "0.01..10000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"authorize_payment",
+    resource == Wallet::"primary"
+  ) when {
+    context.quoted_price_usd <= {{max_per_txn_usd}} &&
+    context.spend_last_30d_usd + context.quoted_price_usd <= {{max_per_30d_usd}}
+  };
+consent_text_template: "Pay up to ${{max_per_txn_usd}} per request, ${{max_per_30d_usd}} total per 30 days."
+obligations_forced:
+  - type: notify_principal
+    params: {}
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+tier_gate: vc_provider.verified_human
+step_up_required: true
+```
+
+### 5.7 `credentials.proof.zk.request`
+
+```yaml
+id: credentials.proof.zk.request
+version: 1.0.0
+label: Request ZK proof of an attribute
+description: Peer can ask your agent to present a zero-knowledge proof (via any pluggable VC provider) of a single attribute without revealing the underlying credential.
+category: credentials
+risk: medium
+parameters:
+  - name: attribute
+    type: Enum
+    required: true
+    validation: ["over_18", "over_21", "us_resident", "verified_human", "country"]
+  - name: predicate
+    type: Enum
+    required: false
+    default: "eq"
+    validation: ["eq", "gte", "lte", "in"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"request_zk_proof",
+    resource == Credential::"{{attribute}}"
+  ) when {
+    context.predicate == "{{predicate}}"
+  };
+consent_text_template: "Prove to Peer, without revealing details, that you are {{attribute_human}}."
+obligations_forced:
+  - type: log_zk_disclosure
+    params: {}
+implies: []
+conflicts_with: []
+step_up_required: false
+```
+
+### 5.8 `tools.invoke.mutating`
+
+```yaml
+id: tools.invoke.mutating
+version: 1.0.0
+label: Invoke tools with side effects
+description: Peer can invoke specific tools on your MCP server that cause changes (not just reads).
+category: tools
+risk: high
+parameters:
+  - name: tool_allowlist
+    type: ToolIDList
+    required: true
+    validation: "at-least-one"
+  - name: max_per_day
+    type: Integer
+    required: true
+    default: 20
+    validation: "1..1000"
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"invoke_tool",
+    resource == Tool
+  ) when {
+    resource.id in {{tool_allowlist_json}} &&
+    context.requests_last_day <= {{max_per_day}}
+  };
+consent_text_template: "Use these tools on your behalf (max {{max_per_day}}/day): {{tool_allowlist_display}}."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: rate_limit
+    params:
+      window: day
+      max: "{{max_per_day}}"
+implies: []
+conflicts_with: []
+step_up_required: true
+```
+
+### 5.9 `delegation.forward.task`
+
+```yaml
+id: delegation.forward.task
+version: 1.0.0
+label: Forward task to another agent
+description: Peer can re-delegate a task to a third agent, with automatically attenuated scopes.
+category: delegation
+risk: high
+parameters:
+  - name: agent_allowlist
+    type: AgentDIDList
+    required: true
+    validation: "at-least-one"
+  - name: scope_attenuation
+    type: Enum
+    required: true
+    default: "read_only"
+    validation: ["read_only", "same_scopes", "custom"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"redelegate",
+    resource == Connection::"self"
+  ) when {
+    context.delegate_target in {{agent_allowlist_json}} &&
+    context.attenuation_mode == "{{scope_attenuation}}"
+  };
+consent_text_template: "Allow Peer to forward tasks to: {{agent_allowlist_display}}. Forwarded tasks get {{scope_attenuation_human}} access."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+  - type: notify_principal
+    params: {}
+implies: []
+conflicts_with: []
+tier_gate: vc_provider.verified_human
+step_up_required: true
+```
+
+### 5.10 `contacts.search`
+
+```yaml
+id: contacts.search
+version: 1.0.0
+label: Look up contacts
+description: Peer can search your contacts and receive only the attributes you specify.
+category: contacts
+risk: medium
+parameters:
+  - name: attribute_allowlist
+    type: AttributeList
+    required: true
+    default: ["name", "email"]
+    validation: ["name","email","phone","title","company","linkedin","twitter","notes"]
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action == Action::"search_contacts",
+    resource == Contact
+  );
+consent_text_template: "Search your contacts and see these fields: {{attribute_allowlist_display}}."
+obligations_forced:
+  - type: redact_fields_except
+    params:
+      allowlist: "{{attribute_allowlist}}"
+implies: []
+conflicts_with: []
+step_up_required: false
+```
+
+---
+
+## 6. Scope bundles (common multi-scope packages)
+
+Bundles are named, versioned sets of scopes with pre-filled parameters. The UI offers them as one-tap presets before exposing individual scopes.
+
+### `bundle.project_collaboration.v1`
+Typical "collaborate on a project" bundle.
+```
+files.projects.list
+files.project.metadata.read       (project_id: <user-picks>)
+files.project.files.read          (project_id: same, max_size_mb: 25)
+files.project.files.summarize     (project_id: same, max_output_words: 2000)
+tasks.list                        (project_id: same)
+tasks.read                        (project_id: same)
+tasks.status.update               (project_id: same)
+notes.search                      (collection_id: project-scoped)
+notes.read                        (collection_id: project-scoped)
+```
+
+### `bundle.scheduling_assistant.v1`
+For agents coordinating meetings.
+```
+calendar.availability.read        (days_ahead: 14)
+calendar.events.propose           (max_attendees: 10, max_duration_min: 60)
+contacts.search                   (attribute_allowlist: [name, email])
+messaging.relay.to_principal
+```
+
+### `bundle.research_agent.v1`
+For an agent pulling research without writing.
+```
+files.projects.list
+files.project.files.read          (project_id: <user-picks>)
+files.project.files.summarize     (same)
+notes.search                      (collection_id: <user-picks>)
+notes.read                        (same)
+knowledge.query                   (kb_id: same, max_tokens: 8000)
+credentials.proof.zk.request      (attribute: verified_human)
+```
+
+### `bundle.procurement_agent.v1`
+For an agent that can buy things under tight caps.
+```
+payments.quote.request
+payments.authorize.capped         (max_per_txn_usd: 25, max_per_30d_usd: 200)
+payments.history.read             (days_back: 90)
+messaging.relay.to_principal
+```
+
+### `bundle.executive_assistant.v1`
+Broad assistant with step-up consent on anything external-facing.
+```
+calendar.availability.read
+calendar.events.propose
+calendar.events.modify
+messaging.email.summary
+messaging.email.draft.compose
+messaging.email.send.reviewed     (recipient_allowlist: [])
+contacts.search
+tasks.* (list/read/create/update_status)
+notes.search/read/write
+work.status.read
+work.reports.summary
+```
+
+---
+
+## 7. Implication graph (automatic includes)
+
+Some scopes automatically pull in prerequisites so the consent UI doesn't ask the same thing twice.
+
+```
+files.project.files.read
+  → files.project.files.list
+  → files.project.metadata.read
+
+files.project.files.summarize
+  → files.project.files.read
+
+calendar.events.propose
+  → calendar.availability.read
+
+tasks.status.update
+  → tasks.read
+
+messaging.email.send.reviewed
+  → messaging.email.draft.compose
+
+tools.invoke.mutating
+  → tools.invoke.read        (if counterpart expects symmetric reads)
+```
+
+Implications are transitive; the PDP expands them when compiling Cedar.
+
+---
+
+## 8. Conflict rules
+
+Certain scopes cannot coexist on the same Connection — the UI prevents selecting both.
+
+```
+files.project.files.delete          ⊥  files.share.external
+  (can't grant both in the same connection — too much combined blast radius)
+
+messaging.email.send.reviewed       ⊥  messaging.email.send.autonomous
+  (pick one send model)
+
+payments.authorize.capped           ⊥  payments.authorize.unlimited   (v0 has no unlimited; listed for future)
+```
+
+---
+
+## 9. Parameter types & validation
+
+| Type | Validation | Example |
+|---|---|---|
+| `Integer` | range | `1..90` |
+| `Decimal` | range, 2dp | `0.01..1000` |
+| `Duration` | ISO 8601 duration | `P14D`, `PT60M` |
+| `ProjectID` | exists in owner's project registry | `alpha`, `research-2026` |
+| `AgentDID` | valid DID URI | `did:web:ghost.agent` |
+| `AgentDIDList` | array of AgentDID, min-1 | `[did:web:ghost.agent]` |
+| `ToolIDList` | exists in agent's MCP registry | `["search","calc"]` |
+| `AttributeList` | enum constrained | `["name","email"]` |
+| `EmailList` | RFC5322 or `*@domain.com` glob | `["alice@example.com","*@corp.com"]` |
+| `IANATimezone` | valid IANA TZ | `America/New_York` |
+| `Enum` | defined per-scope | `"read_only"` |
+
+---
+
+## 10. Versioning & change management
+
+- Each scope is independently semver-versioned (e.g., `calendar.events.propose@1.2.0`)
+- Catalog has a top-level version (`v1`) pinned per Connection Token
+- Breaking changes to a scope require a new major version; old connections keep the pinned version
+- Adding a scope: minor catalog bump
+- Removing a scope: requires deprecation period (≥180 days) and migration mapping
+- Catalog source of truth lives in `packages/arp-scope-catalog` in our repo
+
+---
+
+## 11. What the consent UI actually renders
+
+The scope catalog is a **projection spec**: each scope knows how to render itself into plain English. A realistic pairing request UI:
+
+```
+Ghost (ghost.agent) wants to connect with Samantha.
+
+Purpose: Project Alpha collaboration
+
+Ghost WILL be able to:
+  ✓ Read files in Project Alpha (up to 25 MB each)
+  ✓ Summarize files in Project Alpha
+  ✓ Read and update task status in Project Alpha
+  ✓ Check your availability up to 14 days ahead
+  ✓ Propose meetings (up to 10 people, 60 min)
+  ✓ Pay up to $5 per request, $50 per 30 days
+
+Ghost WILL NOT be able to:
+  ✗ Delete files or share Project Alpha outside this connection
+  ✗ Send email on your behalf
+  ✗ Access any other project, your contacts, or your calendar details
+
+Ghost must prove:
+  • Verified human (via attribute VC)
+
+Conditions:
+  • Weekdays 09:00–17:00 America/New_York
+  • Every email-like action requires your one-tap approval
+  • Connection expires October 22, 2026
+
+[ Approve ]    [ Adjust scopes ]    [ Cancel ]
+```
+
+Every line above is generated from the scope catalog. No hand-written copy per connection.
+
+---
+
+## 12. What's out of scope for v1
+
+Reserved for v0.2+ (call out explicitly so they're not mistakenly implemented now):
+
+- Location / physical presence scopes
+- Health data scopes
+- Financial account read/write (beyond x402 payments)
+- Multi-party connections (3+ agents sharing one scope)
+- Dynamic scopes (scopes whose parameters change over time)
+- ML-derived scopes (e.g., "all files semantically similar to X")
+
+These are deferred because they raise regulatory, privacy, or technical design questions that would slow v1.
+
+---
+
+## 13. Governance
+
+- Source of truth: `packages/arp-scope-catalog/scopes/*.yaml` in our repo
+- Additions: PR to the repo, minor catalog bump
+- Deprecations: RFC + 180-day notice
+- Breaking changes per scope: new major version; old versions frozen but still usable
+- Any implementer (our runtime, a third-party runtime, the TLD registrar templates) reads the compiled JSON from `arp.spec/scope-catalog/v1/manifest.json` — never hand-maintained copies
+
+
+---
+
+<div className="mt-16 border-t border-rule pt-6 font-mono text-kicker uppercase tracking-[0.14em] text-muted">
+  Source: <a href="https://github.com/KybernesisAI/arp/blob/main/docs/ARP-scope-catalog-v1.md">docs/ARP-scope-catalog-v1.md</a>
+  {' · '}Ported 2026-04-23
+</div>

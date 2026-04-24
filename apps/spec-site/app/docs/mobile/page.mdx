@@ -1,0 +1,32 @@
+export const metadata = {
+  title: 'Mobile (iOS + Android)',
+  description: 'ARP owner apps for iOS and Android. Principal key in Secure Enclave / Keystore, biometric gates for critical scopes.',
+};
+
+# Mobile
+
+The ARP mobile owner app runs on iOS and Android via Expo. It lives in the
+separate private repo [github.com/KybernesisAI/arp-mobile](https://github.com/KybernesisAI/arp-mobile)
+and mirrors the desktop owner app's features — pairing, consent screens,
+audit viewer, revocation — with two platform-native additions:
+
+1. **Principal key in hardware.** The browser-held `did:key` from the
+   desktop flow moves to iOS Secure Enclave / Android Keystore on first
+   mobile login. Recovery is still via the 12-word phrase (Phase 8.5).
+2. **Biometric gates per risk tier.** Scopes tagged `critical` in the
+   catalog require Face ID / Touch ID / Android Biometric before the
+   signed request leaves the device.
+
+## Phase status
+
+Phase 8 shipped the scaffold: Expo SDK 52, RN 0.76.3, all routes from the
+phase brief, 18/18 jest tests, `expo prebuild` clean on both platforms.
+**App Store and Play Store submissions are Phase 10** — public launch is
+explicitly after Phase 9 (this site, cloud-side endpoints, WebAuthn).
+
+## Architecture
+
+Same seven-layer stack as the sidecar; only the client surface + the
+principal-key storage differ. DIDComm isolation + obligation-merge
+invariants hold — mobile imports `@kybernesis/arp-sdk` the same way
+desktop adapters do, and the transport boundary is `@kybernesis/arp-transport`.

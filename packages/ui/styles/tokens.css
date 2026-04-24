@@ -1,0 +1,30 @@
+/*
+ * ARP design-system — CSS custom property tokens.
+ *
+ * Import this once (e.g. via `@import '@kybernesis/arp-ui/tokens.css';`
+ * inside the app's Tailwind `globals.css`) to define the paper/ink palette
+ * + dark-theme override. All Tailwind color utilities (`bg-paper`,
+ * `text-ink`, etc.) resolve against these vars through the preset.
+ */
+
+:root {
+  --arp-paper: #f1ede4;
+  --arp-paper-2: #e8e3d6;
+  --arp-ink: #0c0c0c;
+  --arp-ink-2: #1a1a1a;
+  --arp-muted: #6b6a62;
+  --arp-rule: #0c0c0c;
+  --arp-grid: rgba(12, 12, 12, 0.07);
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --arp-paper: #0b0b0b;
+  --arp-paper-2: #151515;
+  --arp-ink: #f1ede4;
+  --arp-ink-2: #e8e3d6;
+  --arp-muted: #8a877d;
+  --arp-rule: #f1ede4;
+  --arp-grid: rgba(241, 237, 228, 0.07);
+  color-scheme: dark;
+}
