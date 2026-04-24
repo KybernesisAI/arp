@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @kybernesis/arp-spec-site build",
-  "outputDirectory": "apps/spec-site/.next"
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=@kybernesis/arp-spec-site...",
+  "outputDirectory": ".next"
 }
