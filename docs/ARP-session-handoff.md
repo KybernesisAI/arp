@@ -4,7 +4,7 @@
 
 **Audience:** future Claude sessions. Also useful to Ian as a "how are we operating" reference.
 
-**Last updated:** 2026-04-24, end of Phase 9 slice 9a merge (public sites + `@kybernesis/arp-ui` extraction + schema scrub).
+**Last updated:** 2026-04-24, end of Phase 9 slice 9b merge (cloud v2.1 registrar endpoints + `/api/push/register`).
 
 ---
 
@@ -12,6 +12,8 @@
 
 ### Main branch
 ```
+338bd8e Phase 9 slice 9b: cloud v2.1 registrar endpoints + /api/push/register (#26)
+... (PRs #22–#25 ops: .github/workflows/deploy.yml — auto-deploys both Vercel projects on every main push; needed four PRs to get clean — covered in detail in §1 below)
 6226616 fix(spec-site): run prebuild before typecheck + lint [phase-9/9a/hotfix] (#20)
 414217f Phase 9 slice 9a: public sites (spec + docs) + @kybernesis/arp-ui extraction + schema scrub (#19)
 c4e82ac docs: bump for phase 8.75 merge (brand + design scaffold) (#18)
@@ -55,8 +57,11 @@ c2aa88d docs(headless): TLD-integration parallel-build brief + card-bridging ana
 
 11. **Phase 9 slice 9a — Public sites + UI extraction + schema scrub.** `apps/spec-site` (Next.js 16 + `@next/mdx`; 42 prerendered routes: spec pages, docs, interactive scope catalog viewer, schema browser, RFC process with 3 seed RFCs). Extracted Phase-8.75 design system to new private package `@kybernesis/arp-ui` — `apps/cloud` + `apps/spec-site` both consume the shared preset + CSS partials (zero drift guaranteed). Closed a Phase-8.5 regression: `.describe()` strings in `packages/spec/src/schemas/*.ts` contained `did:web:ian.self.xyz` example values that were re-emitted into published `packages/spec/json-schema/*.json` — scrubbed + added regression probe in `apps/spec-site/tests/bundle.test.ts`. 4 commits + 1 post-merge hotfix (prebuild script needed to run before typecheck + lint on cold CI). **Brief deviation:** Fumadocs → `@next/mdx` (Fumadocs v16 requires Tailwind 4; migration cascade out of scope). Spirit of v0 decision "no hand-roll" preserved — `@next/mdx` is Next's first-party MDX. Search/TOC become additive (Pagefind at launch if needed). **Deploy status:** `apps/cloud` production redeployed via `vercel --prod` (auto-deploy hook still broken); spec.arp.run / docs.arp.run attachment is a separate user-authorized Vercel project setup not yet done.
 
+12. **Ops — Vercel auto-deploy via GitHub Actions (PRs #22–#25).** `.github/workflows/deploy.yml` replaces the broken native Vercel GitHub integration. Two `configure-*` jobs PATCH project settings via the Vercel REST API (arp-cloud + arp-spec-site both now have turbo-topology buildCommands so upstream workspace packages like `@kybernesis/arp-ui` build before the app); `spec.arp.run` + `docs.arp.run` attached via API on first run. Two `deploy-*` jobs run `vercel pull + build + deploy --prebuilt`. Uses `VERCEL_TOKEN` repo secret. Four PRs to settle: (a) PR #22 initial; (b) PR #23 dropped `--cwd` path-doubling; (c) PR #24 added `set -euo pipefail` + surface PATCH errors + `configure-cloud` job; (d) PR #25 dropped `includeFilesOutsideRootDirectory` (Vercel v10 PATCH rejects it as additional property — pnpm workspace detection handles parent-file access automatically once rootDirectory is set). Every `main` push now refreshes both production sites within ~2 min.
+13. **Phase 9 slice 9b — Cloud v2.1 registrar endpoints + push register.** Five new routes: `GET /onboard` (v2.1 Option-A entry point; reuses browser did:key flow; redirects back to callback with `principal_did=did:web:arp.cloud:u:<uuid>&signed_representation_jwt=<jwt>`), `POST /internal/registrar/bind` (PSK-gated constant-time compare; upsert on `(domain, owner_label)`), `GET /u/<uuid>/did.json` (cloud-managed DID doc publishing the same pubkey as the user's did:key so JWT verification round-trips without cloud-held keys), `POST /api/onboard/complete` (helper; session-authed; principal-DID cross-check), `POST /api/push/register` (session-authed via `TenantDb.upsertPushRegistration`). Drizzle migration `0002_phase_9b_registrar_and_push.sql` (additive-only; PGlite runner now applies every `NNNN_*.sql` in order). Middleware passthrough for `/onboard` `/internal` `/u`. 6 commits + 1 in-branch hotfix (bumped `hookTimeout` on pglite-using vitest configs — CI's slower VM exceeded the 10s default hook timeout once the migration runner applied 2 migrations). **Representation JWT signing conservative call:** v2.1 §3.3 describes server-side cloud-held keys; Phase 8.5 holds keys only in browser — slice 9b publishes the user's did:key pubkey at `/u/<uuid>/did.json` so the flow still round-trips. Slice 9d WebAuthn changes this. **Rate limiting deferred to 9c.** **Post-merge actions required by Ian:** generate + set `ARP_CLOUD_REGISTRAR_PSK` in Vercel env secrets (`openssl rand -base64 32`); apply migration 0002 to production Neon via `packages/cloud-db/migrate-once.mjs` pattern. Auto-deploy completed; **`/onboard` currently returns HTTP 500 on live because migration 0002 is not yet applied — INSERT into `onboarding_sessions` fails**; resolved as soon as Ian runs the migration.
+
 ### Phases remaining
-- **Phase 9 remaining slices — Headless Integration + Public Launch.** 9b (cloud v2.1 endpoints `/onboard` + `/internal/registrar/bind` + `/u/<uuid>/did.json`), 9c (`POST /api/push/register`), 9d (WebAuthn + HKDF migration), 9e (testkit probes + Headless sign-off + promotion + production flip), plus spec.arp.run + docs.arp.run Vercel project creation + DNS wiring.
+- **Phase 9 remaining slices — Headless Integration + Public Launch.** 9c (rate limiting + 3 new testkit probes + broader Self.xyz test-fixture sweep across `packages/*/tests`), 9d (WebAuthn + HKDF migration), 9e (Headless sign-off + promotion + Milestone B production flip: sandbox → live Stripe, SSO "All Deployments" toggle, legal pages).
 - **Phase 10 — Mobile public launch.** iOS App Store + Google Play Store submissions. Prereq: Phase 9 ships. Apple Dev account + EAS credentials + Play Console setup required.
 
 ### Domain decision (logged)
