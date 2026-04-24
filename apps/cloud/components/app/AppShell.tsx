@@ -22,6 +22,7 @@ export function AppShell({
           showMainActions
             ? [
                 { label: 'Dashboard', href: '/dashboard' },
+                { label: 'Connections', href: '/connections' },
                 { label: 'Pair', href: '/pair' },
                 { label: 'Billing', href: '/billing' },
                 { label: 'Docs', href: 'https://arp.run', external: true },

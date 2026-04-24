@@ -98,9 +98,14 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           <h2 className="font-display font-medium text-h3">
             Agents <span className="text-muted font-mono text-body-sm ml-2">{agents.length}</span>
           </h2>
-          <Link href="/onboarding" variant="mono">
-            Provision agent →
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/connections" variant="mono">
+              See all connections →
+            </Link>
+            <Link href="/onboarding" variant="mono">
+              Provision agent →
+            </Link>
+          </div>
         </header>
         {agents.length === 0 ? (
           <Card tone="paper-2" padded>
