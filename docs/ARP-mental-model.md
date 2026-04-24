@@ -88,11 +88,106 @@ No file in the agent's folder does this. The binding lives entirely in the sidec
 
 ## What does NOT tie the agent to the domain
 
-**There is no manifest.** There is no `arp.config.json` dropped in your agent's directory. ARP does not read any file inside your agent's working folder. Your agent's folder — persona prompt, memory, tools, logs, whatever the framework wants — is 100% the framework's business.
+**There is no manifest ARP reads.** ARP does not poke at any file inside your agent's working folder. Your agent's persona prompt, memory, tools, logs — 100% the framework's business.
 
-The only thread between ARP's world and the framework's world is a **token string** generated once at `arp-sidecar init --domain <name>`. The sidecar writes it to `~/.arp/tokens/<domain>.token`. Your framework reads it at startup (usually via env var). The framework presents it over a local socket to authenticate as that agent. That's the entire coupling.
+## What you DO do per agent — one time, when setting it up
 
-Move your agent folder to a different machine, keep the token, point the sidecar accordingly — the agent still is who it is.
+The coupling between your agent process and ARP isn't zero-config. It's three small things, done once per agent:
+
+**1. Install an adapter package in the agent's project.**
+
+```
+pnpm add @kybernesis/arp-adapter-kyberbot        # for KyberBot
+pnpm add @kybernesis/arp-adapter-hermes-agent    # for Hermes
+pnpm add @kybernesis/arp-adapter-openclaw        # for OpenClaw
+pnpm add @kybernesis/arp-adapter-langgraph       # for LangGraph
+pnpm add @kybernesis/arp-adapter-nanoclaw        # for NanoClaw
+```
+
+The adapter is what "knows ARP." The framework itself (KyberBot core, Hermes core, etc.) doesn't know and doesn't need to.
+
+**2. Wire the adapter into the framework's own config file.** 3–5 lines. Framework-specific.
+
+```ts
+// ~/my-agents/atlas/kyberbot.config.ts
+import { kyberbot } from '@kyberbot/core';
+import { arpAdapter } from '@kybernesis/arp-adapter-kyberbot';
+
+export default kyberbot({
+  persona: './persona.md',
+  adapter: arpAdapter({
+    sidecarUrl: 'ws://localhost:7878/agent',
+    agentDid: process.env.ARP_AGENT_DID,
+    token:    process.env.ARP_AGENT_TOKEN,
+  }),
+});
+```
+
+```ts
+// ~/my-agents/nexus/hermes.config.ts
+import { Hermes } from '@hermes-agent/core';
+import { attachArp } from '@kybernesis/arp-adapter-hermes-agent';
+
+const agent = new Hermes({ /* hermes stuff */ });
+attachArp(agent, {
+  sidecarUrl: 'ws://localhost:7878/agent',
+  agentDid: process.env.ARP_AGENT_DID,
+  token:    process.env.ARP_AGENT_TOKEN,
+});
+```
+
+```ts
+// ~/my-agents/titan/openclaw.config.ts
+import { openclaw } from '@openclaw/core';
+import { arpPlugin } from '@kybernesis/arp-adapter-openclaw';
+
+openclaw({
+  plugins: [arpPlugin({
+    sidecarUrl: 'ws://localhost:7878/agent',
+    agentDid: process.env.ARP_AGENT_DID,
+    token:    process.env.ARP_AGENT_TOKEN,
+  })],
+});
+```
+
+**3. Start each process with its agent DID + token set in the environment.**
+
+```bash
+ARP_AGENT_DID=did:web:atlas.agent \
+ARP_AGENT_TOKEN=$(cat ~/.arp/tokens/atlas.agent.token) \
+  kyberbot start
+```
+
+Usually you'd manage these 5+ processes with pm2, systemd, or tmuxp. ARP doesn't care how they get started — only that they connect with the right DID + matching token.
+
+That's the entire per-agent setup. No manifest. No file ARP reads. Just: install adapter, wire three lines, set two env vars.
+
+## The seam, explicitly
+
+```
+           ┌──────────────────────────────────────┐
+           │         Atlas process                 │
+           │                                       │
+           │  ┌─────────────┐     ┌────────────┐   │
+           │  │ KyberBot    │ ↔   │ ARP         │   │
+           │  │ (framework) │     │ adapter     │   │
+           │  │             │     │ (library)   │   │
+           │  └─────────────┘     └──────┬──────┘   │
+           │                              │          │
+           └──────────────────────────────┼──────────┘
+                                          │ ws://localhost:7878
+                                          │ (with token + did)
+                                          ▼
+                                    ┌──────────┐
+                                    │ Sidecar  │
+                                    └──────────┘
+```
+
+The framework doesn't import ARP. The framework's config imports the adapter. The adapter is the piece that knows ARP and handles the socket.
+
+From the sidecar's perspective, it doesn't matter whether an agent is KyberBot or Hermes or OpenClaw or some custom framework. They all speak the same wire format to the sidecar — the adapters made them uniform. That's why swapping frameworks is a one-line config change.
+
+Move your agent folder to a different machine, keep the token, make sure the sidecar is reachable over the network from that machine — the agent is still who it is. The identity lives with the sidecar + the token, not with the folder.
 
 ---
 
@@ -120,14 +215,28 @@ Move your agent folder to a different machine, keep the token, point the sidecar
 │   ├── persona.md
 │   ├── memory/
 │   ├── tools/
-│   └── startup.sh               ← reads token, starts KyberBot
+│   ├── kyberbot.config.ts       ← 3-line ARP adapter wiring (one-time)
+│   └── startup.sh               ← reads token from ~/.arp/, starts KyberBot
 ├── mythos/
+│   ├── persona.md
+│   ├── kyberbot.config.ts       ← same 3-line wiring
+│   └── startup.sh
+├── arcana/
 │   └── ...
-└── arcana/
-    └── ...
+├── nexus-hermes/
+│   ├── hermes.config.ts         ← 3-line wiring, Hermes flavor
+│   └── startup.sh
+└── titan-openclaw/
+    ├── openclaw.config.ts       ← 3-line wiring, OpenClaw flavor
+    └── startup.sh
 ```
 
-The **only** filesystem bridge between these two worlds is your `startup.sh`, which reads a token from `~/.arp/tokens/…` and passes it as an environment variable to KyberBot. Everything else is separate.
+The filesystem bridges between ARP's world and your agent's world are just two:
+
+1. **`kyberbot.config.ts` (or equivalent)** — the framework's own config file, where you added `arpAdapter({...})`. ARP didn't write this; you did, once, when you set up the agent.
+2. **`startup.sh`** — your launch script, which reads a token from `~/.arp/tokens/…` and exports it as an env var before starting the framework.
+
+Everything else is separate.
 
 ---
 
