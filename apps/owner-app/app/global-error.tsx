@@ -31,10 +31,10 @@ export default function GlobalError({
               marginBottom: 16,
             }}
           >
-            // STATUS · CRITICAL FAILURE
+            {'// STATUS · CRITICAL FAILURE'}
           </div>
           <h1 style={{ fontSize: 24, lineHeight: 1.2, margin: '0 0 16px' }}>
-            The owner app couldn't load.
+            The owner app couldn&apos;t load.
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 24px' }}>
             Something went wrong before the app could render. Reload the page.
