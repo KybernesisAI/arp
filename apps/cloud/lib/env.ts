@@ -14,6 +14,9 @@ interface EnvShape {
   STRIPE_PRICE_TEAM: string | null;
   DATABASE_URL: string | null;
   APP_ARP_SPEC_HOST: string;
+  WEBAUTHN_RP_ID: string;
+  WEBAUTHN_RP_NAME: string;
+  WEBAUTHN_ORIGINS: string[];
 }
 
 let cached: EnvShape | null = null;
@@ -33,6 +36,21 @@ export function env(): EnvShape {
     STRIPE_PRICE_TEAM: process.env['STRIPE_PRICE_TEAM'] ?? null,
     DATABASE_URL: process.env['DATABASE_URL'] ?? null,
     APP_ARP_SPEC_HOST: process.env['APP_ARP_SPEC_HOST'] ?? 'app.arp.spec',
+    // Phase 9d WebAuthn: rp.id is the apex domain so passkeys registered on
+    // one surface work on every surface (arp.run, cloud.arp.run, app.arp.run).
+    // Override with WEBAUTHN_RP_ID=localhost for local development.
+    WEBAUTHN_RP_ID: process.env['WEBAUTHN_RP_ID'] ?? 'arp.run',
+    WEBAUTHN_RP_NAME: process.env['WEBAUTHN_RP_NAME'] ?? 'ARP',
+    // Allowed origins the authenticator ceremony may come from. Defaults
+    // cover production + dev; override with a comma-separated list in
+    // staging environments.
+    WEBAUTHN_ORIGINS: (
+      process.env['WEBAUTHN_ORIGINS'] ??
+      'https://arp.run,https://cloud.arp.run,https://app.arp.run,http://localhost:3000'
+    )
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
   };
   return cached;
 }
