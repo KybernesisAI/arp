@@ -81,6 +81,9 @@ export function rewriteForSurface(
     if (pathname.startsWith('/api/')) return null;
     if (pathname.startsWith('/project/')) return null;
     if (pathname === '/project') return null;
+    // Legal pages are cross-surface — the shared /legal layout owns the
+    // route. Footers on arp.run link to /legal/terms etc. directly.
+    if (isAppOwnedPath(pathname)) return null;
     url.pathname = `/project${pathname === '/' ? '' : pathname}`;
     return NextResponse.rewrite(url);
   }
@@ -101,7 +104,7 @@ export function rewriteForSurface(
   return null;
 }
 
-function isAppOwnedPath(pathname: string): boolean {
+export function isAppOwnedPath(pathname: string): boolean {
   // Paths that belong to the authenticated app surface and must NOT be
   // rewritten into the marketing tree.
   //
@@ -119,6 +122,10 @@ function isAppOwnedPath(pathname: string): boolean {
     '/settings',
     '/internal',
     '/u',
+    // /legal/* pages are referenced from footers on all three surfaces
+    // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
+    // /legal layout regardless of which host the user is on.
+    '/legal',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }

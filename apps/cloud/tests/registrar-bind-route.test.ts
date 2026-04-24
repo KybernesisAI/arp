@@ -163,20 +163,29 @@ describe('POST /internal/registrar/bind', () => {
   });
 
   it('429s on burst: 61st hit from the same IP inside a minute', async () => {
-    const ip = '198.51.100.42';
-    // Burst cap is 60/min. Fire 60 valid requests, then expect the 61st to 429.
-    for (let i = 0; i < 60; i++) {
-      // Vary the (domain, owner_label) to avoid the unique constraint.
-      const res = await POST(
-        request(
-          { ...VALID_BODY, owner_label: `ian${i}`, domain: `site${i}.agent` },
-          { ip },
-        ),
-      );
-      expect(res.status).toBe(200);
+    // Freeze Date.now so 61 requests always land in the same window regardless
+    // of host speed. On slow CI runners the burst can otherwise cross a minute
+    // boundary, splitting the count across two buckets and neither reaching 61.
+    const frozen = Date.UTC(2026, 5, 1, 12, 30, 15);
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(frozen);
+    try {
+      const ip = '198.51.100.42';
+      // Burst cap is 60/min. Fire 60 valid requests, then expect the 61st to 429.
+      for (let i = 0; i < 60; i++) {
+        // Vary the (domain, owner_label) to avoid the unique constraint.
+        const res = await POST(
+          request(
+            { ...VALID_BODY, owner_label: `ian${i}`, domain: `site${i}.agent` },
+            { ip },
+          ),
+        );
+        expect(res.status).toBe(200);
+      }
+      const tripped = await POST(request(VALID_BODY, { ip }));
+      expect(tripped.status).toBe(429);
+      expect(tripped.headers.get('retry-after')).toBeTruthy();
+    } finally {
+      dateNowSpy.mockRestore();
     }
-    const tripped = await POST(request(VALID_BODY, { ip }));
-    expect(tripped.status).toBe(429);
-    expect(tripped.headers.get('retry-after')).toBeTruthy();
   });
 });

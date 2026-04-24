@@ -255,9 +255,25 @@ describe('GET /onboard rate limiting', () => {
   });
 
   it('renders the rate-limited page once the burst cap is exceeded', async () => {
-    // Burst cap is 10/min. Render 10 pages, then expect the 11th to show the
-    // rate-limited copy (no onboarding_sessions row).
-    for (let i = 0; i < 10; i++) {
+    // Freeze Date.now so the 11 renders always land in the same window.
+    const frozen = Date.UTC(2026, 5, 1, 15, 0, 0);
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(frozen);
+    try {
+      // Burst cap is 10/min. Render 10 pages, then expect the 11th to show
+      // the rate-limited copy (no onboarding_sessions row).
+      for (let i = 0; i < 10; i++) {
+        await OnboardPage({
+          searchParams: Promise.resolve({
+            domain: 'samantha.agent',
+            registrar: 'headless',
+            callback: 'https://headless.example/callback',
+          }),
+        });
+      }
+      if (!currentDb) throw new Error('db gone');
+      const before = await currentDb.db.select().from(onboardingSessions);
+      expect(before).toHaveLength(10);
+
       await OnboardPage({
         searchParams: Promise.resolve({
           domain: 'samantha.agent',
@@ -265,21 +281,12 @@ describe('GET /onboard rate limiting', () => {
           callback: 'https://headless.example/callback',
         }),
       });
+      const after = await currentDb.db.select().from(onboardingSessions);
+      // No new row because the rate-limit check short-circuits before the
+      // session is created.
+      expect(after).toHaveLength(10);
+    } finally {
+      dateNowSpy.mockRestore();
     }
-    if (!currentDb) throw new Error('db gone');
-    const before = await currentDb.db.select().from(onboardingSessions);
-    expect(before).toHaveLength(10);
-
-    await OnboardPage({
-      searchParams: Promise.resolve({
-        domain: 'samantha.agent',
-        registrar: 'headless',
-        callback: 'https://headless.example/callback',
-      }),
-    });
-    const after = await currentDb.db.select().from(onboardingSessions);
-    // No new row because the rate-limit check short-circuits before the
-    // session is created.
-    expect(after).toHaveLength(10);
   });
 });

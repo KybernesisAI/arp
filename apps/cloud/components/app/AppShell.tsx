@@ -37,7 +37,18 @@ export function AppShell({
               <b className="text-ink font-medium">ARP CLOUD</b> &nbsp;·&nbsp; HOSTED RUNTIME
             </div>
             <div className="col-span-12 md:col-span-6 md:text-right">
-              KEYS STAY IN YOUR BROWSER · NOTHING HAPPENS WITHOUT YOUR APPROVAL
+              <a href="/legal/terms" className="text-muted hover:text-ink">TERMS</a>
+              {' · '}
+              <a href="/legal/privacy" className="text-muted hover:text-ink">PRIVACY</a>
+              {' · '}
+              <a href="/legal/dpa" className="text-muted hover:text-ink">DPA</a>
+              {' · '}
+              <a
+                href="https://status.arp.run"
+                className="text-muted hover:text-ink"
+              >
+                STATUS
+              </a>
             </div>
           </div>
         </Container>

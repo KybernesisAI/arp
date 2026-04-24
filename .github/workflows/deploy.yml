@@ -91,7 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for domain in spec.arp.run docs.arp.run; do
+          for domain in spec.arp.run docs.arp.run status.arp.run; do
             status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
               "https://api.vercel.com/v10/projects/arp-spec-site/domains?teamId=${VERCEL_ORG_ID}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \

@@ -184,16 +184,25 @@ describe('GET /u/<uuid>/did.json', () => {
   });
 
   it('429s on burst: 121st hit inside a minute from the same IP', async () => {
-    const ip = '192.0.2.200';
-    const unknownUuid = '11111111-2222-3333-4444-555555555555';
-    // Rate-limit is 120/min per IP. 404s still count — limit fires before
-    // the UUID shape check in the handler.
-    for (let i = 0; i < 120; i++) {
-      const res = await hit(unknownUuid, ip);
-      expect(res.status).toBe(404);
+    // Freeze Date.now so 121 requests always land in the same window
+    // regardless of host speed. On slow CI runners the burst can otherwise
+    // cross a minute boundary and split the count across two buckets.
+    const frozen = Date.UTC(2026, 5, 1, 13, 15, 30);
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(frozen);
+    try {
+      const ip = '192.0.2.200';
+      const unknownUuid = '11111111-2222-3333-4444-555555555555';
+      // Rate-limit is 120/min per IP. 404s still count — limit fires before
+      // the UUID shape check in the handler.
+      for (let i = 0; i < 120; i++) {
+        const res = await hit(unknownUuid, ip);
+        expect(res.status).toBe(404);
+      }
+      const tripped = await hit(unknownUuid, ip);
+      expect(tripped.status).toBe(429);
+      expect(tripped.headers.get('retry-after')).toBeTruthy();
+    } finally {
+      dateNowSpy.mockRestore();
     }
-    const tripped = await hit(unknownUuid, ip);
-    expect(tripped.status).toBe(429);
-    expect(tripped.headers.get('retry-after')).toBeTruthy();
   });
 });
