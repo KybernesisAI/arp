@@ -101,6 +101,16 @@ describe('rewriteForSurface', () => {
     expect(rewriteForSurface(mockReq('/settings/keys'), 'cloud')).toBeNull();
   });
 
+  it('passes /pair and /pair/accept through on cloud surface (slice 10a)', () => {
+    // Phase 10a: URL-fragment pairing pages must resolve on cloud.arp.run
+    // without being rewritten under /cloud/pair/* — the fragment payload
+    // lives in the browser URL and the marketing rewrite would obscure it.
+    expect(rewriteForSurface(mockReq('/pair'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/pair/accept'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/pair'), 'app')).toBeNull();
+    expect(rewriteForSurface(mockReq('/pair/accept'), 'app')).toBeNull();
+  });
+
   it('passes v2.1 routes through on cloud surface (onboard, internal, u)', () => {
     // Phase 9b: registrar-facing + DID-doc routes must resolve at the top
     // level on cloud.arp.run so external registrars can link directly.
