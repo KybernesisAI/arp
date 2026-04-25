@@ -44,12 +44,13 @@ import { base64urlEncode } from '@kybernesis/arp-transport/browser';
  *      under "Advanced".
  */
 
-type AutoStage = 'checking' | 'auto-signing' | 'auto-failed' | 'no-auto';
+type AutoStage = 'checking' | 'auto-signing' | 'auto-failed' | 'no-tenant' | 'no-auto';
 type PasskeyStage = 'idle' | 'pending' | 'success' | 'error';
 
 export default function LoginForm(): React.JSX.Element {
   const [auto, setAuto] = useState<AutoStage>('checking');
   const [autoError, setAutoError] = useState<string | null>(null);
+  const [autoDid, setAutoDid] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
   const [passkeyStage, setPasskeyStage] = useState<PasskeyStage>('idle');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
@@ -66,6 +67,11 @@ export default function LoginForm(): React.JSX.Element {
           return;
         }
       } catch (err) {
+        if (err instanceof NoTenantError) {
+          setAutoDid(err.principalDid);
+          setAuto('no-tenant');
+          return;
+        }
         setAutoError((err as Error).message);
         setAuto('auto-failed');
         return;
@@ -74,6 +80,13 @@ export default function LoginForm(): React.JSX.Element {
     })();
     void isPasskeySupported().then(setPasskeySupported).catch(() => setPasskeySupported(false));
   }, []);
+
+  async function handleClearAndContinue(): Promise<void> {
+    const { clearPrincipalKey } = await import('@/lib/principal-key-browser');
+    await clearPrincipalKey();
+    setAuto('no-auto');
+    setAutoDid(null);
+  }
 
   async function handlePasskey(): Promise<void> {
     setPasskeyError(null);
@@ -94,6 +107,39 @@ export default function LoginForm(): React.JSX.Element {
         <p className="font-mono text-kicker uppercase text-muted">
           {auto === 'checking' ? 'CHECKING THIS DEVICE…' : 'SIGNING IN…'}
         </p>
+      </div>
+    );
+  }
+
+  if (auto === 'no-tenant' && autoDid) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="border border-rule bg-paper p-7">
+          <Badge tone="yellow" className="mb-3">
+            KEY NOT REGISTERED
+          </Badge>
+          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
+            This device has a principal key, but no account.
+          </h2>
+          <p className="text-body text-ink-2 mb-3">
+            We found a principal key in this browser&apos;s storage and verified it
+            cryptographically, but no ARP Cloud tenant is registered to it. This
+            usually means the tenant was cleaned up, or you&apos;re testing across
+            different accounts.
+          </p>
+          <Pre className="mb-5">{autoDid}</Pre>
+          <div className="flex gap-3 flex-wrap">
+            <ButtonLink href="/onboarding" variant="primary" size="md">
+              Create an account with this key
+            </ButtonLink>
+            <Button variant="default" onClick={() => void handleClearAndContinue()}>
+              Use a different account (clear this key)
+            </Button>
+          </div>
+          <p className="mt-4 font-mono text-kicker uppercase text-muted">
+            CLEARING THE KEY DELETES IT FROM THIS BROWSER ONLY · YOUR RECOVERY PHRASE STILL WORKS
+          </p>
+        </div>
       </div>
     );
   }
@@ -199,7 +245,13 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
       await runChallengeVerify(key);
       // runChallengeVerify redirects on success; on failure throws here
     } catch (err) {
-      setError((err as Error).message);
+      if (err instanceof NoTenantError) {
+        setError(
+          `This recovery phrase derives ${err.principalDid}, but no ARP Cloud tenant is registered to it. Visit /onboarding to create an account with this key, or paste a different recovery phrase.`,
+        );
+      } else {
+        setError((err as Error).message);
+      }
       setBusy(false);
     }
   }
@@ -371,6 +423,28 @@ function ExternalSignerSignIn(): React.JSX.Element {
 
 /* ---------------- shared challenge → sign → verify → redirect ---------------- */
 
+/**
+ * Runs the full Phase-8.5 challenge/verify dance and redirects to
+ * /dashboard on success. Throws on:
+ *   - challenge or verify HTTP failure
+ *   - verify success but server returned `tenantId: null` (key is
+ *     cryptographically valid but isn't registered to any tenant)
+ *
+ * The "no tenant" case is what surfaces when a user has a principal
+ * key in localStorage from earlier testing but the corresponding
+ * tenant row got cleaned up. Returning a typed error so the caller
+ * can surface a "this key isn't registered — create an account or
+ * use a different key" UI instead of silently redirecting away.
+ */
+class NoTenantError extends Error {
+  readonly principalDid: string;
+  constructor(principalDid: string) {
+    super(`no tenant registered for ${principalDid}`);
+    this.name = 'NoTenantError';
+    this.principalDid = principalDid;
+  }
+}
+
 async function runChallengeVerify(key: PrincipalKey): Promise<void> {
   const cRes = await fetch('/api/auth/challenge', {
     method: 'POST',
@@ -393,5 +467,14 @@ async function runChallengeVerify(key: PrincipalKey): Promise<void> {
     const body = (await vRes.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `verify_failed_${vRes.status}`);
   }
+  const vBody = (await vRes.json().catch(() => ({}))) as {
+    ok?: boolean;
+    session?: { tenantId?: string | null };
+  };
+  if (!vBody.session?.tenantId) {
+    throw new NoTenantError(key.did);
+  }
   window.location.assign('/dashboard');
 }
+
+export { NoTenantError };
