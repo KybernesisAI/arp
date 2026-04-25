@@ -140,12 +140,14 @@ tenants — increment from your last reading).
 ### 5b · Well-known docs resolve
 
 ```bash
-curl -s -H 'Host: atlas.agent' \
-  https://arp-cloud-gateway-production.up.railway.app/.well-known/did.json | jq '.id'
+curl -s 'https://arp-cloud-gateway-production.up.railway.app/.well-known/did.json?target=atlas.agent' | jq '.id'
 # → "did:web:atlas.agent"
 ```
 
-Repeat for `agent-card.json` and `arp.json`.
+Repeat for `agent-card.json` and `arp.json`. The `?target=` query
+param is required because Railway overwrites the `X-Forwarded-Host`
+header with its own load-balancer hostname; once the gateway gets a
+custom domain (`gateway.arp.run`), it becomes optional.
 
 ### 5c · Send Atlas a real DIDComm message
 
