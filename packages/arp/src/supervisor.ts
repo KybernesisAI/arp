@@ -9,13 +9,20 @@
  * and restarts that agent's bridge in isolation — other agents are
  * unaffected.
  *
+ * Hot-reload: the supervisor watches `~/.arp/host.yaml` (the path
+ * passed in via opts.configPath) using `fs.watchFile` polling. On
+ * every change it diffs the new agent list against currently
+ * supervised entries — new entries get a SupervisedAgent + startOne;
+ * removed entries get stopRequested + bridge.stop. No daemon restart
+ * needed after `arpc host add` / `arpc host remove`.
+ *
  * Used by both:
  *   - `arpc host` (foreground)        — logs go to the controlling tty
  *   - `arpc host start` (daemon)      — same code, but stdio is the
  *     daemon's redirected log file
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, watchFile, unwatchFile } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import {
   startBridge,
@@ -25,7 +32,11 @@ import {
   type BridgeHandle,
 } from '@kybernesis/arp-cloud-bridge';
 import { readManifest, type ArpManifest, type Framework } from './manifest.js';
-import type { HostAgent } from './host-config.js';
+import {
+  defaultHostConfigPath,
+  readHostConfig,
+  type HostAgent,
+} from './host-config.js';
 
 interface SupervisedAgent {
   agent: HostAgent;
@@ -44,6 +55,17 @@ function backoffMs(attempt: number): number {
 
 export interface SupervisorHandle {
   stop(): Promise<void>;
+}
+
+export interface SupervisorOptions {
+  /** Initial agent set. */
+  agents: HostAgent[];
+  /**
+   * Path to host.yaml; when set the supervisor watches it for changes
+   * and hot-reloads agent membership. Pass `null` to disable watching
+   * (useful for tests).
+   */
+  configPath?: string | null;
 }
 
 function loadAgentConfig(root: string): {
@@ -170,12 +192,38 @@ function scheduleRestart(s: SupervisedAgent): void {
   }, delay).unref?.();
 }
 
-export async function startSupervisor(agents: HostAgent[]): Promise<SupervisorHandle> {
-  if (agents.length === 0) {
-    // eslint-disable-next-line no-console
-    console.log('arp host: no agents configured. Add one with `arpc host add <folder>`.');
+async function stopOne(s: SupervisedAgent): Promise<void> {
+  s.stopRequested = true;
+  if (s.bridge) {
+    try {
+      await s.bridge.stop();
+      logLine(s.prefix, 'stopped');
+    } catch (err) {
+      logLine(s.prefix, `stop error: ${(err as Error).message}`);
+    }
+    s.bridge = null;
   }
-  const supervised: SupervisedAgent[] = agents.map((a) => ({
+}
+
+/**
+ * Backwards-compatible thin wrapper kept for callers that pre-date the
+ * options-object API.
+ */
+export async function startSupervisor(
+  agentsOrOpts: HostAgent[] | SupervisorOptions,
+): Promise<SupervisorHandle> {
+  const opts: SupervisorOptions = Array.isArray(agentsOrOpts)
+    ? { agents: agentsOrOpts, configPath: null }
+    : agentsOrOpts;
+  return start(opts);
+}
+
+async function start(opts: SupervisorOptions): Promise<SupervisorHandle> {
+  if (opts.agents.length === 0) {
+    // eslint-disable-next-line no-console
+    console.log('arpc host: no agents configured. Add one with `arpc host add <folder>`.');
+  }
+  const supervised: SupervisedAgent[] = opts.agents.map((a) => ({
     agent: a,
     prefix: basename(a.root),
     bridge: null,
@@ -185,21 +233,77 @@ export async function startSupervisor(agents: HostAgent[]): Promise<SupervisorHa
 
   await Promise.all(supervised.map((s) => startOne(s)));
 
+  let stopped = false;
+
+  // ---- hot-reload watcher --------------------------------------------------
+  const watchPath = opts.configPath === undefined ? defaultHostConfigPath() : opts.configPath;
+  if (watchPath) {
+    // watchFile is polling-based but works reliably across macOS file types
+    // (atomic-rename writes from `arpc host add` would skip native fs.watch
+    // on some filesystems). 1s interval is plenty for a low-rate config file.
+    watchFile(watchPath, { interval: 1_000, persistent: false }, () => {
+      if (stopped) return;
+      void reload(watchPath, supervised);
+    });
+  }
+
   return {
     async stop() {
-      for (const s of supervised) s.stopRequested = true;
-      await Promise.all(
-        supervised.map(async (s) => {
-          if (s.bridge) {
-            try {
-              await s.bridge.stop();
-              logLine(s.prefix, 'stopped');
-            } catch (err) {
-              logLine(s.prefix, `stop error: ${(err as Error).message}`);
-            }
-          }
-        }),
-      );
+      stopped = true;
+      if (watchPath) {
+        try {
+          unwatchFile(watchPath);
+        } catch {
+          /* ignore */
+        }
+      }
+      await Promise.all(supervised.map((s) => stopOne(s)));
     },
   };
+}
+
+async function reload(configPath: string, supervised: SupervisedAgent[]): Promise<void> {
+  let next: HostAgent[];
+  try {
+    next = readHostConfig(configPath).agents;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.log(`[supervisor] reload failed: ${(err as Error).message}`);
+    return;
+  }
+  const currentRoots = new Set(supervised.filter((s) => !s.stopRequested).map((s) => s.agent.root));
+  const nextRoots = new Set(next.map((a) => a.root));
+
+  // Stop agents that were removed.
+  for (const s of supervised) {
+    if (s.stopRequested) continue;
+    if (!nextRoots.has(s.agent.root)) {
+      logLine(s.prefix, 'removed from host.yaml');
+      void stopOne(s);
+    }
+  }
+
+  // Add agents that were newly listed.
+  for (const a of next) {
+    if (currentRoots.has(a.root)) continue;
+    const existingStopped = supervised.find((s) => s.agent.root === a.root && s.stopRequested);
+    if (existingStopped) {
+      // Re-enable a previously-removed entry.
+      existingStopped.stopRequested = false;
+      existingStopped.attempts = 0;
+      logLine(existingStopped.prefix, 're-added from host.yaml');
+      void startOne(existingStopped);
+    } else {
+      const s: SupervisedAgent = {
+        agent: a,
+        prefix: basename(a.root),
+        bridge: null,
+        attempts: 0,
+        stopRequested: false,
+      };
+      supervised.push(s);
+      logLine(s.prefix, 'picked up from host.yaml');
+      void startOne(s);
+    }
+  }
 }

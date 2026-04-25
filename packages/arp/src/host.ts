@@ -24,7 +24,7 @@
  */
 
 import { existsSync, openSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import {
@@ -39,6 +39,16 @@ import {
   type HostAgent,
 } from './host-config.js';
 import { startSupervisor } from './supervisor.js';
+
+function isLaunchdLoaded(): boolean {
+  if (process.platform !== 'darwin') return false;
+  try {
+    execFileSync('launchctl', ['list', 'com.kybernesis.arpc-host'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function readPid(): number | null {
   const p = pidFilePath();
@@ -250,11 +260,12 @@ export function add(folderArg: string): void {
   writeHostConfig(cfg);
   // eslint-disable-next-line no-console
   console.log(`Added ${folder} to ${defaultHostConfigPath()}`);
-  if (readPid()) {
+  if (readPid() || isLaunchdLoaded()) {
     // eslint-disable-next-line no-console
-    console.log(
-      `Restart the daemon to pick it up: arpc host stop && arpc host start`,
-    );
+    console.log(`Supervisor is running — will auto-pickup within a second.`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`Start the supervisor:  arpc host start  (or arpc service install)`);
   }
 }
 
@@ -276,11 +287,9 @@ export function remove(folderArg: string): void {
   writeHostConfig(cfg);
   // eslint-disable-next-line no-console
   console.log(`Removed ${folder}`);
-  if (readPid()) {
+  if (readPid() || isLaunchdLoaded()) {
     // eslint-disable-next-line no-console
-    console.log(
-      `Restart the daemon to apply: arpc host stop && arpc host start`,
-    );
+    console.log(`Supervisor is running — will drop it within a second.`);
   }
 }
 
