@@ -73,10 +73,39 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   } | null> {
     const agentDid = agentDidFromHost(host);
     if (!agentDid) return null;
-    const rows = await opts.db.select().from(agents).where(eq(agents.did, agentDid)).limit(1);
-    const row = rows[0];
-    if (!row) return null;
-    return { tenantId: row.tenantId, agentDid, agentRow: row };
+    try {
+      const rows = await opts.db.select().from(agents).where(eq(agents.did, agentDid)).limit(1);
+      const row = rows[0];
+      if (!row) return null;
+      return { tenantId: row.tenantId, agentDid, agentRow: row };
+    } catch (err) {
+      opts.logger.error({ err: (err as Error).message, agentDid }, 'agent_lookup_failed');
+      return null;
+    }
+  }
+
+  /**
+   * Pick the effective agent hostname from a request. Tries (in order):
+   *
+   *   1. `?target=<host>` query string — works through any reverse proxy
+   *      (Railway, Fly, Cloudflare) that rewrites Host headers.
+   *   2. `X-Forwarded-Host` header — set by sane proxies that preserve
+   *      the original incoming Host.
+   *   3. `Host` header — works on direct connections + custom domains.
+   *
+   * Required because Railway overwrites X-Forwarded-Host with its own
+   * load-balancer hostname, breaking Host-based multi-tenant routing.
+   * Until the gateway sits behind a custom domain (gateway.arp.run),
+   * callers must pass ?target=atlas.agent or the gateway returns
+   * unknown_agent.
+   */
+  function effectiveHost(c: { req: { header(n: string): string | undefined; query(n: string): string | undefined } }): string {
+    return (
+      c.req.query('target') ??
+      c.req.header('x-forwarded-host') ??
+      c.req.header('host') ??
+      ''
+    );
   }
 
   app.get('/health', async (c) => {
@@ -87,6 +116,35 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     });
   });
 
+  // Debug endpoint — echoes the headers the gateway received and the agent
+  // DID it would resolve them to. Used to diagnose Host-header routing
+  // issues behind reverse proxies (Railway, Fly, Cloudflare, etc).
+  app.get('/__debug/host', async (c) => {
+    const host = c.req.header('host') ?? null;
+    const xfh = c.req.header('x-forwarded-host') ?? null;
+    const xfp = c.req.header('x-forwarded-proto') ?? null;
+    const xfor = c.req.header('x-forwarded-for') ?? null;
+    const target = c.req.query('target') ?? null;
+    const effective = target ?? xfh ?? host ?? '';
+    const agentDid = agentDidFromHost(effective);
+    let agentRowFound = false;
+    if (agentDid) {
+      const rows = await opts.db
+        .select({ did: agents.did })
+        .from(agents)
+        .where(eq(agents.did, agentDid))
+        .limit(1);
+      agentRowFound = rows.length > 0;
+    }
+    return c.json({
+      headers: { host, 'x-forwarded-host': xfh, 'x-forwarded-proto': xfp, 'x-forwarded-for': xfor },
+      query_target: target,
+      effective_host: effective,
+      parsed_agent_did: agentDid,
+      agent_row_found: agentRowFound,
+    });
+  });
+
   const wellKnownHeaders = {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'public, max-age=60',
@@ -94,28 +152,28 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   } as const;
 
   app.get('/.well-known/did.json', async (c) => {
-    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
+    const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownDid), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/agent-card.json', async (c) => {
-    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
+    const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownAgentCard), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/arp.json', async (c) => {
-    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
+    const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownArp), 200, wellKnownHeaders);
   });
 
   app.get('/.well-known/revocations.json', async (c) => {
-    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
+    const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     const tenantDb = withTenant(opts.db, toTenantId(ctx.tenantId));
@@ -133,7 +191,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   });
 
   app.post('/didcomm', async (c) => {
-    const host = c.req.header('x-forwarded-host') ?? c.req.header('host') ?? '';
+    const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     const envelope = await c.req.text();

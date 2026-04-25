@@ -11,6 +11,18 @@ export interface FetchJsonResult {
   networkError?: string;
 }
 
+/**
+ * Append `?target=<host>` to a URL when ProbeContext.targetQuery is set.
+ * Used with `--via cloud` so requests through reverse-proxied gateways
+ * (Railway etc) still land on the right tenant.
+ */
+function applyTargetQuery(url: string, target: string | undefined): string {
+  if (!target) return url;
+  const u = new URL(url);
+  if (!u.searchParams.has('target')) u.searchParams.set('target', target);
+  return u.toString();
+}
+
 function networkErrorResult(err: unknown): FetchJsonResult {
   const message =
     err instanceof Error
@@ -35,9 +47,10 @@ export async function fetchJson(url: string, ctx: ProbeContext): Promise<FetchJs
   const init: RequestInit = ctx.extraHeaders
     ? { headers: ctx.extraHeaders }
     : {};
+  const finalUrl = applyTargetQuery(url, ctx.targetQuery);
   let res: Response;
   try {
-    res = await withTimeout(fetchImpl(url, init), timeoutMs, `GET ${url}`);
+    res = await withTimeout(fetchImpl(finalUrl, init), timeoutMs, `GET ${finalUrl}`);
   } catch (err) {
     return networkErrorResult(err);
   }
@@ -72,10 +85,11 @@ export async function postJson(
   const fetchImpl = ctx.fetchImpl ?? globalThis.fetch;
   if (!fetchImpl) throw new Error('no fetch implementation available');
   const timeoutMs = ctx.timeoutMs ?? 10_000;
+  const finalUrl = applyTargetQuery(url, ctx.targetQuery);
   let res: Response;
   try {
     res = await withTimeout(
-      fetchImpl(url, {
+      fetchImpl(finalUrl, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -85,7 +99,7 @@ export async function postJson(
         body: JSON.stringify(payload),
       }),
       timeoutMs,
-      `POST ${url}`,
+      `POST ${finalUrl}`,
     );
   } catch (err) {
     return networkErrorResult(err);
