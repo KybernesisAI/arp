@@ -6,21 +6,20 @@ import {
 import type { Resolver } from '@kybernesis/arp-resolver';
 import type { DidDocument } from '@kybernesis/arp-spec';
 
-function mockDohFetch(
+function mockDoh(
   mapping: Record<string, Array<{ name: string; type: number; data: string }>>,
-): typeof fetch {
-  return (async (input) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-    const u = new URL(url);
-    const name = u.searchParams.get('name') ?? '';
-    const typeStr = u.searchParams.get('type') ?? 'A';
-    const answers = mapping[`${name}|${typeStr}`] ?? [];
-    return new Response(JSON.stringify({ Status: 0, Answer: answers }), {
-      status: 200,
-      headers: { 'content-type': 'application/dns-json' },
-    });
-  }) as typeof fetch;
+): { query(name: string, type: 'A' | 'AAAA' | 'TXT'): Promise<Array<{ name: string; type: number; TTL: number; data: string }>> } {
+  return {
+    async query(name, type) {
+      const answers = mapping[`${name}|${type}`] ?? [];
+      return answers.map((a) => ({ name: a.name, type: a.type, TTL: 300, data: a.data }));
+    },
+  };
 }
+
+// Legacy alias used by older test bodies — accepts the same mapping shape
+// and returns a stub DoH client.
+const mockDohFetch = mockDoh;
 
 function okResolver(value: DidDocument): Resolver {
   return {
@@ -100,7 +99,7 @@ describe('principalIdentityMethodProbe', () => {
       baseUrl: `https://${apex}`,
       ownerLabel: 'ian',
       dohEndpoint: 'https://hnsdoh.example/dns-query',
-      fetchImpl: mockDohFetch({
+      dohClient: mockDohFetch({
         [`ian.${apex}|A`]: [{ name: `ian.${apex}`, type: 1, data: '1.2.3.4' }],
         [`ian.${apex}|AAAA`]: [],
         [`_principal.ian.${apex}|TXT`]: [
@@ -132,7 +131,7 @@ describe('principalIdentityMethodProbe', () => {
       baseUrl: `https://${apex}`,
       ownerLabel: 'ian',
       dohEndpoint: 'https://hnsdoh.example/dns-query',
-      fetchImpl: mockDohFetch({
+      dohClient: mockDohFetch({
         [`_principal.ian.${apex}|TXT`]: [
           {
             name: `_principal.ian.${apex}`,
@@ -156,7 +155,7 @@ describe('principalIdentityMethodProbe', () => {
       baseUrl: `https://${apex}`,
       ownerLabel: 'ian',
       dohEndpoint: 'https://hnsdoh.example/dns-query',
-      fetchImpl: mockDohFetch({}),
+      dohClient: mockDohFetch({}),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.code).toBe('principal_identity_failed');
@@ -172,7 +171,7 @@ describe('principalIdentityMethodProbe', () => {
       baseUrl: `https://${apex}`,
       ownerLabel: 'ian',
       dohEndpoint: 'https://hnsdoh.example/dns-query',
-      fetchImpl: mockDohFetch({
+      dohClient: mockDohFetch({
         [`_principal.ian.${apex}|TXT`]: [
           {
             name: `_principal.ian.${apex}`,
@@ -195,7 +194,7 @@ describe('principalIdentityMethodProbe', () => {
       baseUrl: `https://${apex}`,
       ownerLabel: 'ian',
       dohEndpoint: 'https://hnsdoh.example/dns-query',
-      fetchImpl: mockDohFetch({
+      dohClient: mockDohFetch({
         [`_principal.ian.${apex}|TXT`]: [
           {
             name: `_principal.ian.${apex}`,

@@ -51,6 +51,12 @@ export interface ProbeContext {
   /** DNS DoH endpoint for the `dns` probe. Defaults to hnsdoh.com. */
   dohEndpoint?: string;
   /**
+   * Pre-built DoH client. When provided, the `dns` probe uses it directly
+   * instead of constructing one from `fetchImpl + dohEndpoint`. Tests inject
+   * a stub `{ query() }` to bypass the binary wire-format encoding.
+   */
+  dohClient?: { query(name: string, type: 'A' | 'AAAA' | 'TXT'): Promise<Array<{ name: string; type: number; TTL: number; data: string }>> };
+  /**
    * Extra HTTP headers sent on every HTTP probe. When auditing a
    * cloud-hosted tenant, the `--via cloud --cloud-host <host>` flags
    * set this to `{ 'X-Forwarded-Host': <host> }` so the cloud gateway

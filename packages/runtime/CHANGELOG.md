@@ -1,5 +1,13 @@
 # @kybernesis/arp-runtime
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-resolver@0.3.1
+  - @kybernesis/arp-transport@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

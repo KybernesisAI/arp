@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-pairing",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ARP pairing protocol — create, deliver, countersign, and verify Connection Tokens.",
   "license": "MIT",
   "repository": {

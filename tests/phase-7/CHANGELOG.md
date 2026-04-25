@@ -1,5 +1,16 @@
 # @kybernesis/arp-phase-7-acceptance
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-testkit@0.2.1
+  - @kybernesis/arp-cloud-gateway@0.1.2
+  - @kybernesis/arp-transport@0.3.1
+  - @kybernesis/arp-cloud-client@0.1.0
+  - @kybernesis/arp-cloud-runtime@0.1.2
+
 ## 0.0.1
 
 ### Patch Changes

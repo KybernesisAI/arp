@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-adapter-hermes-agent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ARP adapter for Hermes-Agent — decorator / middleware-based ARP integration using the framework's public extension surface.",
   "license": "MIT",
   "repository": {

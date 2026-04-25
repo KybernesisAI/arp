@@ -1,5 +1,14 @@
 # @kybernesis/arp-sidecar
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-resolver@0.3.1
+  - @kybernesis/arp-runtime@0.3.1
+  - @kybernesis/arp-transport@0.3.1
+
 ## 0.1.1
 
 ### Patch Changes
