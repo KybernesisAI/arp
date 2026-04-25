@@ -48,7 +48,7 @@ export function ProvisionAgentButton({
   const [response, setResponse] = useState<ProvisionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(): Promise<void> {
+  async function handleSubmit(force = false): Promise<void> {
     setError(null);
     setStage('submitting');
     try {
@@ -59,6 +59,7 @@ export function ProvisionAgentButton({
           domain,
           agentName: agentName.trim(),
           agentDescription: agentDescription.trim(),
+          ...(force ? { force: true } : {}),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -137,7 +138,7 @@ export function ProvisionAgentButton({
           <Button
             variant="primary"
             arrow
-            onClick={() => void handleSubmit()}
+            onClick={() => void handleSubmit(false)}
             disabled={stage === 'submitting' || !agentName.trim()}
           >
             {stage === 'submitting' ? 'Provisioning…' : 'Provision'}
@@ -213,6 +214,43 @@ await bot.start();
         <div className="mt-4">
           <Button variant="default" size="sm" onClick={() => window.location.reload()}>
             Back to dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === 'already_provisioned') {
+    return (
+      <div className="border border-rule bg-paper p-4 mt-2">
+        <p className="font-mono text-kicker uppercase text-muted mb-3">
+          ALREADY PROVISIONED · {domain.toUpperCase()}
+        </p>
+        <p className="text-body-sm text-ink-2 mb-3">{error}</p>
+        <p className="text-body-sm text-ink-2 mb-3">
+          Lost the handoff JSON? Re-provisioning issues a fresh keypair under
+          the same DID. The previous private key is invalidated and any
+          local agent still using it can no longer authenticate to the
+          cloud-gateway.
+        </p>
+        <div className="flex gap-3">
+          <Button
+            variant="primary"
+            arrow
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Re-provision ${domain}?\n\nThis deletes the existing agent record and generates a new private key. Any running agent that uses the old handoff will stop working.`,
+                )
+              ) {
+                void handleSubmit(true);
+              }
+            }}
+          >
+            Re-provision (replaces existing key)
+          </Button>
+          <Button variant="default" size="sm" onClick={() => setStage('idle')}>
+            Cancel
           </Button>
         </div>
       </div>

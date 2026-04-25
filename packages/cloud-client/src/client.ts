@@ -180,18 +180,34 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
 
   async function handleInbound(sock: WebSocketInstance, ev: InboundEvent): Promise<void> {
     try {
-      const res = await fetchImpl(`${config.agentApiUrl}/didcomm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/didcomm-signed+json',
-          'X-Arp-Cloud-Msg-Id': ev.msgId,
-          ...(ev.peerDid ? { 'X-Arp-Peer-Did': ev.peerDid } : {}),
-          ...(ev.connectionId ? { 'X-Arp-Connection-Id': ev.connectionId } : {}),
-        },
-        body: ev.envelope,
-      });
-      if (!res.ok) {
-        throw new Error(`local agent responded ${res.status}`);
+      if (config.onIncoming) {
+        await config.onIncoming({
+          envelope: ev.envelope,
+          msgId: ev.msgId,
+          msgType: ev.msgType,
+          peerDid: ev.peerDid,
+          connectionId: ev.connectionId,
+          decision: ev.decision,
+          obligations: ev.obligations,
+          policiesFired: ev.policiesFired,
+        });
+      } else {
+        if (!config.agentApiUrl) {
+          throw new Error('cloud-client: neither onIncoming nor agentApiUrl is set');
+        }
+        const res = await fetchImpl(`${config.agentApiUrl}/didcomm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/didcomm-signed+json',
+            'X-Arp-Cloud-Msg-Id': ev.msgId,
+            ...(ev.peerDid ? { 'X-Arp-Peer-Did': ev.peerDid } : {}),
+            ...(ev.connectionId ? { 'X-Arp-Connection-Id': ev.connectionId } : {}),
+          },
+          body: ev.envelope,
+        });
+        if (!res.ok) {
+          throw new Error(`local agent responded ${res.status}`);
+        }
       }
       // Successful local delivery → ack the cloud so it can mark the
       // message delivered.

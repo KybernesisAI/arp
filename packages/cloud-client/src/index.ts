@@ -23,6 +23,7 @@ export type {
   CloudClientConfig,
   CloudClientHandle,
   CloudClientState,
+  InboundMessage,
   WebSocketLike,
   WebSocketInstance,
 } from './types.js';

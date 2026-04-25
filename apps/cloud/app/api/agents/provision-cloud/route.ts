@@ -52,6 +52,13 @@ const Body = z.object({
     }),
   agentName: z.string().min(1).max(80),
   agentDescription: z.string().max(500).optional(),
+  /**
+   * When true, an existing agent row for this DID is deleted before a
+   * fresh keypair is generated. Use this when the user lost the original
+   * handoff JSON — re-provisioning mints a new keypair and invalidates
+   * the old one. The peer DID stays the same.
+   */
+  force: z.boolean().optional(),
 });
 
 const GATEWAY_WS_URL =
@@ -74,7 +81,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 400 },
     );
   }
-  const { domain, agentName, agentDescription } = parsed.data;
+  const { domain, agentName, agentDescription, force } = parsed.data;
   const lowerDomain = domain.toLowerCase();
 
   const db = await getDb();
@@ -99,8 +106,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  // 2. Already provisioned? Bail with the existing DID so the user
-  //    knows what's there.
+  // 2. Already provisioned? With force=true, delete the existing row +
+  //    issue a fresh keypair (recovery path when the user lost the
+  //    original handoff JSON). Without force, bail with 409 so the user
+  //    knows the row exists.
   const agentDid = `did:web:${lowerDomain}`;
   const existing = await tenantDb.raw
     .select({ did: agents.did })
@@ -108,10 +117,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     .where(eq(agents.did, agentDid))
     .limit(1);
   if (existing[0]) {
-    return NextResponse.json(
-      { error: 'already_provisioned', agent_did: agentDid },
-      { status: 409 },
-    );
+    if (!force) {
+      return NextResponse.json(
+        { error: 'already_provisioned', agent_did: agentDid },
+        { status: 409 },
+      );
+    }
+    await tenantDb.raw.delete(agents).where(eq(agents.did, agentDid));
   }
 
   // 3. Generate the agent keypair.
