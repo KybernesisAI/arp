@@ -674,6 +674,25 @@ importers:
         specifier: ^22.9.0
         version: 22.19.17
 
+  packages/arp:
+    dependencies:
+      '@kybernesis/arp-cloud-bridge':
+        specifier: ^0.1.1
+        version: 0.1.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.5.4)(yaml@2.8.3)
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
+
   packages/arp-adapter-skill: {}
 
   packages/audit:
@@ -2059,6 +2078,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kybernesis/arp-cloud-bridge@0.1.1':
+    resolution: {integrity: sha512-rpIh7mVQnvrH3x7s0Wm2JZU8K+B2ehykdX6DVGPjBh5HjmaZyFetZPHZV/Nmd3Suwzbuq6ewjK6iuiTo+qiWjw==}
+    hasBin: true
 
   '@kybernesis/arp-cloud-client@0.2.0':
     resolution: {integrity: sha512-KmCOMAeOOdkGyIcUKEWRR+0aG6OEBdwhvNmUao99DJyChHbfZtn5ZLbrY4JJAd8v7fHIakWLLEYXm+wRBOpsTA==}
@@ -5906,6 +5929,15 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kybernesis/arp-cloud-bridge@0.1.1':
+    dependencies:
+      '@kybernesis/arp-cloud-client': 0.2.0
+      '@kybernesis/arp-transport': 0.3.2
+      js-yaml: 4.1.1
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@kybernesis/arp-cloud-client@0.2.0':
     dependencies:
