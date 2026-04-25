@@ -277,9 +277,10 @@ function DomainRow({ domain }: { domain: DashboardDomain }): React.JSX.Element {
         <div className="col-span-3 md:col-span-1 md:text-right font-mono text-kicker uppercase text-muted">
           {domain.createdAgo}
         </div>
-        <div className="col-span-12 md:col-span-2 md:text-right">
-          <ProvisionAgentButton domain={domain.domain} />
-        </div>
+        {/* ProvisionAgentButton is a Fragment that contributes the
+            small md:col-span-2 trigger cell + (when expanded) a
+            full-width col-span-12 panel cell below. */}
+        <ProvisionAgentButton domain={domain.domain} />
       </div>
     </li>
   );

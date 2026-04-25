@@ -5,15 +5,20 @@ import { useState } from 'react';
 import { Button, ButtonLink, FieldError, Label, Pre, Textarea } from '@/components/ui';
 
 /**
- * "Provision agent" button on a .agent domain row. Opens a small
- * inline form for agent name + description, POSTs to
- * /api/agents/provision-cloud, then shows the returned handoff bundle
- * + private key + WS URL ONCE so the user can copy them into the
- * arp-cloud-client config on their local machine.
+ * "Provision agent" inline UX on a .agent domain row.
  *
- * No modal — keeps the flow inline + scrollable. The private key is
- * shown in a textarea + a "Copy" / "Download" pair. We never re-fetch
- * the private key after the page reloads (cloud doesn't persist it).
+ * Renders as a Fragment of two grid cells so the expanded form/success
+ * states can span the full row width below the trigger button — without
+ * being squashed into the small col-span-2 button cell. The parent grid
+ * is `grid-cols-12 gap-4 items-baseline` (see DomainRow); we contribute:
+ *
+ *   1. A trigger cell (col-span-12 md:col-span-2 md:text-right) holding
+ *      either the inline button (idle) or a short status label.
+ *   2. When stage !== 'idle', a full-width panel cell (col-span-12) below
+ *      the row carrying the actual form / success / error content.
+ *
+ * No portals, no absolute positioning — pure grid placement, so the
+ * panel pushes the next row down naturally instead of overlaying it.
  */
 type Stage = 'idle' | 'form' | 'submitting' | 'success' | 'error' | 'already_provisioned';
 
@@ -104,165 +109,183 @@ export function ProvisionAgentButton({
     URL.revokeObjectURL(url);
   }
 
-  if (stage === 'idle') {
-    return (
-      <Button variant="default" size="sm" onClick={() => setStage('form')}>
-        Provision agent
-      </Button>
-    );
-  }
+  // ---- Trigger cell content (always rendered) ----------------------------
+  const trigger = ((): React.JSX.Element => {
+    if (stage === 'idle') {
+      return (
+        <Button variant="default" size="sm" onClick={() => setStage('form')}>
+          Provision agent
+        </Button>
+      );
+    }
+    if (stage === 'success') {
+      return <span className="font-mono text-kicker uppercase text-ink">PROVISIONED</span>;
+    }
+    if (stage === 'error') {
+      return <span className="font-mono text-kicker uppercase text-ink">ERROR</span>;
+    }
+    if (stage === 'already_provisioned') {
+      return <span className="font-mono text-kicker uppercase text-muted">EXISTS</span>;
+    }
+    return <span className="font-mono text-kicker uppercase text-muted">{stage === 'submitting' ? 'WORKING…' : 'EDIT BELOW'}</span>;
+  })();
 
-  if (stage === 'form' || stage === 'submitting') {
-    return (
-      <div className="border border-rule bg-paper p-4 mt-2">
-        <p className="font-mono text-kicker uppercase text-muted mb-3">
-          PROVISIONING AGENT FOR · {domain.toUpperCase()}
-        </p>
-        <Label>Agent name</Label>
-        <input
-          value={agentName}
-          onChange={(e) => setAgentName(e.target.value)}
-          placeholder="Atlas"
-          className="w-full border border-rule bg-paper px-3 py-2 text-sm"
-          disabled={stage === 'submitting'}
-        />
-        <Label className="mt-3 block">Description (optional)</Label>
-        <Textarea
-          value={agentDescription}
-          onChange={(e) => setAgentDescription(e.target.value)}
-          placeholder="Personal agent on KyberBot."
-          rows={2}
-          disabled={stage === 'submitting'}
-        />
-        <div className="mt-4 flex gap-3">
-          <Button
-            variant="primary"
-            arrow
-            onClick={() => void handleSubmit(false)}
-            disabled={stage === 'submitting' || !agentName.trim()}
-          >
-            {stage === 'submitting' ? 'Provisioning…' : 'Provision'}
-          </Button>
-          <ButtonLink
-            href="#"
-            variant="default"
-            size="md"
-            onClick={(e) => {
-              e.preventDefault();
-              setStage('idle');
-            }}
-          >
-            Cancel
-          </ButtonLink>
+  // ---- Expanded panel ----------------------------------------------------
+  const panel = ((): React.JSX.Element | null => {
+    if (stage === 'form' || stage === 'submitting') {
+      return (
+        <div className="border border-rule bg-paper p-4">
+          <p className="font-mono text-kicker uppercase text-muted mb-3">
+            PROVISIONING AGENT FOR · {domain.toUpperCase()}
+          </p>
+          <Label>Agent name</Label>
+          <input
+            value={agentName}
+            onChange={(e) => setAgentName(e.target.value)}
+            placeholder="Atlas"
+            className="w-full border border-rule bg-paper px-3 py-2 text-sm"
+            disabled={stage === 'submitting'}
+          />
+          <Label className="mt-3 block">Description (optional)</Label>
+          <Textarea
+            value={agentDescription}
+            onChange={(e) => setAgentDescription(e.target.value)}
+            placeholder="Personal agent on KyberBot."
+            rows={2}
+            disabled={stage === 'submitting'}
+          />
+          <div className="mt-4 flex gap-3">
+            <Button
+              variant="primary"
+              arrow
+              onClick={() => void handleSubmit(false)}
+              disabled={stage === 'submitting' || !agentName.trim()}
+            >
+              {stage === 'submitting' ? 'Provisioning…' : 'Provision'}
+            </Button>
+            <ButtonLink
+              href="#"
+              variant="default"
+              size="md"
+              onClick={(e) => {
+                e.preventDefault();
+                setStage('idle');
+              }}
+            >
+              Cancel
+            </ButtonLink>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (stage === 'success' && response) {
-    return (
-      <div className="border border-rule bg-paper p-4 mt-2">
-        <p className="font-mono text-kicker uppercase text-muted mb-3">
-          PROVISIONED · COPY OR DOWNLOAD ONCE — PRIVATE KEY IS NOT RECOVERABLE
-        </p>
-        <p className="text-body-sm text-ink-2 mb-3">
-          <strong>Agent DID:</strong> <code className="font-mono">{response.agent_did}</code>
-          <br />
-          <strong>Gateway WS:</strong> <code className="font-mono">{response.gateway_ws_url}</code>
-        </p>
-        <p className="text-body-sm text-ink-2 mb-2">
-          Save this JSON — it contains the agent&apos;s private key.{' '}
-          <strong>Cloud does not store it</strong>, so download or copy now.
-        </p>
-        <div className="flex gap-3 mb-3">
-          <Button variant="primary" onClick={downloadHandoff}>
-            Download {domain}.arp-handoff.json
-          </Button>
-          <Button
-            variant="default"
-            onClick={() =>
-              void navigator.clipboard.writeText(JSON.stringify(response, null, 2))
-            }
-          >
-            Copy to clipboard
-          </Button>
-        </div>
-        <details className="text-body-sm">
-          <summary className="cursor-pointer font-mono text-kicker uppercase text-muted">
-            ▸ NEXT STEP — WIRE LOCAL KYBERBOT
-          </summary>
-          <Pre className="mt-3 text-xs leading-snug">
-{`# 1. install the cloud-client + KyberBot adapter
-pnpm add @kybernesis/arp-cloud-client @kybernesis/arp-adapter-kyberbot
-
-# 2. save the downloaded JSON next to your KyberBot config
-mv ~/Downloads/${domain}.arp-handoff.json ./atlas-handoff.json
-
-# 3. wire your KyberBot instance:
-import { KyberBot } from 'kyberbot';
-import { withArp } from '@kybernesis/arp-adapter-kyberbot';
-
-const bot = withArp(new KyberBot({ /* your config */ }), {
-  handoff: './atlas-handoff.json',
-  dataDir: './.arp-data',
-});
-await bot.start();
-# bot now connects to ${response.gateway_ws_url} and is reachable
-# at ${response.agent_did} for inbound DIDComm.`}
-          </Pre>
-        </details>
-        <div className="mt-4">
-          <Button variant="default" size="sm" onClick={() => window.location.reload()}>
-            Back to dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (stage === 'already_provisioned') {
-    return (
-      <div className="border border-rule bg-paper p-4 mt-2">
-        <p className="font-mono text-kicker uppercase text-muted mb-3">
-          ALREADY PROVISIONED · {domain.toUpperCase()}
-        </p>
-        <p className="text-body-sm text-ink-2 mb-3">{error}</p>
-        <p className="text-body-sm text-ink-2 mb-3">
-          Lost the handoff JSON? Re-provisioning issues a fresh keypair under
-          the same DID. The previous private key is invalidated and any
-          local agent still using it can no longer authenticate to the
-          cloud-gateway.
-        </p>
-        <div className="flex gap-3">
-          <Button
-            variant="primary"
-            arrow
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Re-provision ${domain}?\n\nThis deletes the existing agent record and generates a new private key. Any running agent that uses the old handoff will stop working.`,
-                )
-              ) {
-                void handleSubmit(true);
+      );
+    }
+    if (stage === 'success' && response) {
+      return (
+        <div className="border border-rule bg-paper p-4">
+          <p className="font-mono text-kicker uppercase text-muted mb-3">
+            PROVISIONED · COPY OR DOWNLOAD ONCE — PRIVATE KEY IS NOT RECOVERABLE
+          </p>
+          <p className="text-body-sm text-ink-2 mb-3 break-all">
+            <strong>Agent DID:</strong>{' '}
+            <code className="font-mono">{response.agent_did}</code>
+            <br />
+            <strong>Gateway WS:</strong>{' '}
+            <code className="font-mono">{response.gateway_ws_url}</code>
+          </p>
+          <p className="text-body-sm text-ink-2 mb-2">
+            Save this JSON — it contains the agent&apos;s private key.{' '}
+            <strong>Cloud does not store it</strong>, so download or copy now.
+          </p>
+          <div className="flex gap-3 mb-3 flex-wrap">
+            <Button variant="primary" onClick={downloadHandoff}>
+              Download {domain}.arp-handoff.json
+            </Button>
+            <Button
+              variant="default"
+              onClick={() =>
+                void navigator.clipboard.writeText(JSON.stringify(response, null, 2))
               }
-            }}
-          >
-            Re-provision (replaces existing key)
-          </Button>
+            >
+              Copy to clipboard
+            </Button>
+          </div>
+          <details className="text-body-sm">
+            <summary className="cursor-pointer font-mono text-kicker uppercase text-muted">
+              ▸ NEXT STEP — WIRE LOCAL KYBERBOT
+            </summary>
+            <Pre className="mt-3 text-xs leading-snug">
+{`# 1. save the downloaded JSON next to your KyberBot config
+mv ~/Downloads/${domain}.arp-handoff.json ~/atlas/${domain}.arp-handoff.json
+
+# 2. run the bridge in a separate terminal:
+npx -y @kybernesis/arp-cloud-bridge \\
+  --handoff ~/atlas/${domain}.arp-handoff.json \\
+  --target kyberbot \\
+  --kyberbot-root ~/atlas
+# bridge connects to ${response.gateway_ws_url} and routes inbound
+# DIDComm to your local kyberbot agent at ${response.agent_did}.`}
+            </Pre>
+          </details>
+          <div className="mt-4">
+            <Button variant="default" size="sm" onClick={() => setStage('idle')}>
+              Done
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    if (stage === 'already_provisioned') {
+      return (
+        <div className="border border-rule bg-paper p-4">
+          <p className="font-mono text-kicker uppercase text-muted mb-3">
+            ALREADY PROVISIONED · {domain.toUpperCase()}
+          </p>
+          <p className="text-body-sm text-ink-2 mb-3">{error}</p>
+          <p className="text-body-sm text-ink-2 mb-3">
+            Lost the handoff JSON? Re-provisioning issues a fresh keypair under
+            the same DID. The previous private key is invalidated and any
+            local agent still using it can no longer authenticate to the
+            cloud-gateway.
+          </p>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="primary"
+              arrow
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Re-provision ${domain}?\n\nThis deletes the existing agent record and generates a new private key. Any running agent that uses the old handoff will stop working.`,
+                  )
+                ) {
+                  void handleSubmit(true);
+                }
+              }}
+            >
+              Re-provision (replaces existing key)
+            </Button>
+            <Button variant="default" size="sm" onClick={() => setStage('idle')}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    if (stage === 'error') {
+      return (
+        <div className="border border-rule bg-paper p-4">
+          <FieldError className="mb-3">Error: {error}</FieldError>
           <Button variant="default" size="sm" onClick={() => setStage('idle')}>
-            Cancel
+            Try again
           </Button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
+    return null;
+  })();
 
   return (
-    <div className="border border-rule bg-paper p-4 mt-2">
-      <FieldError className="mb-3">Error: {error}</FieldError>
-      <Button variant="default" size="sm" onClick={() => setStage('idle')}>
-        Try again
-      </Button>
-    </div>
+    <>
+      <div className="col-span-12 md:col-span-2 md:text-right">{trigger}</div>
+      {panel && <div className="col-span-12 mt-3">{panel}</div>}
+    </>
   );
 }
