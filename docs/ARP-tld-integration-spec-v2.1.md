@@ -48,7 +48,7 @@ v2.1 **explicit**: the `did=` value MAY be any DID matching `^did:[a-z0-9]+:[A-Z
 | Value form | When used | Resolver path |
 |---|---|---|
 | `did:key:z6Mk...` | Browser-generated keypair, user retains recovery phrase | Public key decoded directly from DID; no HTTPS fetch |
-| `did:web:arp.cloud:u:<uuid>` | ARP Cloud-managed account | Fetched from `https://arp.cloud/u/<uuid>/did.json` (available Phase 9) |
+| `did:web:cloud.arp.run:u:<uuid>` | ARP Cloud-managed account | Fetched from `https://arp.cloud/u/<uuid>/did.json` (available Phase 9) |
 
 Values matching `did:web:<any>.self.xyz` are still syntactically valid (the regex permits them) but are no longer the recommended default and MUST NOT be prompted for by the registrar UX.
 
@@ -65,9 +65,25 @@ v2 §7 step 11: "buyer signs the §6.4 payload with their principal key in their
 v2.1 **clarifies**: the signer is now one of:
 
 1. **Browser-side, did:key path** — the same browser keypair created in step 9 signs the JWT inline before upload. `kid` = `did:key:z...#key-1`.
-2. **ARP Cloud callback, did:web path** — if the user chose "Use ARP Cloud account" in step 9, ARP Cloud signs the JWT server-side using the cloud-managed principal key and POSTs the signed JWT to Headless's hosting endpoint. `kid` = `did:web:arp.cloud:u:<uuid>#key-1`.
+2. **ARP Cloud callback, did:web path** — if the user chose "Use ARP Cloud account" in step 9, ARP Cloud signs the JWT server-side using the cloud-managed principal key and POSTs the signed JWT to Headless's hosting endpoint. `kid` = `did:web:cloud.arp.run:u:<uuid>#key-1`.
 
 Both produce the same JWS compact-serialisation format. JWT schema in `@kybernesis/arp-spec/src/schemas/representation-vc.ts` is unchanged.
+
+### 3.4 `rep=` URL — relaxed hosting topology (Phase 10.5)
+
+v2 §5.2 example showed `rep=https://{owner}.<sld>/.well-known/representation.jwt`, suggesting the JWT must be hosted on the owner subdomain. **This was over-specified.** Asking a registrar to provision per-owner-subdomain TLS certs at scale (thousands of HNS subdomains, each needing public CA chains) requires architectural changes the registrar may not have — Cloudflare for SaaS, dedicated reverse proxies with on-demand TLS, etc.
+
+v2.1 §3.4 **clarifies**: the `rep=` URL in the `_principal.<owner>.<sld>` TXT record can be **any HTTPS URL the registrar controls**. The owner-subdomain form is one option; the centralized-hosting form is another. Both are conformant. Examples:
+
+| Form | URL pattern | When used |
+|---|---|---|
+| Owner-subdomain | `https://<owner>.<sld>/.well-known/representation.jwt` | Registrar runs per-subdomain TLS (e.g. Cloudflare for SaaS, Caddy on-demand) |
+| Centralized-registrar | `https://<registrar>.com/.well-known/arp/<sld>/<owner>/representation.jwt` | Registrar serves all JWTs from a single TLS-terminated host |
+| Path on apex | `https://<sld>/<owner>/.well-known/representation.jwt` | Registrar runs apex hosting that handles per-owner routing |
+
+Verifiers (testkit, sidecars, anyone reading the TXT) MUST follow the URL the TXT advertises; they MUST NOT assume a specific path or host structure. The crypto contract is unchanged: anyone fetches `<rep-url>`, decodes the compact JWS, verifies the signature against the verification method whose `id` matches the JWS `kid` in the resolved `iss` DID document.
+
+The §5.2 owner-subdomain CNAME row in v2 is **optional in v2.1** — required only if the registrar uses the owner-subdomain hosting form.
 
 ---
 

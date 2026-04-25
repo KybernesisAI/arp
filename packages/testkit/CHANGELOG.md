@@ -1,5 +1,26 @@
 # @kybernesis/arp-testkit
 
+## 0.2.3
+
+### Patch Changes
+
+- Fix: `representation-jwt-signer-binding` probe now resolves the JWT URL
+  from the `_principal.<owner>.<apex>` TXT's `rep=` field instead of
+  hardcoding `https://<owner>.<apex>/.well-known/representation.jwt`.
+  Aligns with v2.1 §3.4 which clarifies that registrars can host the JWT
+  at any HTTPS URL they control (centralized-registrar pattern, path on
+  apex, or owner subdomain). The probe follows whatever the TXT
+  advertises.
+
+  Adds `dohClient?` injection point on the probe context (matching the
+  dns + principal-identity-method probes) so tests stub TXT resolution
+  at the client level instead of fetch level.
+
+  Caught while running the live testkit against samantha.agent post-
+  Headless integration — Headless's CNAME-to-Railway hosting can't serve
+  per-subdomain TLS for HNS subdomains, so the spec is relaxed to allow
+  the registrar's existing apex hosting to serve the JWT instead.
+
 ## 0.2.2
 
 ### Patch Changes

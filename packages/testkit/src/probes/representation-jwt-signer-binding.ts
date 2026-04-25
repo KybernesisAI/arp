@@ -1,9 +1,8 @@
 /**
  * representation-jwt-signer-binding probe (v2.1 §6).
  *
- * Fetches the representation JWT from
- * `https://<owner>.<domain>/.well-known/representation.jwt`, decodes the JWS
- * header + payload, then:
+ * Resolves the JWT URL from the `_principal.<owner>.<apex>` TXT
+ * record's `rep=` field, fetches the JWT, then:
  *
  *   1. Extracts `kid` from the header and `iss` from the payload.
  *   2. Resolves `iss` through the ARP resolver (any DID method).
@@ -12,8 +11,14 @@
  *   4. Verifies the JWS signature with that verification method's
  *      `publicKeyMultibase` (Ed25519).
  *
+ * v2.1 §3.1 (clarification): the `rep=` URL is operationally up to the
+ * registrar — it can live on the owner subdomain, on the registrar's
+ * apex, or on any HTTPS host that serves the JWT bytes. The probe
+ * follows whatever URL the TXT advertises.
+ *
  * Fails when:
- *   - fetch fails or the response is not a compact JWS
+ *   - TXT lookup fails, has no rep= field, or rep= is not a valid HTTPS URL
+ *   - JWT fetch fails or the response is not a compact JWS
  *   - header/payload don't parse or `kid`/`iss` missing
  *   - `iss` cannot be resolved
  *   - `kid` doesn't match any verificationMethod id in the resolved doc
@@ -25,7 +30,14 @@
  */
 
 import * as ed25519 from '@noble/ed25519';
-import { createResolver, type Resolver } from '@kybernesis/arp-resolver';
+import {
+  createFetchDohClient,
+  createLocalHnsdClient,
+  createResolver,
+  resolveHnsRaw,
+  type DohClient,
+  type Resolver,
+} from '@kybernesis/arp-resolver';
 import { base64urlDecode, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import type { Probe, ProbeContext, ProbeResult } from '../types.js';
 import { elapsed, now, withTimeout } from '../timing.js';
@@ -45,6 +57,8 @@ interface JwsPayload {
 export interface RepresentationJwtProbeOptions {
   /** Inject a resolver for tests. */
   resolver?: Resolver;
+  /** Inject a DoH client for tests. Defaults derived from ctx. */
+  dohClient?: DohClient;
 }
 
 export function createRepresentationJwtSignerBindingProbe(
@@ -60,7 +74,60 @@ export function createRepresentationJwtSignerBindingProbe(
       return skip(startedAt, 'no ownerLabel provided in ProbeContext');
     }
 
-    const url = `https://${ctx.ownerLabel}.${apex}/.well-known/representation.jwt`;
+    // Resolve rep= URL from the _principal TXT record. v2.1 §3.1 lets the
+    // registrar host the JWT anywhere — we follow the URL the TXT
+    // advertises rather than guessing the owner-subdomain pattern.
+    const ownerApex = `${ctx.ownerLabel}.${apex}`;
+    const doh =
+      opts.dohClient ??
+      (ctx.dohClient as DohClient | undefined) ??
+      (ctx.dohEndpoint === 'local:hnsd'
+        ? createLocalHnsdClient()
+        : createFetchDohClient({
+            endpoint: ctx.dohEndpoint ?? 'https://hnsdoh.com/dns-query',
+            ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
+            timeoutMs: ctx.timeoutMs ?? 10_000,
+          }));
+
+    let url: string;
+    try {
+      const resolution = await resolveHnsRaw(doh, ownerApex);
+      const txtValues = resolution.txt['_principal'] ?? [];
+      const first = txtValues[0];
+      if (!first) {
+        return fail(startedAt, `no _principal.${ownerApex} TXT record found`, {
+          ownerApex,
+        });
+      }
+      const rep = parseRepFromTxt(first);
+      if (!rep) {
+        return fail(startedAt, '_principal TXT missing `rep=` URL', {
+          ownerApex,
+          raw: first,
+        });
+      }
+      let parsed: URL;
+      try {
+        parsed = new URL(rep);
+      } catch {
+        return fail(startedAt, `rep= URL not parseable: ${rep}`, {
+          ownerApex,
+          rep,
+        });
+      }
+      if (parsed.protocol !== 'https:') {
+        return fail(startedAt, `rep= URL must be https://, got ${parsed.protocol}`, {
+          ownerApex,
+          rep,
+        });
+      }
+      url = parsed.toString();
+    } catch (err) {
+      return fail(startedAt, `rep URL resolution failed: ${(err as Error).message}`, {
+        ownerApex,
+      });
+    }
+
     const fetchImpl = ctx.fetchImpl ?? globalThis.fetch;
     if (!fetchImpl) {
       return fail(startedAt, 'no fetch implementation available', { url });
@@ -211,6 +278,19 @@ function isLocalhost(apex: string): boolean {
     apex === '::1' ||
     apex.endsWith('.local')
   );
+}
+
+function parseRepFromTxt(txt: string): string | null {
+  // Shape: `did=<did>; rep=<url>` (v2 §5.2). Accept any order.
+  // The TXT may have wrapping quotes from the DNS layer — strip them.
+  const stripped = txt.replace(/^"+|"+$/g, '');
+  for (const part of stripped.split(';')) {
+    const [rawK, ...rest] = part.split('=');
+    if (!rawK) continue;
+    const k = rawK.trim().toLowerCase();
+    if (k === 'rep') return rest.join('=').trim();
+  }
+  return null;
 }
 
 function fail(

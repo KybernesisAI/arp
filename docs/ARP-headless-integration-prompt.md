@@ -138,29 +138,32 @@ Content-Type: application/json
 
 2. **Persist to your registrar DB** (linked to the domain row). Idempotent on `(domain, owner_label)` — re-binds overwrite (a user rotates their principal). This matches ARP's own bind upsert semantics.
 
-3. **Publish BOTH §5.2 records** — TXT + CNAME. Spec table:
+3. **Publish the `_principal.<owner>.<sld>` TXT record.** Per v2.1 §3.4, the `rep=` URL is operationally up to you — it can point at any HTTPS URL your registrar controls. Two common patterns:
 
-   | Name | Type | TTL | Value |
-   |---|---|---|---|
-   | `<owner>.<sld>` | CNAME | 300 | Owner control-plane hostname (your subdomain hoster) |
-   | `_principal.<owner>.<sld>` | TXT | 300 | `did=<X>; rep=<Y>` |
+   **Pattern A — centralized hosting (recommended for cloud registrars).** All JWTs served from a single TLS-terminated host you already operate:
 
-   **Both rows are required** — the TXT alone leaves the JWT URL unreachable, which fails 4 of 11 testkit probes (`well-known`, `did-resolution`, `tls-fingerprint`, `representation-jwt-signer-binding`).
+   ```
+   _principal.<owner>.<sld>.   600  IN  TXT  "did=<principal_did>; rep=https://<your-host>/.well-known/arp/<sld>/<owner>/representation.jwt"
+   ```
 
-   The TXT shape:
+   No CNAME needed. No per-subdomain TLS provisioning. Your existing apex cert (e.g. for `headlessdomains.com`) covers the JWT URL.
+
+   **Pattern B — owner-subdomain hosting.** Original v2 form, requires a CNAME + per-subdomain TLS:
+
    ```
    _principal.<owner>.<sld>.   600  IN  TXT  "did=<principal_did>; rep=https://<owner>.<sld>/.well-known/representation.jwt"
+   <owner>.<sld>.              300  IN  CNAME <your-subdomain-hoster>
    ```
 
+   Pattern B requires Cloudflare for SaaS, Caddy on-demand TLS, or equivalent dynamic-cert infra. Use Pattern A unless you specifically need the owner subdomain to be a TLS-enabled host for other reasons.
+
+   TXT details (both patterns):
    - Single TXT record, single string value.
-   - 600s TTL recommended. The testkit's `dns` probe waits up to 60s for propagation.
-   - Whitespace handling: the value is `did=<X>; rep=<Y>` with single spaces around the `;` separator and no spaces around the `=`.
+   - 600s TTL recommended. The testkit waits up to 60s for propagation.
+   - Whitespace: `did=<X>; rep=<Y>` with single spaces around `;`, no spaces around `=`.
+   - Idempotent on `(domain, owner_label)` — re-binds overwrite.
 
-   The CNAME points the owner subdomain at your subdomain hoster (the same vhost that serves the JWT in step 4 below). If your hosting infrastructure can't be reached via a single hostname (e.g. the JWT lives at a path on a multi-tenant shared hostname), use an A record instead and route by `Host` header on your reverse proxy.
-
-   **Idempotency:** publish both records as upserts on `(domain, owner_label)` so re-binds overwrite cleanly.
-
-4. **Host the representation JWT** at `https://<owner>.<sld>/.well-known/representation.jwt`. Public, unauthenticated, raw bytes:
+4. **Host the representation JWT** at whatever URL you set in `rep=`. Public, unauthenticated, raw bytes:
 
    ```
    HTTP/1.1 200 OK
@@ -170,7 +173,7 @@ Content-Type: application/json
    <raw-jws-compact-bytes>
    ```
 
-   This URL is on your subdomain hoster (you serve `<owner>.<sld>` for any `<sld>` your registrar manages). Use a valid public CA cert (Let's Encrypt or wildcard) covering the owner subdomains.
+   Use a valid public CA cert covering the host that serves the JWT. For Pattern A this is your existing apex cert. For Pattern B you need a cert covering `<owner>.<sld>` (Let's Encrypt DNS-01 or wildcard `*.<sld>`).
 
 5. **POST to ARP Cloud's bind callback:**
 

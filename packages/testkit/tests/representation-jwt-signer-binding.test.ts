@@ -30,6 +30,30 @@ function jwtFetch(jwt: string, status = 200): typeof fetch {
     })) as typeof fetch;
 }
 
+// Stub DoH client. The probe v2.1+ resolves the rep= URL from the
+// _principal TXT before fetching the JWT, so tests inject this client
+// to publish a TXT pointing at any URL (jwtFetch ignores the URL value
+// anyway and just returns the configured response body).
+const DEFAULT_REP_URL = 'https://example.test/rep.jwt';
+function mockDoh(
+  repUrl = DEFAULT_REP_URL,
+): { query(name: string, type: 'A' | 'AAAA' | 'TXT'): Promise<Array<{ name: string; type: number; TTL: number; data: string }>> } {
+  return {
+    async query(name, type) {
+      if (type !== 'TXT' || !name.startsWith('_principal.')) return [];
+      const did = 'did:key:z6MkiTBz1ymuepAQ4HEHYSF1H8quG5GLVVQR3djdX3mDooWp';
+      return [
+        {
+          name,
+          type: 16,
+          TTL: 300,
+          data: `did=${did}; rep=${repUrl}`,
+        },
+      ];
+    },
+  };
+}
+
 function okResolver(value: DidDocument): Resolver {
   return {
     async resolveHns() {
@@ -107,7 +131,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch(jwt),
+      fetchImpl: jwtFetch(jwt), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(true);
     expect(r.details['kid']).toBe(kid);
@@ -146,7 +170,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch(jwt),
+      fetchImpl: jwtFetch(jwt), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.message).toMatch(/signature verification failed/i);
@@ -178,7 +202,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch(jwt),
+      fetchImpl: jwtFetch(jwt), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.message).toMatch(/no verificationMethod/);
@@ -189,7 +213,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch('not found', 404),
+      fetchImpl: jwtFetch('not found', 404), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.message).toMatch(/HTTP 404/);
@@ -200,7 +224,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch('notajwt'),
+      fetchImpl: jwtFetch('notajwt'), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.message).toMatch(/compact JWS/);
@@ -214,7 +238,7 @@ describe('representationJwtSignerBindingProbe', () => {
       target: 'samantha.agent',
       baseUrl: 'https://samantha.agent',
       ownerLabel: 'ian',
-      fetchImpl: jwtFetch(jwt),
+      fetchImpl: jwtFetch(jwt), dohClient: mockDoh(),
     });
     expect(r.pass).toBe(false);
     expect(r.error?.message).toMatch(/unsupported alg/);
