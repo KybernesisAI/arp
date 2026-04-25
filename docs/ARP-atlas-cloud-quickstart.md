@@ -94,15 +94,15 @@ curl -s http://127.0.0.1:3456/health | jq '.status'
 In a **second terminal**:
 
 ```bash
-node ~/arp/packages/cloud-bridge/dist/cli.js \
+npx -y @kybernesis/arp-cloud-bridge \
   --handoff ~/atlas/arp-handoff.json \
   --target kyberbot \
   --kyberbot-root ~/atlas
 ```
 
-(Once `@kybernesis/arp-cloud-bridge` is published to npm, swap that for
-`npx @kybernesis/arp-cloud-bridge ...` — same flags. For now the local
-build works fine.)
+The `-y` skips `npx`'s install confirmation prompt. The package is
+~150 KB — first run takes a few seconds to fetch; subsequent runs are
+instant from the npx cache.
 
 Expected output:
 
@@ -210,7 +210,7 @@ Two long-running processes:
 | Process | Where | Purpose |
 |---|---|---|
 | `kyberbot` | `cd ~/atlas && kyberbot` | The agent itself |
-| `arp-cloud-bridge` | second terminal | Cloud relay |
+| `npx @kybernesis/arp-cloud-bridge ...` | second terminal | Cloud relay |
 
 If either dies, restart it. If kyberbot dies, the bridge keeps trying
 to reach `:3456` and reports failed deliveries (cloud requeues). If the
@@ -268,9 +268,6 @@ only the most recent wins. Kill duplicates: `pgrep -fl arp-cloud-bridge`.
 
 ## What's next
 
-- **Publish `@kybernesis/arp-cloud-bridge`** to npm so the command
-  becomes `npx @kybernesis/arp-cloud-bridge ...` instead of pointing at
-  a local checkout.
 - **Custom domain for the gateway** (`gateway.arp.run` → Railway).
   Removes the `arp-cloud-gateway-production.up.railway.app` hostname
   from handoff bundles.
