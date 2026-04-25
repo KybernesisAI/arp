@@ -1,5 +1,13 @@
 # @kybernesis/arp-runtime-bin
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-transport@0.3.2
+  - @kybernesis/arp-runtime@0.3.2
+
 ## 0.2.2
 
 ### Patch Changes

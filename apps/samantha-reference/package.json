@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-samantha-reference",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Reference agent `samantha.agent` — minimal runtime using @kybernesis/arp-runtime directly, per-connection KB, three demo tools.",
   "license": "MIT",

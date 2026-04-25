@@ -1,5 +1,17 @@
 # @kybernesis/arp-phase-5-acceptance
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-transport@0.3.2
+  - @kybernesis/arp-ghost-reference@0.1.3
+  - @kybernesis/arp-samantha-reference@0.1.3
+  - @kybernesis/arp-pairing@0.1.3
+  - @kybernesis/arp-runtime@0.3.2
+  - @kybernesis/arp-testkit@0.2.2
+
 ## 0.0.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @kybernesis/arp-testkit
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-transport@0.3.2
+  - @kybernesis/arp-pairing@0.1.3
+
 ## 0.2.1
 
 ### Patch Changes

@@ -78,12 +78,27 @@ export async function verifyEnvelope(
   return { ok: true, message, header };
 }
 
+/**
+ * Browser-safe base64url codec. Avoids Node's `Buffer.from(..., 'base64url')`
+ * which is unavailable (or not honoured) in some webpack/Next.js client
+ * bundles — symptoms include `Error: Unknown encoding: base64url` thrown
+ * from the polyfilled `buffer` package. Uses btoa/atob + URL-safe alphabet
+ * transformation, which works identically in Node 16+ and every modern
+ * browser.
+ */
 export function base64urlEncode(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64url');
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export function base64urlDecode(s: string): Uint8Array {
-  return new Uint8Array(Buffer.from(s, 'base64url'));
+  const padded = s.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  const bin = atob(padded + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 function toBytes(input: string): Uint8Array {
