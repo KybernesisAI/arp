@@ -2,7 +2,15 @@ import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Hono } from 'hono';
 import { serve, type ServerType } from '@hono/node-server';
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type AuthenticatorTransportFuture,
+} from '@simplewebauthn/server';
 import { openAuditLog, type AuditEntry, type AuditLog } from '@kybernesis/arp-audit';
+import { buildDidDocument } from '@kybernesis/arp-templates';
 import { createPdp, type Entity, type Pdp } from '@kybernesis/arp-pdp';
 import {
   openRegistry,
@@ -21,6 +29,7 @@ import {
   type TransportKeyStore,
   type TransportResolver,
 } from '@kybernesis/arp-transport';
+import { openAuthStore, type AuthStore } from './auth-store.js';
 import { createConnectionMemory, type ConnectionMemory } from './memory.js';
 import { buildWellKnownDocs, type WellKnownDocs } from './well-known.js';
 import type {
@@ -67,6 +76,26 @@ export interface RuntimeOptions {
    * pass the token in `Authorization: Bearer <token>`.
    */
   adminToken?: string;
+  /**
+   * Phase-10-10d auth surface — sidecar-local WebAuthn credential store
+   * + identity-rotation persistence. When omitted, the new
+   * `/admin/webauthn/*` and `/admin/identity/rotate` endpoints return 404
+   * (feature disabled). Path is the SQLite file backing both tables.
+   */
+  webauthn?: {
+    storePath: string;
+    /** RP ID — `localhost` for the default sidecar deployment. */
+    rpId: string;
+    rpName: string;
+    /** Permitted origins for register + assertion verification. */
+    origins: string[];
+  };
+  /**
+   * Identity-rotation grace window (ms). Default: 90 days. The previous
+   * principal DID stays published in `/.well-known/did.json` until this
+   * window elapses, then is opportunistically cleared.
+   */
+  identityRotationGraceMs?: number;
   /**
    * When set, the runtime forwards requests matching the owner-app routing
    * rules to this base URL. Matching rules (Phase 4 §4 Task 14):
@@ -166,12 +195,25 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
   ensureDir(opts.registryPath);
   ensureDir(opts.mailboxPath);
   mkdirSync(opts.auditDir, { recursive: true });
+  if (opts.webauthn) ensureDir(opts.webauthn.storePath);
 
   const now = opts.now ?? (() => Date.now());
   const registry = openRegistry(opts.registryPath, { now });
   const pdp = createPdp(opts.cedarSchemaJson);
   const memory = createConnectionMemory();
   const wellKnown = buildWellKnownDocs(opts.config);
+
+  const identityRotationGraceMs =
+    opts.identityRotationGraceMs ?? 90 * 24 * 60 * 60 * 1000;
+  const authStore: AuthStore | null = opts.webauthn
+    ? openAuthStore(opts.webauthn.storePath, { now })
+    : null;
+  if (authStore) {
+    authStore.initializeIdentityRotation({
+      principalDid: opts.config.principalDid,
+      principalPublicKeyMultibase: opts.config.publicKeyMultibase,
+    });
+  }
 
   const transport = createTransport({
     did: opts.config.did,
@@ -446,9 +488,60 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     });
   });
 
-  app.get('/.well-known/did.json', (c) =>
-    c.newResponse(didDocumentJson, 200, wellKnownHeaders()),
-  );
+  app.get('/.well-known/did.json', (c) => {
+    if (!authStore) {
+      return c.newResponse(didDocumentJson, 200, wellKnownHeaders());
+    }
+    // Opportunistic grace expiry — keeps the doc honest without a cron.
+    authStore.expireRotationGraceIfDue(now());
+    const rotation = authStore.getIdentityRotation();
+    if (!rotation) {
+      return c.newResponse(didDocumentJson, 200, wellKnownHeaders());
+    }
+    const principalRotated =
+      rotation.principalDid !== opts.config.principalDid ||
+      rotation.principalPublicKeyMultibase !== opts.config.publicKeyMultibase;
+    if (!principalRotated && !rotation.previousPrincipalDid) {
+      return c.newResponse(didDocumentJson, 200, wellKnownHeaders());
+    }
+    // Rebuild the DID doc against the current principal so the published
+    // controller + principal block reflect the post-rotation identity.
+    const liveDoc = buildDidDocument({
+      agentDid: opts.config.did,
+      controllerDid: rotation.principalDid,
+      publicKeyMultibase: opts.config.publicKeyMultibase,
+      endpoints: {
+        didcomm: opts.config.wellKnownUrls.didcomm,
+        agentCard: opts.config.wellKnownUrls.agentCard,
+      },
+      representationVcUrl: opts.config.representationVcUrl,
+    });
+    if (!rotation.previousPrincipalDid) {
+      return c.newResponse(JSON.stringify(liveDoc), 200, wellKnownHeaders());
+    }
+    // Dual-publish: include the previous principal's verification method so
+    // audit signatures from before the rotation still verify until the grace
+    // window expires.
+    const dualDoc = {
+      ...liveDoc,
+      principal: {
+        ...(liveDoc.principal ?? {}),
+        did: rotation.principalDid,
+        previousDid: rotation.previousPrincipalDid,
+        previousVerificationMethod: {
+          id: `${opts.config.did}#principal-prev`,
+          type: 'Ed25519VerificationKey2020',
+          controller: rotation.previousPrincipalDid,
+          publicKeyMultibase: rotation.previousPrincipalPublicKeyMultibase,
+        },
+        previousDeprecatedAt:
+          rotation.previousDeprecatedAtMs == null
+            ? null
+            : new Date(rotation.previousDeprecatedAtMs).toISOString(),
+      },
+    };
+    return c.newResponse(JSON.stringify(dualDoc), 200, wellKnownHeaders());
+  });
   app.get('/.well-known/agent-card.json', (c) =>
     c.newResponse(agentCardJson, 200, wellKnownHeaders()),
   );
@@ -738,6 +831,257 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     );
   });
 
+  /* ------------------- WebAuthn (Phase 10/10d) ----------------- */
+
+  app.post('/admin/webauthn/register/options', async (c) => {
+    if (!authStore || !opts.webauthn) {
+      return c.json({ error: 'webauthn_disabled' }, 404);
+    }
+    const existing = authStore.listCredentials();
+    const options = await generateRegistrationOptions({
+      rpID: opts.webauthn.rpId,
+      rpName: opts.webauthn.rpName,
+      userName: opts.config.principalDid,
+      userID: new TextEncoder().encode(opts.config.did),
+      attestationType: 'none',
+      excludeCredentials: existing.map((cred) => ({
+        id: cred.credentialId,
+        transports: cred.transports as AuthenticatorTransportFuture[],
+      })),
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        requireResidentKey: false,
+        userVerification: 'preferred',
+      },
+    });
+    authStore.persistChallenge(options.challenge, 'register');
+    return c.json(options);
+  });
+
+  app.post('/admin/webauthn/register/verify', async (c) => {
+    if (!authStore || !opts.webauthn) {
+      return c.json({ error: 'webauthn_disabled' }, 404);
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: 'invalid_json' }, 400);
+    }
+    const response = body.response as Record<string, unknown> | undefined;
+    if (!response) return c.json({ error: 'missing_response' }, 400);
+    const expectedChallenge = (response.response as Record<string, unknown> | undefined)
+      ?.clientDataJSON as string | undefined;
+    if (!expectedChallenge) return c.json({ error: 'missing_client_data' }, 400);
+    const challenge = decodeChallengeFromClientData(expectedChallenge);
+    if (!challenge) return c.json({ error: 'malformed_client_data' }, 400);
+    if (!authStore.consumeChallenge(challenge, 'register')) {
+      return c.json({ error: 'unknown_or_expired_challenge' }, 400);
+    }
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: response as unknown as Parameters<typeof verifyRegistrationResponse>[0]['response'],
+        expectedChallenge: challenge,
+        expectedOrigin: opts.webauthn.origins,
+        expectedRPID: opts.webauthn.rpId,
+        requireUserVerification: false,
+      });
+    } catch (err) {
+      return c.json({ error: 'verification_failed', reason: (err as Error).message }, 400);
+    }
+    if (!verification.verified || !verification.registrationInfo) {
+      return c.json({ error: 'verification_failed' }, 400);
+    }
+    const { credential } = verification.registrationInfo;
+    const transports = ((response.response as Record<string, unknown>)?.transports ??
+      []) as string[];
+    const nickname = typeof body.nickname === 'string' ? body.nickname : null;
+    const row = authStore.insertCredential({
+      credentialId: credential.id,
+      publicKey: credential.publicKey,
+      counter: credential.counter,
+      transports,
+      nickname,
+    });
+    return c.json({ id: row.id, credentialId: row.credentialId });
+  });
+
+  app.post('/admin/webauthn/auth/options', async (c) => {
+    if (!authStore || !opts.webauthn) {
+      return c.json({ error: 'webauthn_disabled' }, 404);
+    }
+    const existing = authStore.listCredentials();
+    const options = await generateAuthenticationOptions({
+      rpID: opts.webauthn.rpId,
+      userVerification: 'preferred',
+      allowCredentials: existing.map((cred) => ({
+        id: cred.credentialId,
+        transports: cred.transports as AuthenticatorTransportFuture[],
+      })),
+    });
+    authStore.persistChallenge(options.challenge, 'auth');
+    return c.json(options);
+  });
+
+  app.post('/admin/webauthn/auth/verify', async (c) => {
+    if (!authStore || !opts.webauthn) {
+      return c.json({ error: 'webauthn_disabled' }, 404);
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: 'invalid_json' }, 400);
+    }
+    const response = body.response as Record<string, unknown> | undefined;
+    if (!response) return c.json({ error: 'missing_response' }, 400);
+    const credentialId = response.id as string | undefined;
+    if (!credentialId) return c.json({ error: 'missing_credential_id' }, 400);
+    const credential = authStore.findCredentialByCredentialId(credentialId);
+    if (!credential) return c.json({ error: 'unknown_credential' }, 404);
+    const clientData = (response.response as Record<string, unknown> | undefined)
+      ?.clientDataJSON as string | undefined;
+    if (!clientData) return c.json({ error: 'missing_client_data' }, 400);
+    const challenge = decodeChallengeFromClientData(clientData);
+    if (!challenge) return c.json({ error: 'malformed_client_data' }, 400);
+    if (!authStore.consumeChallenge(challenge, 'auth')) {
+      return c.json({ error: 'unknown_or_expired_challenge' }, 400);
+    }
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: response as unknown as Parameters<typeof verifyAuthenticationResponse>[0]['response'],
+        expectedChallenge: challenge,
+        expectedOrigin: opts.webauthn.origins,
+        expectedRPID: opts.webauthn.rpId,
+        credential: {
+          id: credential.credentialId,
+          publicKey: credential.publicKey,
+          counter: credential.counter,
+          transports: credential.transports as AuthenticatorTransportFuture[],
+        },
+        requireUserVerification: false,
+      });
+    } catch (err) {
+      return c.json({ error: 'verification_failed', reason: (err as Error).message }, 400);
+    }
+    if (!verification.verified) {
+      return c.json({ error: 'verification_failed' }, 400);
+    }
+    authStore.bumpCredentialCounter(
+      credential.credentialId,
+      verification.authenticationInfo.newCounter,
+    );
+    return c.json({
+      id: credential.id,
+      credentialId: credential.credentialId,
+      principalDid: opts.config.principalDid,
+      agentDid: opts.config.did,
+    });
+  });
+
+  app.get('/admin/webauthn/credentials', (c) => {
+    if (!authStore) return c.json({ error: 'webauthn_disabled' }, 404);
+    const rows = authStore.listCredentials();
+    return c.json({
+      credentials: rows.map((r) => ({
+        id: r.id,
+        credential_id: r.credentialId,
+        nickname: r.nickname,
+        transports: r.transports,
+        created_at: new Date(r.createdAt).toISOString(),
+        last_used_at: r.lastUsedAt == null ? null : new Date(r.lastUsedAt).toISOString(),
+      })),
+    });
+  });
+
+  app.patch('/admin/webauthn/credentials/:id', async (c) => {
+    if (!authStore) return c.json({ error: 'webauthn_disabled' }, 404);
+    const id = c.req.param('id');
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    } catch {
+      /* tolerate empty body */
+    }
+    const nickname =
+      typeof body.nickname === 'string' || body.nickname === null
+        ? (body.nickname as string | null)
+        : null;
+    const row = authStore.renameCredential(id, nickname);
+    if (!row) return c.json({ error: 'not_found' }, 404);
+    return c.json({ ok: true, id: row.id, nickname: row.nickname });
+  });
+
+  app.delete('/admin/webauthn/credentials/:id', (c) => {
+    if (!authStore) return c.json({ error: 'webauthn_disabled' }, 404);
+    if (authStore.countCredentials() <= 1) {
+      // Last-credential guard mirrors the cloud rule — refuse if removing
+      // would leave the user with zero passkeys.
+      return c.json({ error: 'last_credential' }, 409);
+    }
+    const id = c.req.param('id');
+    const removed = authStore.deleteCredential(id);
+    if (!removed) return c.json({ error: 'not_found' }, 404);
+    return c.json({ ok: true });
+  });
+
+  /* ----------------- Identity rotation (Phase 10/10d) ---------------- */
+
+  app.post('/admin/identity/rotate', async (c) => {
+    if (!authStore) return c.json({ error: 'rotation_disabled' }, 404);
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: 'invalid_json' }, 400);
+    }
+    const newDid = body['new_principal_did'];
+    const newPubMb = body['new_public_key_multibase'];
+    if (typeof newDid !== 'string' || typeof newPubMb !== 'string') {
+      return c.json({ error: 'missing_new_identity' }, 400);
+    }
+    const current = authStore.getIdentityRotation();
+    if (!current) return c.json({ error: 'no_initial_identity' }, 500);
+    if (current.principalDid === newDid) {
+      // Idempotent — same DID means no-op success.
+      return c.json({ ok: true, principal_did: newDid, no_change: true });
+    }
+    authStore.recordRotation({
+      principalDid: newDid,
+      principalPublicKeyMultibase: newPubMb,
+      previousPrincipalDid: current.principalDid,
+      previousPrincipalPublicKeyMultibase: current.principalPublicKeyMultibase,
+      nowMs: now(),
+      graceMs: identityRotationGraceMs,
+    });
+    return c.json({
+      ok: true,
+      principal_did: newDid,
+      previous_principal_did: current.principalDid,
+      previous_deprecated_at: new Date(now() + identityRotationGraceMs).toISOString(),
+    });
+  });
+
+  app.get('/admin/identity', (c) => {
+    if (!authStore) return c.json({ error: 'rotation_disabled' }, 404);
+    authStore.expireRotationGraceIfDue(now());
+    const rotation = authStore.getIdentityRotation();
+    if (!rotation) return c.json({ error: 'not_initialized' }, 500);
+    return c.json({
+      principal_did: rotation.principalDid,
+      principal_public_key_multibase: rotation.principalPublicKeyMultibase,
+      previous_principal_did: rotation.previousPrincipalDid,
+      previous_principal_public_key_multibase:
+        rotation.previousPrincipalPublicKeyMultibase,
+      previous_deprecated_at:
+        rotation.previousDeprecatedAtMs == null
+          ? null
+          : new Date(rotation.previousDeprecatedAtMs).toISOString(),
+    });
+  });
+
   app.all('*', (c) => c.json({ error: 'not_found' }, 404));
 
   /* ------------------------ Lifecycle ------------------------- */
@@ -806,6 +1150,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     }
     await transport.close();
     registry.close();
+    if (authStore) authStore.close();
     for (const log of auditLogs.values()) {
       void log;
     }
@@ -916,4 +1261,23 @@ function clampInt(
   if (i < min) return min;
   if (i > max) return max;
   return i;
+}
+
+/**
+ * Pull the WebAuthn challenge value out of a base64url-encoded
+ * `clientDataJSON` blob. SimpleWebAuthn's verify functions accept either
+ * the raw challenge string or the encoded clientDataJSON, but our
+ * challenge store is keyed on the literal challenge string, so we decode
+ * here. Returns null if anything is malformed (route handler maps to a
+ * 400).
+ */
+function decodeChallengeFromClientData(clientDataB64Url: string): string | null {
+  try {
+    const padded = clientDataB64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = Buffer.from(padded, 'base64').toString('utf8');
+    const parsed = JSON.parse(binary) as { challenge?: string };
+    return typeof parsed.challenge === 'string' ? parsed.challenge : null;
+  } catch {
+    return null;
+  }
 }
