@@ -160,4 +160,14 @@ describe('rewriteForSurface', () => {
     expect(rewriteForSurface(mockReq('/onboarding'), 'app')).toBeNull();
     expect(rewriteForSurface(mockReq('/api/tenants'), 'app')).toBeNull();
   });
+
+  it('passes /support through on every surface', () => {
+    // Phase 10c: the support page is linked from every surface's footer.
+    // It must resolve at the top level so the marketing-subtree rewrites on
+    // cloud.arp.run and arp.run don't bury it at /cloud/support or
+    // /project/support (neither exists).
+    expect(rewriteForSurface(mockReq('/support'), 'cloud')).toBeNull();
+    expect(rewriteForSurface(mockReq('/support'), 'project')).toBeNull();
+    expect(rewriteForSurface(mockReq('/support'), 'app')).toBeNull();
+  });
 });

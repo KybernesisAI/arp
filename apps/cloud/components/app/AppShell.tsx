@@ -47,6 +47,8 @@ export function AppShell({
               {' · '}
               <a href="/legal/dpa" className="text-muted hover:text-ink">DPA</a>
               {' · '}
+              <a href="/support" className="text-muted hover:text-ink">SUPPORT</a>
+              {' · '}
               <a
                 href="https://status.arp.run"
                 className="text-muted hover:text-ink"

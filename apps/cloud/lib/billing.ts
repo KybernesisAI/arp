@@ -75,6 +75,29 @@ export async function createCheckoutSession(
   return { url: session.url ?? null };
 }
 
+export interface CreatePortalInput {
+  customerId: string;
+  returnUrl: string;
+}
+
+/**
+ * Stripe customer-portal session. Used for "Manage subscription" — gives the
+ * tenant a self-serve page for updating payment methods, switching plans,
+ * downloading invoices, and cancelling. Returns null when Stripe isn't
+ * configured so the caller can surface a dev-mode hint instead of crashing.
+ */
+export async function createPortalSession(
+  ctx: BillingContext,
+  input: CreatePortalInput,
+): Promise<{ url: string | null }> {
+  if (!ctx.stripe) return { url: null };
+  const session = await ctx.stripe.billingPortal.sessions.create({
+    customer: input.customerId,
+    return_url: input.returnUrl,
+  });
+  return { url: session.url };
+}
+
 export interface WebhookHandleResult {
   ok: boolean;
   processed: boolean;

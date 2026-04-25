@@ -82,15 +82,15 @@ export default function CloudMarketingLayout({
             links: [
               { label: 'About', href: 'https://arp.run/about', external: true },
               { label: 'Blog [TBD]', href: '#' },
-              { label: 'Contact [TBD]', href: '#' },
+              { label: 'Support', href: '/support' },
             ],
           },
           {
             title: 'Resources',
             links: [
               { label: 'Pricing', href: '/pricing' },
-              { label: 'Security [TBD]', href: '#' },
-              { label: 'Support [TBD]', href: '#' },
+              { label: 'Security', href: '/support' },
+              { label: 'Support', href: '/support' },
               { label: 'Community', href: 'https://github.com/KybernesisAI/arp/discussions', external: true },
             ],
           },
@@ -101,6 +101,7 @@ export default function CloudMarketingLayout({
             { label: 'Terms', href: '/legal/terms' },
             { label: 'Privacy', href: '/legal/privacy' },
             { label: 'DPA', href: '/legal/dpa' },
+            { label: 'Support', href: '/support' },
             { label: 'Status', href: 'https://status.arp.run' },
           ],
           status: 'STATUS · OPERATIONAL',

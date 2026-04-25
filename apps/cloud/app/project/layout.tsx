@@ -68,7 +68,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
             title: 'Company',
             links: [
               { label: 'About', href: '/about' },
-              { label: 'Contact [TBD]', href: '#' },
+              { label: 'Support', href: 'https://cloud.arp.run/support', external: true },
             ],
           },
           {
@@ -85,6 +85,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
             { label: 'Terms', href: '/legal/terms' },
             { label: 'Privacy', href: '/legal/privacy' },
             { label: 'DPA', href: '/legal/dpa' },
+            { label: 'Support', href: 'https://cloud.arp.run/support' },
             { label: 'Status', href: 'https://status.arp.run' },
           ],
           status: 'STATUS · OPERATIONAL',
