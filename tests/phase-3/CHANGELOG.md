@@ -1,5 +1,14 @@
 # @kybernesis/arp-phase-3-acceptance
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-transport@0.3.2
+  - @kybernesis/arp-sidecar@0.1.3
+  - @kybernesis/arp-runtime@0.3.2
+
 ## 0.0.2
 
 ### Patch Changes

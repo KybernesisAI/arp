@@ -1,5 +1,15 @@
 # @kybernesis/arp-phase-4-acceptance
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-transport@0.3.2
+  - @kybernesis/arp-pairing@0.1.3
+  - @kybernesis/arp-runtime@0.3.2
+  - @kybernesis/arp-consent-ui@0.1.3
+
 ## 0.0.2
 
 ### Patch Changes

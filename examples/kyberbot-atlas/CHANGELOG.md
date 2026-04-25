@@ -1,5 +1,12 @@
 # @kybernesis/arp-example-kyberbot-atlas
 
+## 0.0.3
+
+### Patch Changes
+
+- @kybernesis/arp-adapter-kyberbot@0.1.3
+- @kybernesis/arp-sdk@0.1.3
+
 ## 0.0.2
 
 ### Patch Changes

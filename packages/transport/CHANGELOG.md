@@ -1,5 +1,19 @@
 # @kybernesis/arp-transport
 
+## 0.3.2
+
+### Patch Changes
+
+- Fix: `base64urlEncode` / `base64urlDecode` now use browser-native
+  `btoa`/`atob` + URL-safe alphabet transformation instead of
+  `Buffer.from(..., 'base64url')`. The Buffer-based implementation worked
+  in Node but threw `Error: Unknown encoding: base64url` from the
+  polyfilled `buffer` package in Next.js client bundles, breaking any
+  browser caller that imported `@kybernesis/arp-transport/browser`. The
+  new implementation works identically in Node 16+ and every modern
+  browser. Surfaced when cloud.arp.run's recovery-phrase login flow tried
+  to base64url-encode an Ed25519 signature in-browser.
+
 ## 0.3.1
 
 ### Patch Changes
