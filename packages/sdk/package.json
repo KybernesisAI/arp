@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ARP SDK — high-level ArpAgent wrapping runtime/pdp/transport/registry/audit. The developer-facing entry point for custom agents.",
   "license": "MIT",
   "repository": {
@@ -9,8 +9,7 @@
     "directory": "packages/sdk"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "next"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.cjs",

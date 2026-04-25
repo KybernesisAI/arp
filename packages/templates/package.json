@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-templates",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ARP document builders — pure functions that produce validated DID documents, agent cards, arp.json, representation VCs, revocations, and handoff bundles.",
   "license": "MIT",
   "repository": {
@@ -9,8 +9,7 @@
     "directory": "packages/templates"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "next"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.cjs",

@@ -9,8 +9,7 @@
     "directory": "packages/cloud-db"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "next"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.cjs",

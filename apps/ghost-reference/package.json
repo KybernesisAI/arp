@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-ghost-reference",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Reference agent `ghost.agent` — counterparty to samantha-reference for Phase-5 interop demos.",
   "license": "MIT",

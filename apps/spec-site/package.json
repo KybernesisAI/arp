@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-spec-site",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Public ARP spec + docs site served at spec.arp.run / docs.arp.run. Next.js 16 App Router + @next/mdx, themed with the shared ARP design system.",
   "private": true,
   "license": "MIT",

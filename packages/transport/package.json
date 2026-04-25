@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-transport",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "ARP transport — DIDComm v2 signed messaging + SQLite mailbox. The only package permitted to depend on DIDComm wire-format libraries.",
   "license": "MIT",
   "repository": {
@@ -9,8 +9,7 @@
     "directory": "packages/transport"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "next"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.cjs",
