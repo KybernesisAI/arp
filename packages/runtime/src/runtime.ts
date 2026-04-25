@@ -535,7 +535,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
           publicKeyMultibase: rotation.previousPrincipalPublicKeyMultibase,
         },
         previousDeprecatedAt:
-          rotation.previousDeprecatedAtMs == null
+          rotation.previousDeprecatedAtMs === null
             ? null
             : new Date(rotation.previousDeprecatedAtMs).toISOString(),
       },
@@ -991,7 +991,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
         nickname: r.nickname,
         transports: r.transports,
         created_at: new Date(r.createdAt).toISOString(),
-        last_used_at: r.lastUsedAt == null ? null : new Date(r.lastUsedAt).toISOString(),
+        last_used_at: r.lastUsedAt === null ? null : new Date(r.lastUsedAt).toISOString(),
       })),
     });
   });
@@ -1076,7 +1076,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
       previous_principal_public_key_multibase:
         rotation.previousPrincipalPublicKeyMultibase,
       previous_deprecated_at:
-        rotation.previousDeprecatedAtMs == null
+        rotation.previousDeprecatedAtMs === null
           ? null
           : new Date(rotation.previousDeprecatedAtMs).toISOString(),
     });

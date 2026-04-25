@@ -211,7 +211,7 @@ export function openAuthStore(
       transports: JSON.parse((row['transports_json'] as string) ?? '[]') as string[],
       nickname: (row['nickname'] as string | null) ?? null,
       createdAt: Number(row['created_at']),
-      lastUsedAt: row['last_used_at'] == null ? null : Number(row['last_used_at']),
+      lastUsedAt: row['last_used_at'] === null || row['last_used_at'] === undefined ? null : Number(row['last_used_at']),
     };
   }
 
@@ -225,7 +225,7 @@ export function openAuthStore(
       previousPrincipalPublicKeyMultibase:
         (row['previous_principal_public_key_multibase'] as string | null) ?? null,
       previousDeprecatedAtMs:
-        row['previous_deprecated_at_ms'] == null
+        row['previous_deprecated_at_ms'] === null || row['previous_deprecated_at_ms'] === undefined
           ? null
           : Number(row['previous_deprecated_at_ms']),
     };

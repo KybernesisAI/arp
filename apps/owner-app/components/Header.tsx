@@ -28,7 +28,7 @@ export function Header() {
               ARP
             </span>
             <span className="hidden font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted sm:inline">
-              // owner-app
+              {'// owner-app'}
             </span>
           </Link>
           <div className="col-span-6 flex flex-wrap items-center justify-end gap-3.5 font-mono text-[11px] uppercase tracking-[0.1em] md:col-span-8">
