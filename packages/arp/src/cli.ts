@@ -44,8 +44,9 @@ import {
   type ArpManifest,
   type Framework,
 } from './manifest.js';
+import * as host from './host.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 interface ResolvedConfig {
   handoffPath: string;
@@ -183,12 +184,14 @@ interface Flags {
   cloudWsUrl?: string;
   framework?: Framework;
   yes?: boolean;
+  internalSupervisor?: boolean;
   help?: boolean;
   version?: boolean;
 }
 
-function parseArgs(argv: string[]): { cmd: string; flags: Flags } {
+function parseArgs(argv: string[]): { cmd: string; sub: string | null; positional: string[]; flags: Flags } {
   let cmd = 'connect';
+  let sub: string | null = null;
   const flags: Flags = {};
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -214,6 +217,9 @@ function parseArgs(argv: string[]): { cmd: string; flags: Flags } {
       case '-y':
         flags.yes = true;
         break;
+      case '--internal-supervisor':
+        flags.internalSupervisor = true;
+        break;
       case '-h':
       case '--help':
         flags.help = true;
@@ -230,23 +236,36 @@ function parseArgs(argv: string[]): { cmd: string; flags: Flags } {
         positional.push(a);
     }
   }
-  if (positional[0]) cmd = positional[0];
-  return { cmd, flags };
+  if (positional[0]) cmd = positional[0]!;
+  if (cmd === 'host' && positional[1]) sub = positional[1]!;
+  return { cmd, sub, positional, flags };
 }
 
-const HELP = `arp — connect a local agent to ARP Cloud.
+const HELP = `arp — connect local agents to ARP Cloud.
 
-Usage:
+One agent — single-shot:
   arp [connect]              Connect this folder's agent (default).
-  arp init [--yes]           Create arp.json in this folder. Interactive
-                             unless --yes (auto-detects sensible defaults).
+  arp init [--yes]           Create arp.json in this folder. Auto-detects
+                             sensible defaults; --yes skips prompts.
   arp doctor                 Show what would connect, without doing it.
-  arp version                Print CLI version.
-  arp help                   This help.
 
-Detection (used when reading the current folder):
-  1. arp.json                — authoritative manifest. Run \`arp init\` to create.
-  2. identity.yaml           — legacy auto-detect: assumes framework=kyberbot.
+Many agents — supervisor (one process for all):
+  arp host                   Foreground supervisor — runs every agent
+                             listed in ~/.arp/host.yaml. Ctrl-C to stop.
+  arp host start             Daemonize the supervisor. Logs to ~/.arp/host.log.
+  arp host stop              Stop the daemon.
+  arp host status            Daemon state + configured agents.
+  arp host list              Print the agent list.
+  arp host add <folder>      Add an agent folder to host.yaml.
+  arp host remove <folder>   Remove an agent folder.
+
+Misc:
+  arp version
+  arp help
+
+Detection (single-agent mode reads cwd; supervisor reads each folder):
+  1. arp.json                — authoritative manifest. Run \`arp init\`.
+  2. identity.yaml           — legacy: assumes framework=kyberbot.
   3. otherwise               — error, suggests \`arp init\`.
 
 Optional flags (rarely needed; arp.json is the right place for these):
@@ -259,10 +278,19 @@ Optional flags (rarely needed; arp.json is the right place for these):
   -v, --version
 
 Get started:
-  1. Provision your .agent domain at https://cloud.arp.run/dashboard
-  2. Download the handoff JSON next to your agent's identity.yaml
-  3. cd into the folder
-  4. Run:  npx @kybernesis/arp
+  Single agent:
+    1. Provision a .agent domain at https://cloud.arp.run/dashboard
+    2. Download the handoff JSON next to identity.yaml
+    3. cd into the folder
+    4. arp init     # one-time, writes arp.json
+    5. arp          # connect
+
+  Multiple agents (the right way for daily use):
+    arp host add ~/atlas
+    arp host add ~/nova
+    arp host add ~/samantha
+    arp host start    # daemonizes; survives terminal close
+    arp host status   # confirm
 `;
 
 // ---- subcommands -----------------------------------------------------------
@@ -441,7 +469,7 @@ async function pick(
 // ---- main ------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { cmd, flags } = parseArgs(process.argv.slice(2));
+  const { cmd, sub, positional, flags } = parseArgs(process.argv.slice(2));
   if (flags.help || cmd === 'help') {
     process.stdout.write(HELP);
     return;
@@ -461,8 +489,48 @@ async function main(): Promise<void> {
     case 'init':
       await cmdInit(flags);
       return;
+    case 'host':
+      await cmdHost(sub, positional, flags);
+      return;
     default:
       console.error(`unknown command: ${cmd}\n`);
+      process.stdout.write(HELP);
+      process.exit(2);
+  }
+}
+
+async function cmdHost(sub: string | null, positional: string[], flags: Flags): Promise<void> {
+  if (flags.internalSupervisor) {
+    // Reserved entry point used by `arp host start` after fork.
+    await host.runForeground();
+    return;
+  }
+  if (!sub) {
+    await host.runForeground();
+    return;
+  }
+  switch (sub) {
+    case 'start':
+      await host.start();
+      return;
+    case 'stop':
+      await host.stop();
+      return;
+    case 'status':
+      host.status();
+      return;
+    case 'list':
+      host.list();
+      return;
+    case 'add':
+      host.add(positional[2] ?? '');
+      return;
+    case 'remove':
+    case 'rm':
+      host.remove(positional[2] ?? '');
+      return;
+    default:
+      console.error(`unknown host subcommand: ${sub}\n`);
       process.stdout.write(HELP);
       process.exit(2);
   }
