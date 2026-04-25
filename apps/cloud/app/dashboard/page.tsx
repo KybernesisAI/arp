@@ -14,6 +14,7 @@ import {
   PlateHead,
 } from '@/components/ui';
 import { AppShell } from '@/components/app/AppShell';
+import { ProvisionAgentButton } from './ProvisionAgentButton';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 
 export const runtime = 'nodejs';
@@ -256,20 +257,25 @@ function AgentRow({
 function DomainRow({ domain }: { domain: DashboardDomain }): React.JSX.Element {
   const ownerHost = `${domain.ownerLabel}.${domain.domain}`;
   return (
-    <li className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline">
-      <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-        <Dot tone="green" />
-        <span className="font-display font-medium text-h5">{domain.domain}</span>
-      </div>
-      <div className="col-span-6 md:col-span-5 text-body-sm text-ink-2 break-all">
-        <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
-        <Code>{ownerHost}</Code>
-      </div>
-      <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
-        VIA {domain.registrar.toUpperCase()}
-      </div>
-      <div className="col-span-3 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
-        BOUND {domain.createdAgo}
+    <li className="py-4 border-b border-rule">
+      <div className="grid grid-cols-12 gap-4 items-baseline">
+        <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
+          <Dot tone="green" />
+          <span className="font-display font-medium text-h5">{domain.domain}</span>
+        </div>
+        <div className="col-span-6 md:col-span-4 text-body-sm text-ink-2 break-all">
+          <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
+          <Code>{ownerHost}</Code>
+        </div>
+        <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
+          VIA {domain.registrar.toUpperCase()}
+        </div>
+        <div className="col-span-3 md:col-span-1 md:text-right font-mono text-kicker uppercase text-muted">
+          {domain.createdAgo}
+        </div>
+        <div className="col-span-12 md:col-span-2 md:text-right">
+          <ProvisionAgentButton domain={domain.domain} />
+        </div>
       </div>
     </li>
   );
