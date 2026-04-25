@@ -13,7 +13,12 @@
 FROM node:24-alpine AS build
 WORKDIR /build
 
-RUN corepack enable
+# better-sqlite3 (transitive dep via @kybernesis/arp-runtime) compiles
+# native bindings — install Python + g++ on Alpine, same as the sidecar
+# Dockerfile. The gateway itself never opens a SQLite mailbox, but the
+# install runs unconditionally during pnpm install + pnpm deploy.
+RUN apk add --no-cache python3 make g++ \
+  && corepack enable
 
 # Manifests + lockfile first so the install layer is cacheable.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json turbo.json ./
