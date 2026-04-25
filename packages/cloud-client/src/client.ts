@@ -1,9 +1,9 @@
 /**
- * CloudClient — thin bridge between arp.cloud and a locally-running ARP
+ * CloudClient — thin bridge between cloud.arp.run and a locally-running ARP
  * agent process.
  *
  * Responsibilities:
- *   1. Open a WebSocket to wss://arp.cloud/ws with a signed bearer token.
+ *   1. Open a WebSocket to wss://cloud.arp.run/ws with a signed bearer token.
  *   2. Receive `inbound_message` events, POST each to the local agent's
  *      HTTP endpoint, ack the cloud once the local delivery succeeds.
  *   3. Rotate the bearer token hourly — the cloud's ws auth tolerates 300s

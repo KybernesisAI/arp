@@ -50,7 +50,7 @@ Accepted values for `did=`:
 | Form | When used | Resolver path |
 |---|---|---|
 | `did:key:z6Mk…` | Browser-generated keypair, user retains recovery phrase | Public key decoded directly from DID; no HTTPS fetch |
-| `did:web:arp.cloud:u:<uuid>` | ARP Cloud-managed account | Fetched from `https://arp.cloud/u/<uuid>/did.json` |
+| `did:web:cloud.arp.run:u:<uuid>` | ARP Cloud-managed account | Fetched from `https://cloud.arp.run/u/<uuid>/did.json` |
 
 Any DID matching `^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$` parses. Registrars
 SHOULD NOT hard-code a specific DID method in the UX — they collect the
@@ -66,10 +66,10 @@ text input, no external-provider redirect.
 
 1. User clicks "Use ARP Cloud account."
 2. Registrar redirects the user's browser to
-   `https://arp.cloud/onboard?domain=<sld>&registrar=<name>&callback=<url-encoded>`.
+   `https://cloud.arp.run/onboard?domain=<sld>&registrar=<name>&callback=<url-encoded>`.
 3. ARP Cloud handles signup — identity generation, tenant creation — and
    redirects back to the callback URL with
-   `?principal_did=did:web:arp.cloud:u:<uuid>&signed_representation_jwt=<jwt>`.
+   `?principal_did=did:web:cloud.arp.run:u:<uuid>&signed_representation_jwt=<jwt>`.
 4. Registrar publishes the `_principal` TXT + hosts the representation
    JWT per the well-known contract.
 
@@ -138,7 +138,7 @@ JWS header:
 The signer of the JWT is one of:
 
 - **Option A path.** ARP Cloud signs the JWT server-side using the
-  cloud-managed principal key; `kid` = `did:web:arp.cloud:u:<uuid>#key-1`.
+  cloud-managed principal key; `kid` = `did:web:cloud.arp.run:u:<uuid>#key-1`.
 - **Option B path.** The browser keypair signs the JWT inline before
   upload; `kid` = `did:key:z…#key-1`.
 
@@ -150,13 +150,13 @@ Both produce the same JWS compact-serialisation format. JWT schema is in
 The v2.1 amendment exposes a stub callback receiver on the cloud side:
 
 ```
-POST https://arp.cloud/internal/registrar/bind
+POST https://cloud.arp.run/internal/registrar/bind
   Authorization: Bearer <pre-shared-key>
   Content-Type: application/json
   Body: {
     "domain":                "samantha.agent",
     "owner_label":           "ian",
-    "principal_did":         "did:web:arp.cloud:u:<uuid>",
+    "principal_did":         "did:web:cloud.arp.run:u:<uuid>",
     "public_key_multibase":  "z6Mk…",
     "representation_jwt":    "eyJhbGciOiJFZERTQSJ9…"
   }

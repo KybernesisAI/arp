@@ -20,7 +20,7 @@ import { signRepresentationJwtBrowser } from '@/lib/representation-jwt-browser';
  * Client form for `/onboard`. Reuses the Phase-8.5 browser-held did:key flow
  * to mint an identity, creates a tenant server-side, signs a representation
  * JWT in the browser, and redirects back to the registrar's callback with the
- * cloud-managed principal DID (`did:web:arp.cloud:u:<tenantId>`) alongside
+ * cloud-managed principal DID (`did:web:cloud.arp.run:u:<tenantId>`) alongside
  * the JWT.
  *
  * The principal key stays in the browser; the did:web identifier is an alias
@@ -88,7 +88,7 @@ export default function OnboardRedirectForm(props: Props): React.JSX.Element {
         throw new Error(body.error ?? `tenant_create_failed_${tenantRes.status}`);
       }
       const tenantBody = (await tenantRes.json()) as { tenantId: string };
-      const cloudPrincipalDid = `did:web:arp.cloud:u:${tenantBody.tenantId}`;
+      const cloudPrincipalDid = `did:web:cloud.arp.run:u:${tenantBody.tenantId}`;
 
       setStage('signing_jwt');
       const jwt = await signRepresentationJwtBrowser({
@@ -109,6 +109,7 @@ export default function OnboardRedirectForm(props: Props): React.JSX.Element {
       setStage('redirecting');
       const target = buildCallback(props.callback, {
         principal_did: cloudPrincipalDid,
+        public_key_multibase: principal.publicKeyMultibase,
         signed_representation_jwt: jwt,
       });
       window.location.replace(target);
@@ -244,7 +245,7 @@ export default function OnboardRedirectForm(props: Props): React.JSX.Element {
   );
 }
 
-function buildCallback(callback: string, params: Record<string, string>): string {
+export function buildCallback(callback: string, params: Record<string, string>): string {
   const url = new URL(callback);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);

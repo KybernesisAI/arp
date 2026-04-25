@@ -4,7 +4,7 @@
  * Produces a signed JWS compact-serialisation of the `RepresentationVcSchema`
  * payload (`@kybernesis/arp-spec/src/schemas/representation-vc.ts`) using a
  * browser-held did:key principal. The JWT's `iss` is the cloud-managed
- * did:web alias (`did:web:arp.cloud:u:<uuid>`), whose DID document is served
+ * did:web alias (`did:web:cloud.arp.run:u:<uuid>`), whose DID document is served
  * at `GET /u/<uuid>/did.json` and carries the same public key, so downstream
  * verifiers can round-trip `iss` → DID doc → `publicKeyMultibase` → verify.
  *
@@ -23,7 +23,7 @@ const DEFAULT_MAX_CONCURRENT_CONNECTIONS = 10;
 
 export interface SignRepresentationJwtBrowserOptions {
   principal: PrincipalKey;
-  /** Typically `did:web:arp.cloud:u:<tenantId>` for the Option-A cloud flow. */
+  /** Typically `did:web:cloud.arp.run:u:<tenantId>` for the Option-A cloud flow. */
   issuerDid: string;
   /** Agent DID being represented, e.g. `did:web:samantha.agent`. */
   agentDid: string;

@@ -102,7 +102,7 @@ EXAMPLES
   arp-testkit audit samantha.agent
   arp-testkit audit localhost:4501 --base http://127.0.0.1:4501
   arp-testkit audit atlas.agent --via cloud
-  arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.arp.cloud
+  arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.cloud.arp.run
   arp-testkit probe dns samantha.agent --doh https://hnsdoh.com/dns-query
   arp-testkit compare samantha.agent ghost.agent --json
 `;
@@ -131,7 +131,7 @@ async function main(argv: string[]): Promise<number> {
   // --via cloud: route through the cloud gateway. The gateway uses
   // X-Forwarded-Host to identify the target tenant — which is literally
   // the agent's .agent hostname (the `target`). --cloud-host overrides
-  // the gateway URL (default: arp.cloud) so dev/staging environments
+  // the gateway URL (default: cloud.arp.run) so dev/staging environments
   // can aim at a preview deploy.
   if (args.flags.via === 'cloud') {
     const tgt = args.positional[0] ?? args.positional[1] ?? '';
@@ -172,7 +172,7 @@ async function audit(
   // x-forwarded-host override set above.
   let baseUrl: string | undefined = args.flags.base ?? undefined;
   if (args.flags.via === 'cloud' && !baseUrl) {
-    baseUrl = args.flags.cloudHost ?? 'https://arp.cloud';
+    baseUrl = args.flags.cloudHost ?? 'https://cloud.arp.run';
   }
   const summary = await runAudit(target, baseUrl, { context: contextOverrides });
   emit(summary, args);

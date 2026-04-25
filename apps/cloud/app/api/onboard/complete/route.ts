@@ -46,7 +46,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   // session), so accept either.
   if (
     parsed.data.principalDid !== session.principalDid &&
-    parsed.data.principalDid !== `did:web:arp.cloud:u:${session.tenantId ?? ''}`
+    parsed.data.principalDid !== `did:web:cloud.arp.run:u:${session.tenantId ?? ''}`
   ) {
     return NextResponse.json({ error: 'principal_mismatch' }, { status: 403 });
   }

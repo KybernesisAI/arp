@@ -54,7 +54,7 @@ function request(
 const VALID_BODY = {
   domain: 'samantha.agent',
   owner_label: 'ian',
-  principal_did: 'did:web:arp.cloud:u:11111111-2222-3333-4444-555555555555',
+  principal_did: 'did:web:cloud.arp.run:u:11111111-2222-3333-4444-555555555555',
   public_key_multibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
   representation_jwt: 'eyJhbGciOiJFZERTQSJ9.eyJpc3MiOiJkaWQ6d2ViOmFycC5jbG91ZCJ9.c2ln',
 };
@@ -121,7 +121,7 @@ describe('POST /internal/registrar/bind', () => {
 
     const rebound = {
       ...VALID_BODY,
-      principal_did: 'did:web:arp.cloud:u:99999999-9999-9999-9999-999999999999',
+      principal_did: 'did:web:cloud.arp.run:u:99999999-9999-9999-9999-999999999999',
       public_key_multibase: 'z6MkpnewkeyNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN',
     };
     const second = await POST(request(rebound));

@@ -1,7 +1,7 @@
 /**
  * Phase 10 slice 10e — A1: cloud↔cloud pairing round-trip.
  *
- * Two cloud tenants, both hosted on the same `arp.cloud` instance, walk
+ * Two cloud tenants, both hosted on the same `cloud.arp.run` instance, walk
  * the full Phase-10a flow:
  *
  *   1. Tenant A's owner posts a signed PairingProposal to

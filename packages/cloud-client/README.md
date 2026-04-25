@@ -4,7 +4,7 @@ Outbound WebSocket client for ARP Cloud (Phase 7).
 
 ## What it does
 
-Runs on a user's machine (macOS, Linux, or any Node 24 host) and maintains a persistent WebSocket to `wss://arp.cloud/ws`. When the cloud receives a DIDComm message for that user's agent it pushes the envelope down the socket; the client POSTs the envelope to the user's locally-running agent HTTP endpoint and acknowledges the cloud once delivery succeeds.
+Runs on a user's machine (macOS, Linux, or any Node 24 host) and maintains a persistent WebSocket to `wss://cloud.arp.run/ws`. When the cloud receives a DIDComm message for that user's agent it pushes the envelope down the socket; the client POSTs the envelope to the user's locally-running agent HTTP endpoint and acknowledges the cloud once delivery succeeds.
 
 ## Install + run
 

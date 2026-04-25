@@ -1,12 +1,12 @@
 /**
  * GET /u/<uuid>/did.json — cloud-managed DID document endpoint.
  *
- * Serves the terminal DID document for `did:web:arp.cloud:u:<uuid>` principal
+ * Serves the terminal DID document for `did:web:cloud.arp.run:u:<uuid>` principal
  * identities. The tenants table stores the browser-held did:key string as
  * `principal_did` (Phase 8.5 identity model); this route decodes the public
  * key from that string and publishes it under the cloud-managed alias so any
  * representation JWT signed with the user's browser key but issued under
- * `did:web:arp.cloud:u:<uuid>` can be resolved and verified by third parties.
+ * `did:web:cloud.arp.run:u:<uuid>` can be resolved and verified by third parties.
  *
  * Phase 9d: during the HKDF v1 → v2 rotation grace window (90 days after
  * `v1_deprecated_at`), BOTH the current and previous keys are published so
@@ -108,7 +108,7 @@ export async function GET(
     }
   }
 
-  const didSubject = `did:web:arp.cloud:u:${uuid}`;
+  const didSubject = `did:web:cloud.arp.run:u:${uuid}`;
   const keyId = `${didSubject}#key-1`;
   const prevKeyId = `${didSubject}#key-0`;
 

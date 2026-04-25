@@ -130,14 +130,14 @@ const TODAY = new Date().toISOString().slice(0, 10);
  * reference `did:web:ian.self.xyz` as a sample principal DID. Public
  * pages must not carry those references (opener rule 7). Replace the
  * examples with the v2.1-canonical forms: `did:key:…` for browser-held
- * keys, `did:web:arp.cloud:u:<uuid>` for cloud-managed. Explanatory prose
+ * keys, `did:web:cloud.arp.run:u:<uuid>` for cloud-managed. Explanatory prose
  * about Self.xyz gets rewritten to a neutral "any DID method accepted"
  * frame that matches the current contract.
  */
 const SELFXYZ_REWRITES = [
   // Example DID strings → canonical did:key form.
   [/did:web:ian\.self\.xyz/g, 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK'],
-  [/did:web:([a-zA-Z0-9_-]+)\.self\.xyz/g, 'did:web:arp.cloud:u:$1'],
+  [/did:web:([a-zA-Z0-9_-]+)\.self\.xyz/g, 'did:web:cloud.arp.run:u:$1'],
   // Illustrative Cedar VC type identifiers — `self_xyz.verified_human`
   // was provider-specific; the PDP treats VC types as opaque strings so
   // we rename to a neutral `vc_provider.*` prefix that still reads as a

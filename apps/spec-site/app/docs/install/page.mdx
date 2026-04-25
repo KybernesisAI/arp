@@ -80,7 +80,7 @@ All three produce an identical external wire presence. Choose by topology, not b
 
 **Topology:**
 ```
-[Outside agents] ──HTTPS / DIDComm──▶ [arp.cloud runtime] ──proxy──▶ [Your agent's API]
+[Outside agents] ──HTTPS / DIDComm──▶ [cloud.arp.run runtime] ──proxy──▶ [Your agent's API]
                                              │
 [Owner browser / mobile] ──HTTPS──▶  ───┘
 ```
@@ -88,7 +88,7 @@ All three produce an identical external wire presence. Choose by topology, not b
 **What the buyer does:**
 1. Click **Get Started** on `app.arp.run`. Your browser creates your owner identity (did:key, 12-word recovery phrase). If you're migrating an existing sidecar agent, choose **Advanced: migrate existing sidecar** and paste your handoff bundle.
 2. Provide an HTTPS endpoint where their agent accepts requests.
-3. Point `kyberbot.agent` A record at `arp.cloud`'s IP (automatic via registrar API).
+3. Point `kyberbot.agent` A record at `cloud.arp.run`'s IP (automatic via registrar API).
 
 **What we handle:**
 - Well-known hosting
@@ -290,11 +290,11 @@ Recommended: **Mode A (cloud)** — you can't run a sidecar inside their infra a
 
 ```bash
 # 1. Buy openclaw-ian.agent
-# 2. In arp.cloud owner app:
+# 2. In cloud.arp.run owner app:
 #    - Paste the handoff bundle
 #    - Enter your OpenClaw agent's API URL + auth token
 #    - Click "Provision"
-# 3. arp.cloud now fronts openclaw-ian.agent, proxies traffic to OpenClaw.
+# 3. cloud.arp.run now fronts openclaw-ian.agent, proxies traffic to OpenClaw.
 #    Every OpenClaw action is guarded by the PDP before reaching the real agent.
 ```
 
