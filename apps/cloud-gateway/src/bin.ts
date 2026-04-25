@@ -4,7 +4,13 @@
  *
  * Env vars:
  *   PORT                          — HTTP port (default 3001)
- *   DATABASE_URL                  — Postgres connection string (default: PGlite in-memory)
+ *   DATABASE_URL                  — Neon Postgres connection string. When
+ *                                   set, uses the Neon HTTP driver to share
+ *                                   state with the cloud Next.js app
+ *                                   (tenants, agents, registrar_bindings).
+ *                                   Unset → PGlite in-memory (dev only).
+ *   PGLITE_DATA_DIR               — optional file path for PGlite persistence
+ *                                   when DATABASE_URL is unset.
  *   CEDAR_SCHEMA_PATH             — path to cedar-schema.json
  *   LOG_LEVEL                     — pino level
  *
@@ -15,7 +21,11 @@
 import { resolve } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createPgliteDb, type CloudDbClient } from '@kybernesis/arp-cloud-db';
+import {
+  createNeonDb,
+  createPgliteDb,
+  type CloudDbClient,
+} from '@kybernesis/arp-cloud-db';
 import { createLogger } from '@kybernesis/arp-cloud-runtime';
 import { startGateway, loadCedarSchema } from './index.js';
 
@@ -28,15 +38,20 @@ async function main(): Promise<void> {
 
   const logger = createLogger({ bindings: { service: 'arp-cloud-gateway' } });
 
+  let db: CloudDbClient;
   if (process.env['DATABASE_URL']) {
-    logger.warn({ dbUrl: '<set>' }, 'DATABASE_URL set but node-postgres driver not bundled in v0; falling back to PGlite');
+    logger.info({ driver: 'neon-http' }, 'connecting to Postgres via Neon HTTP driver');
+    db = createNeonDb({ connectionString: process.env['DATABASE_URL'] }).db;
+  } else {
+    logger.warn(
+      { driver: 'pglite' },
+      'DATABASE_URL unset — falling back to PGlite (dev only; gateway state will not be shared with cloud.arp.run)',
+    );
+    const { db: pgliteDb } = await createPgliteDb({
+      ...(process.env['PGLITE_DATA_DIR'] ? { dataDir: process.env['PGLITE_DATA_DIR'] } : {}),
+    });
+    db = pgliteDb as unknown as CloudDbClient;
   }
-  // v0: PGlite only. A real postgres driver integration lands alongside
-  // Phase-7 deployment prep (flagged as conservative call in PR body).
-  const { db: pgliteDb } = await createPgliteDb({
-    ...(process.env['PGLITE_DATA_DIR'] ? { dataDir: process.env['PGLITE_DATA_DIR'] } : {}),
-  });
-  const db: CloudDbClient = pgliteDb as unknown as CloudDbClient;
 
   const cedarSchemaJson = loadCedarSchema(cedarPath);
   const handle = await startGateway(port, { db, cedarSchemaJson, logger });
