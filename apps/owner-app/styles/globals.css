@@ -1,16 +1,17 @@
+@import '@kybernesis/arp-ui/styles/fonts.css';
+@import '@kybernesis/arp-ui/styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
+@import '@kybernesis/arp-ui/styles/base.css';
 
-html,
-body {
-  @apply bg-arp-bg text-arp-text;
-  min-height: 100vh;
-}
+/*
+ * Owner-app legacy primitives. The Phase-10-10d design-system swap maps
+ * `arp.*` colors to the preset's paper/ink/rule CSS variables so these
+ * keep working unchanged while we re-skin the chrome.
+ */
 
 a {
   @apply text-arp-accent underline underline-offset-2;
@@ -31,7 +32,11 @@ button:disabled {
 }
 
 .btn-primary {
-  @apply border-arp-accent bg-arp-accent text-arp-bg;
+  @apply border-arp-accent bg-arp-accent text-white;
+}
+
+.btn-secondary {
+  @apply border-arp-border bg-arp-surface text-arp-text;
 }
 
 .btn-danger {

@@ -1,8 +1,16 @@
 import type { Config } from 'tailwindcss';
+import arpPreset from '@kybernesis/arp-ui/tailwind-preset';
 
+/**
+ * ARP owner-app — consumes the shared design-system preset from
+ * `@kybernesis/arp-ui` (Phase 10 slice 10d). The legacy `arp.*` palette is
+ * preserved here so Phase-4 pages keep rendering unchanged while we re-skin
+ * the chrome with the preset's `paper` / `ink` / `signal` tokens.
+ */
 const config: Config = {
+  presets: [arpPreset as Partial<Config>],
   content: [
-    './app/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx,mdx}',
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
   ],
@@ -10,23 +18,19 @@ const config: Config = {
     extend: {
       colors: {
         arp: {
-          bg: '#0b0e14',
-          surface: '#11161f',
-          border: '#1f2937',
-          text: '#e5e7eb',
-          muted: '#9ca3af',
-          accent: '#7dd3fc',
-          danger: '#f87171',
-          warn: '#fbbf24',
-          ok: '#34d399',
+          bg: 'var(--arp-paper)',
+          surface: 'var(--arp-paper-2)',
+          border: 'var(--arp-rule)',
+          text: 'var(--arp-ink)',
+          muted: 'var(--arp-muted)',
+          accent: '#1536e6',
+          danger: '#e8371f',
+          warn: '#f2c14b',
+          ok: '#0f7a4a',
         },
-      },
-      fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
   },
-  plugins: [],
 };
 
 export default config;
