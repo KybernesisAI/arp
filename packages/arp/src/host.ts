@@ -86,7 +86,10 @@ export async function runForeground(): Promise<void> {
   console.log(
     `arpc host (foreground) · agents=${cfg.agents.length} · config=${defaultHostConfigPath()}`,
   );
-  const handle = await startSupervisor(cfg.agents);
+  const handle = await startSupervisor({
+    agents: cfg.agents,
+    configPath: defaultHostConfigPath(),
+  });
   const shutdown = async (sig: string) => {
     // eslint-disable-next-line no-console
     console.log(`\n${sig} received, stopping all agents`);

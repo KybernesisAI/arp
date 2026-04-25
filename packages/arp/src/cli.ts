@@ -47,7 +47,7 @@ import {
 import * as host from './host.js';
 import * as service from './service.js';
 
-const VERSION = '0.6.0';
+const VERSION = '0.6.1';
 
 interface ResolvedConfig {
   handoffPath: string;
