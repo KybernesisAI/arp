@@ -1113,6 +1113,67 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1(ajv@8.18.0)
 
+  tests/phase-10:
+    dependencies:
+      '@kybernesis/arp-audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
+      '@kybernesis/arp-cloud-app':
+        specifier: workspace:*
+        version: link:../../apps/cloud
+      '@kybernesis/arp-cloud-db':
+        specifier: workspace:*
+        version: link:../../packages/cloud-db
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../../packages/pairing
+      '@kybernesis/arp-pdp':
+        specifier: workspace:*
+        version: link:../../packages/pdp
+      '@kybernesis/arp-registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@kybernesis/arp-resolver':
+        specifier: workspace:*
+        version: link:../../packages/resolver
+      '@kybernesis/arp-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@kybernesis/arp-scope-catalog':
+        specifier: workspace:*
+        version: link:../../packages/scope-catalog
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@kybernesis/arp-templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../../packages/transport
+      '@noble/ed25519':
+        specifier: ^2.2.3
+        version: 2.3.0
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@electric-sql/pglite@0.2.17)(@neondatabase/serverless@0.10.4)(@types/better-sqlite3@7.6.13)(@types/pg@8.11.6)(@types/react@19.2.14)(better-sqlite3@11.10.0)(react@19.2.5)
+      next:
+        specifier: ^16.2.0
+        version: 16.2.4(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
+
   tests/phase-2:
     dependencies:
       '@kybernesis/arp-audit':
