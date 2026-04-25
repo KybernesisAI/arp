@@ -106,14 +106,39 @@ export async function POST(req: Request): Promise<Response> {
 
   const db = await getDb();
 
-  // Resolve tenant by principal DID if one already exists. Nullable; the
-  // callback may land before the user has completed /onboard.
-  const tenantRows = await db
-    .select({ id: tenants.id })
-    .from(tenants)
-    .where(eq(tenants.principalDid, body.principal_did))
-    .limit(1);
-  const tenantId = tenantRows[0]?.id ?? null;
+  // Resolve tenant by principal DID. Nullable; the callback may land
+  // before the user has completed /onboard.
+  //
+  // Two lookup paths:
+  //   1. Cloud-managed alias `did:web:cloud.arp.run:u:<uuid>` — the UUID
+  //      IS the tenant id; look up by primary key directly so the
+  //      registrar-side principal DID format doesn't have to match the
+  //      tenants table's stored principal_did (which is the user's
+  //      browser-held did:key).
+  //   2. Otherwise fall back to exact-match on principal_did string —
+  //      that path catches sidecar-hosted agents where the bound
+  //      principal IS the tenant's stored DID.
+  let tenantId: string | null = null;
+  const cloudAliasMatch = body.principal_did.match(
+    /^did:web:cloud\.arp\.run:u:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
+  );
+  if (cloudAliasMatch) {
+    const candidateId = cloudAliasMatch[1]!;
+    const byId = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.id, candidateId))
+      .limit(1);
+    tenantId = byId[0]?.id ?? null;
+  }
+  if (!tenantId) {
+    const tenantRows = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.principalDid, body.principal_did))
+      .limit(1);
+    tenantId = tenantRows[0]?.id ?? null;
+  }
 
   // Upsert on (domain, owner_label). A re-bind (e.g. owner rotates to a new
   // principal DID) overwrites previous values. Explicit SET list — a naked

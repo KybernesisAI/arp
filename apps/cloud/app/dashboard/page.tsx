@@ -2,7 +2,7 @@ import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { and, asc, eq, gt, isNull } from 'drizzle-orm';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { PLAN_LIMITS, pairingInvitations } from '@kybernesis/arp-cloud-db';
+import { PLAN_LIMITS, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
 import { listCredentialsForTenant } from '@/lib/webauthn';
 import {
   Badge,
@@ -39,6 +39,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     pendingInvitations,
     recentActivity,
     totalActiveConnections,
+    domains,
   } = state;
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS];
   const pendingCount = pendingInvitations.length;
@@ -133,6 +134,25 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </ul>
         )}
       </section>
+
+      {domains.length > 0 && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">
+              .agent domains{' '}
+              <span className="text-muted font-mono text-body-sm ml-2">{domains.length}</span>
+            </h2>
+            <span className="font-mono text-kicker uppercase text-muted">
+              REGISTRAR-BOUND
+            </span>
+          </header>
+          <ul className="list-none p-0 m-0 border-t border-rule">
+            {domains.map((d) => (
+              <DomainRow key={`${d.domain}-${d.ownerLabel}`} domain={d} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mb-10">
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
@@ -233,6 +253,28 @@ function AgentRow({
   );
 }
 
+function DomainRow({ domain }: { domain: DashboardDomain }): React.JSX.Element {
+  const ownerHost = `${domain.ownerLabel}.${domain.domain}`;
+  return (
+    <li className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline">
+      <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
+        <Dot tone="green" />
+        <span className="font-display font-medium text-h5">{domain.domain}</span>
+      </div>
+      <div className="col-span-6 md:col-span-5 text-body-sm text-ink-2 break-all">
+        <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
+        <Code>{ownerHost}</Code>
+      </div>
+      <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
+        VIA {domain.registrar.toUpperCase()}
+      </div>
+      <div className="col-span-3 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
+        BOUND {domain.createdAgo}
+      </div>
+    </li>
+  );
+}
+
 function ActivityRow({
   entry,
 }: {
@@ -297,6 +339,14 @@ interface DashboardAgent {
   lastAuditAgo: string | null;
 }
 
+interface DashboardDomain {
+  domain: string;
+  ownerLabel: string;
+  registrar: string;
+  principalDid: string;
+  createdAgo: string;
+}
+
 interface ActivityEntry {
   id: string;
   connectionId: string;
@@ -321,15 +371,30 @@ async function loadState(): Promise<{
   }>;
   recentActivity: ActivityEntry[];
   totalActiveConnections: number;
+  domains: DashboardDomain[];
 }> {
   const { tenantDb } = await requireTenantDb();
   const tenant = await tenantDb.getTenant();
   if (!tenant) throw new AuthError(404, 'no_tenant');
-  const [agentRows, summary, passkeys, recent] = await Promise.all([
+  const [agentRows, summary, passkeys, recent, bindingRows] = await Promise.all([
     tenantDb.listAgents(),
     tenantDb.getAgentActivitySummary(),
     listCredentialsForTenant(tenantDb.tenantId),
     tenantDb.listRecentActivity(10),
+    // .agent-domain registrar bindings (v2.1) — published when a TLD
+    // registrar (Headless et al) finishes the bind-principal callback
+    // for one of this tenant's owner subdomains.
+    tenantDb.raw
+      .select({
+        domain: registrarBindings.domain,
+        ownerLabel: registrarBindings.ownerLabel,
+        registrar: registrarBindings.registrar,
+        principalDid: registrarBindings.principalDid,
+        createdAt: registrarBindings.createdAt,
+      })
+      .from(registrarBindings)
+      .where(eq(registrarBindings.tenantId, tenantDb.tenantId))
+      .orderBy(asc(registrarBindings.createdAt)),
   ]);
 
   const now = new Date();
@@ -382,6 +447,14 @@ async function loadState(): Promise<{
     ago: formatAgo(now, r.timestamp),
   }));
 
+  const domains: DashboardDomain[] = bindingRows.map((r) => ({
+    domain: r.domain,
+    ownerLabel: r.ownerLabel,
+    registrar: r.registrar,
+    principalDid: r.principalDid,
+    createdAgo: formatAgo(now, r.createdAt),
+  }));
+
   return {
     tenant: {
       plan: tenant.plan,
@@ -398,6 +471,7 @@ async function loadState(): Promise<{
     })),
     recentActivity,
     totalActiveConnections,
+    domains,
   };
 }
 
