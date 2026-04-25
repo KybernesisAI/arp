@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-testkit",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "ARP compliance testkit — 8 probes + CLI that audit any .agent domain's ARP implementation.",
   "license": "MIT",
   "repository": {
