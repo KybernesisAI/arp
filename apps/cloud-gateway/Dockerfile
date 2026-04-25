@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.7
+#
+# Multi-stage Dockerfile for @kybernesis/arp-cloud-gateway.
+# Pattern mirrors apps/sidecar/Dockerfile — pnpm-install with the workspace
+# lockfile, build the gateway + its workspace deps, then `pnpm deploy` to
+# a flattened runtime image.
+#
+# Used by Railway (via railway.json's "build.dockerfilePath") and any other
+# container host. The gateway listens on $PORT (Railway sets this; default
+# 3001 for local). Postgres connection comes from $DATABASE_URL.
+
+# ---------- build stage ----------
+FROM node:24-alpine AS build
+WORKDIR /build
+
+RUN corepack enable
+
+# Manifests + lockfile first so the install layer is cacheable.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json turbo.json ./
+COPY .changeset ./.changeset
+COPY packages ./packages
+COPY apps/cloud-gateway/package.json ./apps/cloud-gateway/
+
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Full sources + build every workspace dep the gateway needs.
+COPY packages ./packages
+COPY apps/cloud-gateway ./apps/cloud-gateway
+
+RUN pnpm --filter '@kybernesis/arp-cloud-gateway...' run build
+
+# Flatten the gateway + its prod deps into /out.
+RUN pnpm --filter @kybernesis/arp-cloud-gateway deploy --prod --legacy /out
+
+
+# ---------- runtime stage ----------
+FROM node:24-alpine
+WORKDIR /app
+
+# tini for PID 1 signal forwarding.
+RUN apk add --no-cache tini \
+  && addgroup -S arp && adduser -S -G arp arp \
+  && chown -R arp:arp /app
+
+COPY --from=build --chown=arp:arp /out /app
+
+USER arp
+
+ENV NODE_ENV=production \
+    PORT=3001
+
+# Railway routes $PORT internally; expose for clarity.
+EXPOSE 3001
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/bin.js"]
