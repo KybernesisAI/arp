@@ -1,24 +1,24 @@
 /**
- * `arp host` subcommands — single-process supervisor for all agents.
+ * `arpc host` subcommands — single-process supervisor for all agents.
  *
  * Lifecycle commands:
- *   arp host start           Daemonize. Detached child writes its PID
+ *   arpc host start           Daemonize. Detached child writes its PID
  *                            and logs to ~/.arp/. Returns immediately.
- *   arp host stop            SIGTERM the daemon, wait, clean up PID.
- *   arp host status          Show whether the daemon is up + agent list.
- *   arp host                 Foreground — same supervisor, attached
+ *   arpc host stop            SIGTERM the daemon, wait, clean up PID.
+ *   arpc host status          Show whether the daemon is up + agent list.
+ *   arpc host                 Foreground — same supervisor, attached
  *                            stdio. Ctrl-C to stop. Used for debugging
  *                            and during development.
  *
  * Config commands (mutate ~/.arp/host.yaml):
- *   arp host list            Print configured agents.
- *   arp host add <folder>    Append. Folder must contain arp.json or
+ *   arpc host list            Print configured agents.
+ *   arpc host add <folder>    Append. Folder must contain arp.json or
  *                            identity.yaml + handoff.
- *   arp host remove <folder> Remove by root path.
+ *   arpc host remove <folder> Remove by root path.
  *
  * Internal:
- *   arp host --internal-supervisor
- *                            Reserved entry point used by `arp host start`
+ *   arpc host --internal-supervisor
+ *                            Reserved entry point used by `arpc host start`
  *                            after fork() to run the supervisor without
  *                            re-forking. End users never type this.
  */
@@ -74,7 +74,7 @@ export async function runForeground(): Promise<void> {
   const cfg = readHostConfig();
   // eslint-disable-next-line no-console
   console.log(
-    `arp host (foreground) · agents=${cfg.agents.length} · config=${defaultHostConfigPath()}`,
+    `arpc host (foreground) · agents=${cfg.agents.length} · config=${defaultHostConfigPath()}`,
   );
   const handle = await startSupervisor(cfg.agents);
   const shutdown = async (sig: string) => {
@@ -93,7 +93,7 @@ export async function start(): Promise<void> {
   const existing = readPid();
   if (existing && isAlive(existing)) {
     // eslint-disable-next-line no-console
-    console.log(`arp host already running (pid ${existing}). Use \`arp host status\` or \`arp host stop\`.`);
+    console.log(`arpc host already running (pid ${existing}). Use \`arpc host status\` or \`arpc host stop\`.`);
     return;
   }
   if (existing) clearPid();
@@ -125,32 +125,32 @@ export async function start(): Promise<void> {
     clearPid();
     // eslint-disable-next-line no-console
     console.error(
-      `arp host: supervisor died on startup. Check ${hostLogPath()}.`,
+      `arpc host: supervisor died on startup. Check ${hostLogPath()}.`,
     );
     process.exit(1);
   }
 
   // eslint-disable-next-line no-console
-  console.log(`arp host started (pid ${child.pid})`);
+  console.log(`arpc host started (pid ${child.pid})`);
   // eslint-disable-next-line no-console
   console.log(`  log:    ${hostLogPath()}`);
   // eslint-disable-next-line no-console
   console.log(`  pid:    ${pidFilePath()}`);
   // eslint-disable-next-line no-console
-  console.log(`  agents: ${readHostConfig().agents.length} (\`arp host list\`)`);
+  console.log(`  agents: ${readHostConfig().agents.length} (\`arpc host list\`)`);
 }
 
 export async function stop(): Promise<void> {
   const pid = readPid();
   if (!pid) {
     // eslint-disable-next-line no-console
-    console.log('arp host: not running.');
+    console.log("arpc host: not running.");
     return;
   }
   if (!isAlive(pid)) {
     clearPid();
     // eslint-disable-next-line no-console
-    console.log(`arp host: stale pid ${pid} cleaned up.`);
+    console.log(`arpc host: stale pid ${pid} cleaned up.`);
     return;
   }
   try {
@@ -166,7 +166,7 @@ export async function stop(): Promise<void> {
   }
   if (isAlive(pid)) {
     // eslint-disable-next-line no-console
-    console.log(`arp host: pid ${pid} still alive after 6s, sending SIGKILL`);
+    console.log(`arpc host: pid ${pid} still alive after 6s, sending SIGKILL`);
     try {
       process.kill(pid, 'SIGKILL');
     } catch {
@@ -175,7 +175,7 @@ export async function stop(): Promise<void> {
   }
   clearPid();
   // eslint-disable-next-line no-console
-  console.log(`arp host stopped (pid ${pid}).`);
+  console.log(`arpc host stopped (pid ${pid}).`);
 }
 
 export function status(): void {
@@ -183,11 +183,11 @@ export function status(): void {
   const cfg = readHostConfig();
   if (pid && isAlive(pid)) {
     // eslint-disable-next-line no-console
-    console.log(`arp host · running · pid ${pid}`);
+    console.log(`arpc host · running · pid ${pid}`);
   } else {
     if (pid) clearPid();
     // eslint-disable-next-line no-console
-    console.log(`arp host · stopped`);
+    console.log(`arpc host · stopped`);
   }
   // eslint-disable-next-line no-console
   console.log(`  config: ${defaultHostConfigPath()}`);
@@ -207,9 +207,9 @@ export function list(): void {
   const cfg = readHostConfig();
   if (cfg.agents.length === 0) {
     // eslint-disable-next-line no-console
-    console.log(`arp host: no agents configured.`);
+    console.log(`arpc host: no agents configured.`);
     // eslint-disable-next-line no-console
-    console.log(`  Add one with: arp host add <folder>`);
+    console.log(`  Add one with: arpc host add <folder>`);
     return;
   }
   for (const a of cfg.agents) {
@@ -221,13 +221,13 @@ export function list(): void {
 export function add(folderArg: string): void {
   if (!folderArg) {
     // eslint-disable-next-line no-console
-    console.error('arp host add: folder required');
+    console.error('arpc host add: folder required');
     process.exit(2);
   }
   const folder = expandHome(folderArg);
   if (!existsSync(folder)) {
     // eslint-disable-next-line no-console
-    console.error(`arp host add: ${folder} does not exist`);
+    console.error(`arpc host add: ${folder} does not exist`);
     process.exit(1);
   }
   const hasManifest = existsSync(resolve(folder, 'arp.json'));
@@ -235,15 +235,15 @@ export function add(folderArg: string): void {
   if (!hasManifest && !hasIdentity) {
     // eslint-disable-next-line no-console
     console.error(
-      `arp host add: ${folder} has no arp.json or identity.yaml.\n` +
-        `  Run: cd ${folder} && arp init`,
+      `arpc host add: ${folder} has no arp.json or identity.yaml.\n` +
+        `  Run: cd ${folder} && arpc init`,
     );
     process.exit(1);
   }
   const cfg = readHostConfig();
   if (cfg.agents.some((a) => a.root === folder)) {
     // eslint-disable-next-line no-console
-    console.log(`arp host: ${folder} already in host.yaml`);
+    console.log(`arpc host: ${folder} already in host.yaml`);
     return;
   }
   cfg.agents.push({ root: folder });
@@ -253,7 +253,7 @@ export function add(folderArg: string): void {
   if (readPid()) {
     // eslint-disable-next-line no-console
     console.log(
-      `Restart the daemon to pick it up: arp host stop && arp host start`,
+      `Restart the daemon to pick it up: arpc host stop && arpc host start`,
     );
   }
 }
@@ -261,7 +261,7 @@ export function add(folderArg: string): void {
 export function remove(folderArg: string): void {
   if (!folderArg) {
     // eslint-disable-next-line no-console
-    console.error('arp host remove: folder required');
+    console.error('arpc host remove: folder required');
     process.exit(2);
   }
   const folder = expandHome(folderArg);
@@ -270,7 +270,7 @@ export function remove(folderArg: string): void {
   cfg.agents = cfg.agents.filter((a) => a.root !== folder);
   if (cfg.agents.length === before) {
     // eslint-disable-next-line no-console
-    console.log(`arp host: ${folder} not in host.yaml`);
+    console.log(`arpc host: ${folder} not in host.yaml`);
     return;
   }
   writeHostConfig(cfg);
@@ -279,7 +279,7 @@ export function remove(folderArg: string): void {
   if (readPid()) {
     // eslint-disable-next-line no-console
     console.log(
-      `Restart the daemon to apply: arp host stop && arp host start`,
+      `Restart the daemon to apply: arpc host stop && arpc host start`,
     );
   }
 }

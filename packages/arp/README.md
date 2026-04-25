@@ -1,43 +1,96 @@
 # @kybernesis/arp
 
-One command to connect a local AI agent to ARP Cloud.
+`arpc` — one CLI to connect local AI agents to ARP Cloud.
 
-## Quick start
+> The bin is **`arpc`** (not `arp`) so it doesn't collide with macOS's
+> built-in `/usr/sbin/arp` network tool.
 
-```bash
-cd ~/atlas                 # or wherever your agent lives
-npx @kybernesis/arp
-```
-
-That's it. The CLI looks in the current directory for:
-- `arp-handoff.json` (or `*.arp-handoff.json`) — the credentials downloaded from
-  [cloud.arp.run/dashboard](https://cloud.arp.run/dashboard) when you provisioned
-  the agent
-- `identity.yaml` — to know it's a KyberBot agent
-
-It then opens a WebSocket to the cloud-gateway and relays inbound DIDComm
-messages to your local agent. **Your agent's code is not modified.** Ctrl-C
-to stop.
-
-## Subcommands
+## Install
 
 ```bash
-arp                # connect (default)
-arp connect        # explicit form of the default
-arp doctor         # show what would connect, without opening the WS
-arp version
-arp help
+npm install -g @kybernesis/arp
 ```
 
-## Flags (rarely needed)
+…or use it without installing via npx (longer to type, but no global state):
 
 ```bash
-arp --handoff /path/to/handoff.json
-arp --url http://127.0.0.1:9090/arp --token <bearer>     # generic HTTP target
-arp --cloud-ws-url wss://gateway.arp.run/ws              # override gateway URL
+npx @kybernesis/arp <command>
 ```
 
-## Programmatic API
+## Quick start — one agent (background, recommended)
 
-For embedded use, depend directly on `@kybernesis/arp-cloud-bridge`. This
-package is a thin CLI wrapper.
+```bash
+arpc host add ~/atlas    # tell the supervisor about your agent folder
+arpc host start          # daemonise — runs in background, no terminal needed
+arpc host status         # confirm
+arpc host stop           # graceful shutdown
+```
+
+The daemon logs to `~/.arp/host.log`. Each agent's bridge auto-restarts
+on crash with exponential backoff. Stops cleanly with `arpc host stop`.
+
+## Quick start — many agents
+
+```bash
+arpc host add ~/atlas
+arpc host add ~/nova
+arpc host add ~/samantha
+arpc host start
+```
+
+One process holds all the bridges. The supervisor reads each folder's
+`arp.json` manifest (or legacy `identity.yaml` for kyberbot) so adding
+an agent is just `arpc host add <folder>`.
+
+## One agent in foreground (debugging)
+
+```bash
+cd ~/atlas
+arpc           # attaches stdio, Ctrl-C to stop
+arpc doctor    # show what would connect, don't actually do it
+arpc init      # create / overwrite arp.json (interactive)
+```
+
+## Per-agent manifest — `arp.json`
+
+Each agent folder declares its framework + handoff:
+
+```jsonc
+{
+  "framework": "kyberbot",            // kyberbot | openclaw | hermes | generic-http
+  "handoff": "./arp-handoff.json",    // optional; auto-detected
+  "kyberbot": { "root": "." }
+}
+```
+
+For a custom agent that exposes any HTTP endpoint:
+
+```jsonc
+{
+  "framework": "generic-http",
+  "handoff": "./arp-handoff.json",
+  "generic-http": {
+    "url": "http://127.0.0.1:8080/arp",
+    "token": "${MY_AGENT_TOKEN}"      // ${ENV_VAR} substitution
+  }
+}
+```
+
+`arpc init` will create this for you interactively (or `--yes` for defaults).
+
+## Subcommands cheatsheet
+
+```text
+arpc                       connect this folder's agent (foreground)
+arpc init [--yes]          create arp.json
+arpc doctor                show what would connect; don't open WS
+arpc host                  foreground supervisor — runs all agents
+arpc host start            daemonise the supervisor
+arpc host stop             stop the daemon
+arpc host status           daemon + agent list
+arpc host list             print configured agents
+arpc host add <folder>     add an agent
+arpc host remove <folder>  remove an agent
+arpc version
+arpc help
+```

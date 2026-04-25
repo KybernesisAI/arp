@@ -18,7 +18,7 @@
  * Detection precedence in @kybernesis/arp's CLI:
  *   1. arp.json present  → use it (authoritative)
  *   2. identity.yaml     → assume framework=kyberbot (legacy auto-detect)
- *   3. otherwise         → error, prompt the user to run `arp init`
+ *   3. otherwise         → error, prompt the user to run `arpc init`
  */
 
 import { existsSync, readFileSync } from 'node:fs';
