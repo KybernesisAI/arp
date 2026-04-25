@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-cloud-gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ARP Cloud gateway — Hono HTTP + ws binary. Hosts /.well-known/*, /didcomm inbound, and /ws upgrade across all tenants.",
   "license": "MIT",
   "private": true,

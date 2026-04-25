@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-consent-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Render ARP Connection Tokens + Pairing Proposals into plain-English consent views.",
   "license": "MIT",
   "repository": {
@@ -9,8 +9,7 @@
     "directory": "packages/consent-ui"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "next"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.cjs",

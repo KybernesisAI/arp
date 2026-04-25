@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-cloud-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ARP Cloud web app — Next.js 16 UI + control-plane API routes for the hosted multi-tenant ARP runtime.",
   "private": true,
   "license": "MIT",
