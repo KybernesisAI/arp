@@ -1,6 +1,8 @@
 # ARP × Headless Domains — Parallel Build Brief
 
 > **Update 2026-04-24 (Phase 8.5):** Self.xyz prompts have been removed from both Setup ARP flows. The authoritative amendment is `ARP-tld-integration-spec-v2.1.md`. If your in-flight implementation includes a Self.xyz sign-in widget, the migration is three small UX edits — see v2.1 §8.
+>
+> **Update 2026-04-25 (Phase 10.5):** The production-readiness pass for the v2.1 amendment is now codified in [`ARP-headless-integration-prompt.md`](./ARP-headless-integration-prompt.md). If you have a v2 implementation in flight, that prompt is the focused delta (chooser UI + bind callback). If you're starting from zero, read this doc first (the 9-task whole-world plan) and then the prompt for the v2.1-specific final tasks.
 
 **Reader:** Headless Domains engineering (human + their Claude Code / AI agent).
 **Purpose:** executable plan for building the TLD-side ARP integration on Headless's side *in parallel with* the ARP core team's remaining phases. You can start today; nothing in this doc waits on us.
