@@ -65,6 +65,13 @@ export interface ProbeContext {
    */
   extraHeaders?: Record<string, string>;
   /**
+   * When set, every fetched URL gets a `?target=<value>` query string
+   * appended. Used with `--via cloud` because Railway (and many other
+   * reverse proxies) overwrite X-Forwarded-Host, breaking host-based
+   * tenant routing. Query-string targeting works through any proxy.
+   */
+  targetQuery?: string;
+  /**
    * Owner label for owner-scoped probes (principal-identity-method,
    * representation-jwt-signer-binding). `ian` on `samantha.agent` =>
    * TXT record at `_principal.ian.samantha.agent`, representation JWT

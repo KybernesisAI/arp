@@ -129,16 +129,18 @@ async function main(argv: string[]): Promise<number> {
     contextOverrides.dohEndpoint = args.flags.doh;
   }
   // --via cloud: route through the cloud gateway. The gateway uses
-  // X-Forwarded-Host to identify the target tenant — which is literally
-  // the agent's .agent hostname (the `target`). --cloud-host overrides
-  // the gateway URL (default: cloud.arp.run) so dev/staging environments
-  // can aim at a preview deploy.
+  // ?target=<host> to identify the target tenant (works through reverse
+  // proxies like Railway that overwrite X-Forwarded-Host). We also set
+  // X-Forwarded-Host as a fallback for proxies that preserve it. The
+  // probes need their fetched URLs annotated with the query param —
+  // ProbeContext carries it through to fetchJson.
   if (args.flags.via === 'cloud') {
     const tgt = args.positional[0] ?? args.positional[1] ?? '';
     const headers: Record<string, string> = {};
     if (tgt) headers['x-forwarded-host'] = tgt;
     if (args.flags.tenant) headers['x-arp-cloud-tenant'] = args.flags.tenant;
     contextOverrides.extraHeaders = headers;
+    if (tgt) contextOverrides.targetQuery = tgt;
   }
 
   switch (args.command) {

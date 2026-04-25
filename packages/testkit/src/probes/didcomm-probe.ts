@@ -37,7 +37,10 @@ export interface DidCommProbeOptions {
 export function createDidCommProbe(opts: DidCommProbeOptions = {}): Probe {
   return async (ctx: ProbeContext): Promise<ProbeResult> => {
     const startedAt = now();
-    const endpoint = `${ctx.baseUrl.replace(/\/$/, '')}/didcomm`;
+    const baseEndpoint = `${ctx.baseUrl.replace(/\/$/, '')}/didcomm`;
+    const endpoint = ctx.targetQuery
+      ? `${baseEndpoint}?target=${encodeURIComponent(ctx.targetQuery)}`
+      : baseEndpoint;
     const fetchImpl = ctx.fetchImpl ?? globalThis.fetch;
     if (!fetchImpl) {
       return fail(startedAt, 'no fetch implementation available', { endpoint });
@@ -64,6 +67,7 @@ export function createDidCommProbe(opts: DidCommProbeOptions = {}): Probe {
           method: 'POST',
           headers: {
             'content-type': 'application/didcomm-signed+json',
+            ...(ctx.extraHeaders ?? {}),
           },
           body: envelope.compact,
         }),
