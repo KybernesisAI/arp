@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Header } from '@/components/Header';
+import { OwnerAppShell } from '@/components/OwnerAppShell';
 import { getSession } from '@/lib/session';
 import { env } from '@/lib/env';
 import { getScopeCatalog } from '@/lib/catalog';
@@ -25,9 +25,8 @@ export default async function PairPage() {
   }));
 
   return (
-    <div>
-      <Header />
-      <h2 className="mb-4 text-lg font-semibold">New connection</h2>
+    <OwnerAppShell>
+      <h2 className="mb-4 font-display text-h3 font-medium text-ink">New connection</h2>
       <PairForm
         subjectDid={e.ARP_AGENT_DID}
         principalDid={e.ARP_PRINCIPAL_DID}
@@ -36,6 +35,6 @@ export default async function PairPage() {
         scopes={scopeIds}
         bundles={bundles}
       />
-    </div>
+    </OwnerAppShell>
   );
 }

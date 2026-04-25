@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Header } from '@/components/Header';
+import { OwnerAppShell } from '@/components/OwnerAppShell';
 import { env } from '@/lib/env';
 import { getSession } from '@/lib/session';
 import { RuntimeClient } from '@/lib/runtime-client';
@@ -16,9 +16,8 @@ export default async function SettingsPage() {
   }));
 
   return (
-    <div>
-      <Header />
-      <h2 className="mb-4 text-lg font-semibold">Settings</h2>
+    <OwnerAppShell>
+      <h2 className="mb-4 font-display text-h3 font-medium text-ink">Settings</h2>
 
       <section className="card mb-4 space-y-2 text-sm">
         <h3 className="font-semibold">Identity</h3>
@@ -62,7 +61,7 @@ export default async function SettingsPage() {
         </p>
         <DangerZone connections={connections} />
       </section>
-    </div>
+    </OwnerAppShell>
   );
 }
 
