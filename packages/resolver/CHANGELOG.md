@@ -1,5 +1,27 @@
 # @kybernesis/arp-resolver
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix: testkit + resolver DoH client now uses RFC 8484 binary wire format
+  (`application/dns-message`) which is the only format public Handshake DoH
+  endpoints (hnsdoh.com, easyhandshake.com) actually serve. The previous
+  JSON-form (`application/dns-json`) implementation got HTTP 400 from those
+  endpoints, leaving the testkit unable to probe `.agent` domains at all.
+
+  Also wraps testkit's `fetchJson` / `postJson` helpers in try/catch so
+  network-layer failures (DNS NXDOMAIN, ECONNREFUSED, TLS handshake) return
+  a synthetic 0-status `FetchJsonResult` with `networkError: <message>`
+  instead of throwing. Probes now report descriptive failures like
+  "getaddrinfo ENOTFOUND samantha.agent" when an apex doesn't resolve,
+  rather than crashing the whole audit.
+
+  Adds `ProbeContext.dohClient` so tests can inject a stub DoH client
+  without re-encoding binary wire format. The legacy JSON-form client is
+  preserved as `createJsonDohClient` for callers that explicitly need it
+  (e.g. Cloudflare/Google JSON DoH).
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @kybernesis/arp-pairing
 
+## 0.1.2
+
+### Patch Changes
+
+- @kybernesis/arp-transport@0.3.1
+
 ## 0.1.1
 
 ### Patch Changes

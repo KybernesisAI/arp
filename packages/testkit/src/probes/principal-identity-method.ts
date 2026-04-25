@@ -51,6 +51,7 @@ export function createPrincipalIdentityMethodProbe(
 
     const doh =
       opts.dohClient ??
+      (ctx.dohClient as DohClient | undefined) ??
       (ctx.dohEndpoint === 'local:hnsd'
         ? createLocalHnsdClient()
         : createFetchDohClient({

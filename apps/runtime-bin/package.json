@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-runtime-bin",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Reference ARP agent binary — wires the Phase 2 packages together for local development and integration tests.",
   "license": "MIT",

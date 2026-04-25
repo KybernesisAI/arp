@@ -2,24 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { dnsProbe } from '../src/probes/dns.js';
 import type { ProbeContext } from '../src/types.js';
 
-// We stub out DoH by patching `fetch`. DoH queries go through
-// `createFetchDohClient`, which reads `?name=<n>&type=<T>` parameters and
-// expects an `application/dns-json` response. Our mock fetch matches that.
+// Stub DoH client — the dns probe accepts `ctx.dohClient` for tests to
+// bypass binary wire-format encoding. Same mapping shape as before
+// (`<name>|<type>` → `DohAnswer[]`).
 
-function mockFetch(
+function mockDoh(
   mapping: Record<string, Array<{ name: string; type: number; data: string; TTL?: number }>>,
-): typeof fetch {
-  return (async (input) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-    const u = new URL(url);
-    const name = u.searchParams.get('name') ?? '';
-    const typeStr = u.searchParams.get('type') ?? 'A';
-    const answers = mapping[`${name}|${typeStr}`] ?? [];
-    return new Response(JSON.stringify({ Status: 0, Answer: answers }), {
-      status: 200,
-      headers: { 'content-type': 'application/dns-json' },
-    });
-  }) as typeof fetch;
+): NonNullable<ProbeContext['dohClient']> {
+  return {
+    async query(name, type) {
+      const answers = mapping[`${name}|${type}`] ?? [];
+      return answers.map((a) => ({
+        name: a.name,
+        type: a.type,
+        TTL: a.TTL ?? 300,
+        data: a.data,
+      }));
+    },
+  };
 }
 
 describe('dnsProbe', () => {
@@ -27,7 +27,7 @@ describe('dnsProbe', () => {
     const result = await dnsProbe({
       target: 'localhost:4501',
       baseUrl: 'http://127.0.0.1:4501',
-      fetchImpl: mockFetch({}),
+      dohClient: mockDoh({}),
     } as ProbeContext);
     expect(result.skipped).toBe(true);
     expect(result.pass).toBe(true);
@@ -61,7 +61,7 @@ describe('dnsProbe', () => {
     const result = await dnsProbe({
       target: apex,
       baseUrl: `https://${apex}`,
-      fetchImpl: mockFetch(answers),
+      dohClient: mockDoh(answers),
       dohEndpoint: 'https://hnsdoh.example/dns-query',
     });
     expect(result.pass).toBe(true);
@@ -87,7 +87,7 @@ describe('dnsProbe', () => {
     const result = await dnsProbe({
       target: apex,
       baseUrl: `https://${apex}`,
-      fetchImpl: mockFetch(answers),
+      dohClient: mockDoh(answers),
       dohEndpoint: 'https://hnsdoh.example/dns-query',
     });
     expect(result.pass).toBe(false);
@@ -113,7 +113,7 @@ describe('dnsProbe', () => {
     const result = await dnsProbe({
       target: apex,
       baseUrl: `https://${apex}`,
-      fetchImpl: mockFetch(answers),
+      dohClient: mockDoh(answers),
       dohEndpoint: 'https://hnsdoh.example/dns-query',
     });
     expect(result.pass).toBe(false);

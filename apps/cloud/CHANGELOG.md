@@ -1,5 +1,16 @@
 # @kybernesis/arp-cloud-app
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-resolver@0.3.1
+  - @kybernesis/arp-pairing@0.1.2
+  - @kybernesis/arp-transport@0.3.1
+  - @kybernesis/arp-cloud-runtime@0.1.2
+  - @kybernesis/arp-consent-ui@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-adapter-nanoclaw",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ARP adapter for NanoClaw — lightweight decorator + run-wrapper for NanoClaw's constrained runtime.",
   "license": "MIT",
   "repository": {

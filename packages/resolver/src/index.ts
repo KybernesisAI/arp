@@ -21,6 +21,7 @@ export {
 } from './resolver.js';
 export {
   createFetchDohClient,
+  createJsonDohClient,
   createLocalHnsdClient,
   DOH_TYPE_CODES,
   type DohAnswer,

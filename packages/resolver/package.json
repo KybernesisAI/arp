@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-resolver",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "ARP resolver — HNS DoH + did:web resolution with LRU cache. Used by runtime/transport for agent-to-agent lookups.",
   "license": "MIT",
   "repository": {

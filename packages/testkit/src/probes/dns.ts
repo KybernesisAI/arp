@@ -34,13 +34,15 @@ export const dnsProbe: Probe = async (ctx: ProbeContext): Promise<ProbeResult> =
   }
 
   const doh =
-    ctx.dohEndpoint === 'local:hnsd'
-      ? createLocalHnsdClient()
-      : createFetchDohClient({
-          endpoint: ctx.dohEndpoint ?? 'https://hnsdoh.com/dns-query',
-          ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
-          timeoutMs: ctx.timeoutMs ?? 10_000,
-        });
+    ctx.dohClient
+      ? ctx.dohClient
+      : ctx.dohEndpoint === 'local:hnsd'
+        ? createLocalHnsdClient()
+        : createFetchDohClient({
+            endpoint: ctx.dohEndpoint ?? 'https://hnsdoh.com/dns-query',
+            ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}),
+            timeoutMs: ctx.timeoutMs ?? 10_000,
+          });
 
   try {
     const resolution = await resolveHnsRaw(doh, apex);

@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-adapter-langgraph",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ARP adapter for LangGraph — graph node + helper that inserts ARP PDP checks into StateGraph workflows.",
   "license": "MIT",
   "repository": {

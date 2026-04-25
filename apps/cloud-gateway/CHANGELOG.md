@@ -1,5 +1,13 @@
 # @kybernesis/arp-cloud-gateway
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @kybernesis/arp-resolver@0.3.1
+  - @kybernesis/arp-cloud-runtime@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

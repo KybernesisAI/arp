@@ -1,5 +1,11 @@
 # @kybernesis/arp-adapter-hermes-agent
 
+## 0.1.2
+
+### Patch Changes
+
+- @kybernesis/arp-sdk@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

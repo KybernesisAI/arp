@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-adapter-kyberbot",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ARP adapter for KyberBot — wraps a KyberBot instance with the five ARP integration points.",
   "license": "MIT",
   "repository": {
