@@ -77,6 +77,75 @@ export class RuntimeClient {
     return this.post('/admin/pairing/accept', { token });
   }
 
+  /* ---- WebAuthn (Phase 10/10d) ---- */
+
+  async webauthnRegisterOptions(): Promise<unknown> {
+    return this.post('/admin/webauthn/register/options', {});
+  }
+
+  async webauthnRegisterVerify(body: {
+    response: unknown;
+    nickname?: string | null;
+  }): Promise<{ id: string; credentialId: string }> {
+    return this.post('/admin/webauthn/register/verify', body);
+  }
+
+  async webauthnAuthOptions(): Promise<unknown> {
+    return this.post('/admin/webauthn/auth/options', {});
+  }
+
+  async webauthnAuthVerify(body: { response: unknown }): Promise<{
+    id: string;
+    credentialId: string;
+    principalDid: string;
+    agentDid: string;
+  }> {
+    return this.post('/admin/webauthn/auth/verify', body);
+  }
+
+  async listWebauthnCredentials(): Promise<{ credentials: WebauthnCredentialSummary[] }> {
+    return this.get('/admin/webauthn/credentials');
+  }
+
+  async renameWebauthnCredential(
+    id: string,
+    nickname: string | null,
+  ): Promise<{ ok: true; id: string; nickname: string | null }> {
+    const res = await this.fetch(`/admin/webauthn/credentials/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ nickname }),
+    });
+    if (!res.ok) throw await this.toError(res);
+    return (await res.json()) as { ok: true; id: string; nickname: string | null };
+  }
+
+  async deleteWebauthnCredential(id: string): Promise<void> {
+    const res = await this.fetch(`/admin/webauthn/credentials/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw await this.toError(res);
+  }
+
+  /* ---- Identity rotation (Phase 10/10d) ---- */
+
+  async getIdentity(): Promise<IdentityState> {
+    return this.get('/admin/identity');
+  }
+
+  async rotateIdentity(body: {
+    new_principal_did: string;
+    new_public_key_multibase: string;
+  }): Promise<{
+    ok: true;
+    principal_did: string;
+    previous_principal_did?: string;
+    previous_deprecated_at?: string;
+    no_change?: boolean;
+  }> {
+    return this.post('/admin/identity/rotate', body);
+  }
+
   /* ---- low-level helpers ---- */
 
   private async get<T>(path: string): Promise<T> {
@@ -189,4 +258,21 @@ export interface PendingInvitation {
   invitation_url: string | null;
   created_at: string;
   proposal: Record<string, unknown>;
+}
+
+export interface WebauthnCredentialSummary {
+  id: string;
+  credential_id: string;
+  nickname: string | null;
+  transports: string[];
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface IdentityState {
+  principal_did: string;
+  principal_public_key_multibase: string;
+  previous_principal_did: string | null;
+  previous_principal_public_key_multibase: string | null;
+  previous_deprecated_at: string | null;
 }

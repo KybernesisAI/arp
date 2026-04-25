@@ -114,6 +114,15 @@ program
           });
         }
 
+        const webauthnRpId = process.env.WEBAUTHN_RP_ID ?? 'localhost';
+        const webauthnRpName = process.env.WEBAUTHN_RP_NAME ?? 'ARP Owner App';
+        const webauthnOrigins = (
+          process.env.WEBAUTHN_ORIGINS ?? `http://localhost:${ownerApp?.url.match(/:(\d+)/)?.[1] ?? '7878'}`
+        )
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
         const started = await startSidecarRuntime({
           bootstrap: boot,
           dataDir: opts.dataDir,
@@ -127,6 +136,19 @@ program
                   ...(opts.ownerSubdomain
                     ? { hostSuffixes: [opts.ownerSubdomain] }
                     : {}),
+                },
+              }
+            : {}),
+          // Phase-10-10d: WebAuthn + identity rotation always enabled when
+          // the admin surface is enabled. The owner-app proxy is the only
+          // legitimate caller (bearer-gated); without an admin token the
+          // routes return 404 anyway.
+          ...(adminToken
+            ? {
+                webauthn: {
+                  rpId: webauthnRpId,
+                  rpName: webauthnRpName,
+                  origins: webauthnOrigins,
                 },
               }
             : {}),

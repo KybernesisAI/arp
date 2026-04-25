@@ -10,6 +10,10 @@ import {
   hasPrincipalKey,
   type PrincipalKey,
 } from '@/lib/principal-key-browser';
+import {
+  isPasskeySupported,
+  signInWithPasskey,
+} from '@/lib/principal-key-passkey';
 
 interface Challenge {
   nonce: string;
@@ -20,11 +24,10 @@ interface Challenge {
 type Phase = 'loading' | 'onboard' | 'ready';
 
 /**
- * Browser-held principal-key login. On first visit the form generates an
- * Ed25519 keypair, shows the did:key identifier + one-time recovery phrase,
- * and waits for the user to acknowledge they've saved it. On return visits
- * it reads the stored key, requests a challenge, signs it in-browser, and
- * exchanges the signature for a session — one click, zero pasting.
+ * Owner-app sign-in. Phase 10/10d adds passkey as the primary path; the
+ * existing browser-held did:key flow remains available behind an
+ * "Advanced" disclosure so anyone with a recovery phrase can still sign
+ * in (e.g. fresh device with no registered passkey yet).
  */
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
@@ -37,13 +40,19 @@ export function LoginForm({ next }: { next: string }) {
   const [phraseCopied, setPhraseCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const exists = await hasPrincipalKey();
+        const [exists, supported] = await Promise.all([
+          hasPrincipalKey(),
+          isPasskeySupported(),
+        ]);
         if (cancelled) return;
+        setPasskeyAvailable(supported);
         if (exists) {
           const key = await getOrCreatePrincipalKey();
           if (cancelled) return;
@@ -96,12 +105,12 @@ export function LoginForm({ next }: { next: string }) {
       setPhraseCopied(true);
       setTimeout(() => setPhraseCopied(false), 2_000);
     } catch {
-      // Clipboard write can fail (permissions, insecure context). The user
-      // can still select + copy the visible text; no error surfaced.
+      // Clipboard write can fail (permissions, insecure context). User can
+      // still manually select the visible text.
     }
   }, [recoveryPhrase]);
 
-  const signIn = useCallback(async () => {
+  const signInDidKey = useCallback(async () => {
     if (!principalKey) return;
     setBusy(true);
     setError(null);
@@ -143,6 +152,20 @@ export function LoginForm({ next }: { next: string }) {
     }
   }, [principalKey, next, router]);
 
+  const signInPasskey = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithPasskey();
+      router.push(next);
+      router.refresh();
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [next, router]);
+
   const resetIdentity = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -169,58 +192,205 @@ export function LoginForm({ next }: { next: string }) {
   }
 
   if (phase === 'onboard') {
-    if (!principalKey) {
-      return (
-        <div className="card max-w-xl space-y-4 text-sm">
+    return (
+      <div className="space-y-4">
+        {passkeyAvailable && (
+          <div className="card max-w-xl space-y-3 text-sm">
+            <h2 className="font-display text-h5 font-medium text-ink">
+              Sign in with passkey
+            </h2>
+            <p className="text-arp-muted">
+              If you&apos;ve registered a passkey on this device with the
+              owner-app before, sign in with Touch ID / Face ID / Windows
+              Hello — no recovery phrase needed.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={signInPasskey}
+              disabled={busy}
+              data-testid="passkey-sign-in-btn"
+            >
+              {busy ? 'Verifying…' : 'Sign in with passkey'}
+            </button>
+          </div>
+        )}
+
+        <details
+          className="card max-w-xl space-y-3 text-sm"
+          open={!passkeyAvailable || advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary className="cursor-pointer font-display text-h5 font-medium text-ink">
+            Advanced — recovery phrase / did:key
+          </summary>
+          {!principalKey ? (
+            <div className="space-y-3 pt-3">
+              <p className="text-arp-muted">
+                Your identity is generated in this browser and never leaves it.
+                Click below to create it.
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={generate}
+                disabled={busy}
+                data-testid="get-started-btn"
+              >
+                {busy ? 'Generating…' : 'Get started'}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-3">
+              <div>
+                <div className="label">Your agent-owner identity</div>
+                <code
+                  className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
+                  data-testid="principal-did"
+                >
+                  {principalKey.did}
+                </code>
+              </div>
+              <div className="space-y-2">
+                <div className="label">Recovery phrase</div>
+                <p className="text-arp-muted">
+                  Save these 12 words somewhere safe. They are the only way to
+                  restore your identity if this browser is cleared. We
+                  don&apos;t keep a copy.
+                </p>
+                {!phraseRevealed && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={revealPhrase}
+                    data-testid="reveal-phrase-btn"
+                  >
+                    Reveal recovery phrase
+                  </button>
+                )}
+                {phraseRevealed && recoveryPhrase && (
+                  <div className="space-y-2">
+                    <div
+                      className="select-all break-words rounded bg-arp-bg px-3 py-2 font-mono text-xs leading-relaxed"
+                      data-testid="recovery-phrase"
+                    >
+                      {recoveryPhrase}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={copyPhrase}
+                      data-testid="copy-phrase-btn"
+                    >
+                      {phraseCopied ? 'Copied' : 'Copy'}
+                    </button>
+                    <label className="flex items-center gap-2 text-xs text-arp-muted">
+                      <input
+                        type="checkbox"
+                        checked={phraseAck}
+                        onChange={(e) => setPhraseAck(e.target.checked)}
+                        data-testid="phrase-ack"
+                      />
+                      I&apos;ve saved my recovery phrase.
+                    </label>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={signInDidKey}
+                disabled={!phraseAck || busy}
+                data-testid="sign-in-btn"
+              >
+                {busy ? 'Signing in…' : 'Sign in'}
+              </button>
+            </div>
+          )}
+        </details>
+
+        {error && (
+          <div className="text-sm text-arp-danger" data-testid="login-error">
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // phase === 'ready' — user has a stored did:key.
+  return (
+    <div className="space-y-4">
+      {passkeyAvailable && (
+        <div className="card max-w-xl space-y-3 text-sm">
+          <h2 className="font-display text-h5 font-medium text-ink">
+            Sign in with passkey
+          </h2>
           <p className="text-arp-muted">
-            Your identity is generated in this browser and never leaves it.
-            Click below to create it.
+            Use Touch ID / Face ID / Windows Hello to sign in. No recovery
+            phrase needed.
           </p>
           <button
             type="button"
             className="btn btn-primary"
-            onClick={generate}
+            onClick={signInPasskey}
             disabled={busy}
-            data-testid="get-started-btn"
+            data-testid="passkey-sign-in-btn"
           >
-            {busy ? 'Generating…' : 'Get started'}
+            {busy ? 'Verifying…' : 'Sign in with passkey'}
           </button>
-          {error && (
-            <div className="text-sm text-arp-danger" data-testid="login-error">
-              {error}
+        </div>
+      )}
+
+      <details
+        className="card max-w-xl space-y-3 text-sm"
+        open={!passkeyAvailable || advancedOpen}
+        onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+      >
+        <summary className="cursor-pointer font-display text-h5 font-medium text-ink">
+          Advanced — sign in with recovery phrase / did:key
+        </summary>
+        <div className="space-y-3 pt-3">
+          {principalKey && (
+            <div>
+              <div className="label">Signed in as</div>
+              <code
+                className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
+                data-testid="principal-did"
+              >
+                {principalKey.did}
+              </code>
             </div>
           )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="card max-w-xl space-y-4 text-sm">
-        <div>
-          <div className="label">Your agent-owner identity</div>
-          <code
-            className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
-            data-testid="principal-did"
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={signInDidKey}
+            disabled={busy}
+            data-testid="sign-in-btn"
           >
-            {principalKey.did}
-          </code>
-        </div>
-        <div className="space-y-2">
-          <div className="label">Recovery phrase</div>
-          <p className="text-arp-muted">
-            Save these 12 words somewhere safe. They are the only way to restore
-            your identity if this browser is cleared. We don&apos;t keep a copy.
-          </p>
-          {!phraseRevealed && (
+            {busy ? 'Signing in…' : 'Sign in with did:key'}
+          </button>
+          <div className="flex items-center gap-4 text-xs text-arp-muted">
+            {!phraseRevealed && (
+              <button
+                type="button"
+                className="underline"
+                onClick={revealPhrase}
+                data-testid="reveal-phrase-btn"
+              >
+                View recovery phrase
+              </button>
+            )}
             <button
               type="button"
-              className="btn btn-secondary"
-              onClick={revealPhrase}
-              data-testid="reveal-phrase-btn"
+              className="underline"
+              onClick={resetIdentity}
+              data-testid="reset-identity-btn"
             >
-              Reveal recovery phrase
+              Start over with a new identity
             </button>
-          )}
+          </div>
           {phraseRevealed && recoveryPhrase && (
             <div className="space-y-2">
               <div
@@ -237,97 +407,11 @@ export function LoginForm({ next }: { next: string }) {
               >
                 {phraseCopied ? 'Copied' : 'Copy'}
               </button>
-              <label className="flex items-center gap-2 text-xs text-arp-muted">
-                <input
-                  type="checkbox"
-                  checked={phraseAck}
-                  onChange={(e) => setPhraseAck(e.target.checked)}
-                  data-testid="phrase-ack"
-                />
-                I&apos;ve saved my recovery phrase.
-              </label>
             </div>
           )}
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={signIn}
-          disabled={!phraseAck || busy}
-          data-testid="sign-in-btn"
-        >
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-        {error && (
-          <div className="text-sm text-arp-danger" data-testid="login-error">
-            {error}
-          </div>
-        )}
-      </div>
-    );
-  }
+      </details>
 
-  // phase === 'ready'
-  return (
-    <div className="card max-w-xl space-y-4 text-sm">
-      {principalKey && (
-        <div>
-          <div className="label">Signed in as</div>
-          <code
-            className="block break-all rounded bg-arp-bg px-2 py-1 text-xs"
-            data-testid="principal-did"
-          >
-            {principalKey.did}
-          </code>
-        </div>
-      )}
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={signIn}
-        disabled={busy}
-        data-testid="sign-in-btn"
-      >
-        {busy ? 'Signing in…' : 'Sign in'}
-      </button>
-      <div className="flex items-center gap-4 text-xs text-arp-muted">
-        {!phraseRevealed && (
-          <button
-            type="button"
-            className="underline"
-            onClick={revealPhrase}
-            data-testid="reveal-phrase-btn"
-          >
-            View recovery phrase
-          </button>
-        )}
-        <button
-          type="button"
-          className="underline"
-          onClick={resetIdentity}
-          data-testid="reset-identity-btn"
-        >
-          Start over with a new identity
-        </button>
-      </div>
-      {phraseRevealed && recoveryPhrase && (
-        <div className="space-y-2">
-          <div
-            className="select-all break-words rounded bg-arp-bg px-3 py-2 font-mono text-xs leading-relaxed"
-            data-testid="recovery-phrase"
-          >
-            {recoveryPhrase}
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={copyPhrase}
-            data-testid="copy-phrase-btn"
-          >
-            {phraseCopied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-      )}
       {error && (
         <div className="text-sm text-arp-danger" data-testid="login-error">
           {error}
@@ -339,7 +423,6 @@ export function LoginForm({ next }: { next: string }) {
 
 function friendlyError(err: unknown): string {
   if (err instanceof Error && err.message) {
-    // Known internal codes mapped to human copy.
     if (err.message === 'invalid_recovery_phrase') {
       return 'That recovery phrase isn’t valid. Check spelling and word order.';
     }

@@ -9,6 +9,13 @@
 export { createRuntime, type Runtime, type RuntimeOptions } from './runtime.js';
 export { buildWellKnownDocs, type WellKnownDocs } from './well-known.js';
 export { createConnectionMemory, type ConnectionMemory } from './memory.js';
+export {
+  openAuthStore,
+  type AuthStore,
+  type IdentityRotationState,
+  type UserCredentialRow,
+  type WebauthnPurpose,
+} from './auth-store.js';
 export type {
   DispatchHandler,
   DispatchInput,

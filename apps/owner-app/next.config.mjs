@@ -13,6 +13,7 @@ const arpPackages = [
   '@kybernesis/arp-scope-catalog',
   '@kybernesis/arp-spec',
   '@kybernesis/arp-transport',
+  '@kybernesis/arp-ui',
 ];
 
 /** @type {import('next').NextConfig} */

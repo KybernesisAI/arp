@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Header } from '@/components/Header';
+import { OwnerAppShell } from '@/components/OwnerAppShell';
 import { StatusPill } from '@/components/StatusPill';
 import { getSession } from '@/lib/session';
 import { RuntimeClient } from '@/lib/runtime-client';
@@ -25,11 +25,9 @@ export default async function Home() {
   }
 
   return (
-    <div>
-      <Header />
-
+    <OwnerAppShell>
       <section className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Address book</h2>
+        <h2 className="font-display text-h3 font-medium text-ink">Address book</h2>
         <Link href="/pair" className="btn btn-primary no-underline">
           + New connection
         </Link>
@@ -99,6 +97,6 @@ export default async function Home() {
           </div>
         </details>
       ))}
-    </div>
+    </OwnerAppShell>
   );
 }

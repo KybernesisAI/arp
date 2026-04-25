@@ -30,6 +30,16 @@ export interface StartOptions {
    * request whose Host matches `hostSuffixes` to `target`.
    */
   ownerApp?: { target: string; hostSuffixes?: string[] };
+  /**
+   * Phase-10-10d WebAuthn config — when set, the runtime serves the
+   * `/admin/webauthn/*` and `/admin/identity/*` surface against a sidecar-
+   * local SQLite store.
+   */
+  webauthn?: {
+    rpId: string;
+    rpName: string;
+    origins: string[];
+  };
 }
 
 export interface StartedRuntime {
@@ -82,6 +92,16 @@ export async function startSidecarRuntime(
       : {}),
     ...(opts.adminToken ? { adminToken: opts.adminToken } : {}),
     ...(opts.ownerApp ? { ownerApp: opts.ownerApp } : {}),
+    ...(opts.webauthn
+      ? {
+          webauthn: {
+            storePath: join(dataDir, 'auth.sqlite'),
+            rpId: opts.webauthn.rpId,
+            rpName: opts.webauthn.rpName,
+            origins: opts.webauthn.origins,
+          },
+        }
+      : {}),
   });
 
   const hostname = opts.hostname ?? process.env.ARP_HOST ?? '0.0.0.0';

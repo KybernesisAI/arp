@@ -3,8 +3,8 @@
 import { useCallback, useState } from 'react';
 
 /**
- * Header logout button for the owner-app. Parallels the cloud logout
- * affordance so the two surfaces behave identically.
+ * Header logout button for the owner-app. Visual treatment matches the
+ * cloud `LogoutButton`: tracked-uppercase mono, nav-line hover underline.
  */
 export function LogoutButton(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,7 @@ export function LogoutButton(): React.JSX.Element {
       onClick={() => void doLogout()}
       disabled={busy}
       data-testid="owner-logout-btn"
-      className="text-sm text-arp-muted hover:text-arp-text underline-offset-4 hover:underline disabled:opacity-50"
+      className="border-b border-transparent py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-fast hover:border-ink disabled:opacity-50"
     >
       {busy ? 'Signing out…' : 'Log out'}
     </button>

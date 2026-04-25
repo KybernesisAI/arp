@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Header } from '@/components/Header';
+import { OwnerAppShell } from '@/components/OwnerAppShell';
 import { env } from '@/lib/env';
 import { getSession } from '@/lib/session';
 import { RuntimeClient } from '@/lib/runtime-client';
+import { PasskeySection } from './PasskeySection';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +17,8 @@ export default async function SettingsPage() {
   }));
 
   return (
-    <div>
-      <Header />
-      <h2 className="mb-4 text-lg font-semibold">Settings</h2>
+    <OwnerAppShell>
+      <h2 className="mb-4 font-display text-h3 font-medium text-ink">Settings</h2>
 
       <section className="card mb-4 space-y-2 text-sm">
         <h3 className="font-semibold">Identity</h3>
@@ -42,6 +42,16 @@ export default async function SettingsPage() {
         </dl>
       </section>
 
+      <section className="card mb-4 space-y-3 text-sm">
+        <h3 className="font-semibold">Passkeys</h3>
+        <p className="text-arp-muted">
+          Sign in with Touch ID / Face ID / Windows Hello. Passkeys live in
+          your browser&apos;s authenticator and unlock your owner-app session
+          without typing a recovery phrase.
+        </p>
+        <PasskeySection />
+      </section>
+
       <section className="card mb-4 space-y-2 text-sm">
         <h3 className="font-semibold">Keys</h3>
         <p className="text-arp-muted">
@@ -62,7 +72,7 @@ export default async function SettingsPage() {
         </p>
         <DangerZone connections={connections} />
       </section>
-    </div>
+    </OwnerAppShell>
   );
 }
 

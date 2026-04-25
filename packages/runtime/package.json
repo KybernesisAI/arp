@@ -43,9 +43,12 @@
     "@kybernesis/arp-templates": "workspace:*",
     "@kybernesis/arp-tls": "workspace:*",
     "@kybernesis/arp-transport": "workspace:*",
+    "@noble/ed25519": "^2.2.3",
+    "@simplewebauthn/server": "^13.3.0",
+    "better-sqlite3": "^11.5.0",
     "hono": "^4.6.12"
   },
   "devDependencies": {
-    "@noble/ed25519": "^2.2.3"
+    "@types/better-sqlite3": "^7.6.11"
   }
 }
