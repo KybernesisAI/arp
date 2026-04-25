@@ -49,10 +49,17 @@ RUN apk add --no-cache tini \
 
 COPY --from=build --chown=arp:arp /out /app
 
+# The Cedar PDP schema is loaded at boot. The default resolution path
+# walks up from dist/ to packages/spec/src/cedar-schema.json — that
+# layout doesn't exist inside the deployed runtime image, so we copy
+# the file in explicitly + pin its location via env.
+COPY --from=build --chown=arp:arp /build/packages/spec/src/cedar-schema.json /app/cedar-schema.json
+
 USER arp
 
 ENV NODE_ENV=production \
-    PORT=3001
+    PORT=3001 \
+    CEDAR_SCHEMA_PATH=/app/cedar-schema.json
 
 # Railway routes $PORT internally; expose for clarity.
 EXPOSE 3001
