@@ -138,16 +138,22 @@ export function createKyberBotAdapter(opts: KyberBotAdapterOptions): Adapter {
 }
 
 /**
- * Drain the SSE stream and accumulate the assistant's text. We prefer
- * `complete.fullResponse` when kyberbot emits it (most accurate,
- * trimmed), but fall back to summing `text.delta` events.
+ * Drain the SSE stream and accumulate the assistant's text.
+ *
+ * KyberBot's chat-sse handler emits, in order: `init`, then any
+ * combination of `text` (full text blocks — `{ text }`), `status`,
+ * `tool_start`, `tool_end`, and finally `result` (`{ usage, costUsd,
+ * summary }`). The `summary` from the result event is the canonical
+ * final response — it concatenates every text block + handles
+ * trimming. We prefer it; falling back to summing the text events if
+ * the stream ended before result fired.
  */
 async function consumeSSE(body: ReadableStream<Uint8Array>): Promise<string> {
   const reader = body.getReader();
   const dec = new TextDecoder();
   let buffer = '';
-  let textAcc = '';
-  let finalResponse: string | null = null;
+  const textBlocks: string[] = [];
+  let summary: string | null = null;
   let errorMessage: string | null = null;
 
   while (true) {
@@ -161,11 +167,11 @@ async function consumeSSE(body: ReadableStream<Uint8Array>): Promise<string> {
       const ev = parseSSEChunk(chunk);
       if (!ev) continue;
       if (ev.event === 'text') {
-        const delta = (ev.data as { delta?: string })?.delta;
-        if (typeof delta === 'string') textAcc += delta;
-      } else if (ev.event === 'complete') {
-        const full = (ev.data as { fullResponse?: string })?.fullResponse;
-        if (typeof full === 'string') finalResponse = full;
+        const t = (ev.data as { text?: string })?.text;
+        if (typeof t === 'string' && t.length > 0) textBlocks.push(t);
+      } else if (ev.event === 'result') {
+        const s = (ev.data as { summary?: string })?.summary;
+        if (typeof s === 'string') summary = s;
       } else if (ev.event === 'error') {
         errorMessage = (ev.data as { message?: string })?.message ?? 'unknown error';
       }
@@ -175,7 +181,7 @@ async function consumeSSE(body: ReadableStream<Uint8Array>): Promise<string> {
   if (errorMessage) {
     throw new Error(`kyberbot stream error: ${errorMessage}`);
   }
-  return finalResponse ?? textAcc;
+  return summary ?? textBlocks.join('\n\n').trim();
 }
 
 function parseSSEChunk(chunk: string): { event: string; data: unknown } | null {
