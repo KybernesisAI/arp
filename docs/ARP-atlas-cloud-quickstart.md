@@ -111,7 +111,7 @@ Expected output:
 [bridge] kyberbot adapter ready · root=/Users/ianborders/atlas · base=http://127.0.0.1:3456 · agent=Atlas
 ─────────────────────────────────────────────
 [bridge] agent did:    did:web:atlas.agent
-[bridge] gateway:      wss://arp-cloud-gateway-production.up.railway.app/ws
+[bridge] gateway:      wss://gateway.arp.run/ws
 [bridge] adapter:      kyberbot
 ─────────────────────────────────────────────
 [bridge] cloud-client state: connecting
@@ -131,7 +131,7 @@ relay messages.
 ### 5a · Cloud-gateway sees Atlas live
 
 ```bash
-curl -s https://arp-cloud-gateway-production.up.railway.app/health | jq
+curl -s https://gateway.arp.run/health | jq
 ```
 
 `sessions` should be ≥ 1 (counts every connected agent across all
@@ -140,14 +140,15 @@ tenants — increment from your last reading).
 ### 5b · Well-known docs resolve
 
 ```bash
-curl -s 'https://arp-cloud-gateway-production.up.railway.app/.well-known/did.json?target=atlas.agent' | jq '.id'
+curl -s 'https://gateway.arp.run/.well-known/did.json?target=atlas.agent' | jq '.id'
 # → "did:web:atlas.agent"
 ```
 
 Repeat for `agent-card.json` and `arp.json`. The `?target=` query
-param is required because Railway overwrites the `X-Forwarded-Host`
-header with its own load-balancer hostname; once the gateway gets a
-custom domain (`gateway.arp.run`), it becomes optional.
+param is required: Railway terminates TLS at the gateway hostname,
+so the gateway can't read the original `Host` header to identify
+the recipient agent. Query-string targeting works through any
+reverse proxy.
 
 ### 5c · Send Atlas a real DIDComm message
 
@@ -270,9 +271,6 @@ only the most recent wins. Kill duplicates: `pgrep -fl arp-cloud-bridge`.
 
 ## What's next
 
-- **Custom domain for the gateway** (`gateway.arp.run` → Railway).
-  Removes the `arp-cloud-gateway-production.up.railway.app` hostname
-  from handoff bundles.
 - **Tighten Cedar policy** in the dashboard. Default policy is
   permit-all; you'll want to scope by peer DID or capability.
 - **Adapters for other frameworks**: OpenClaw and Hermes would be ~50
