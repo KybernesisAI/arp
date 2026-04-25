@@ -23,7 +23,7 @@
     }
   },
   "bin": {
-    "arp-cloud-bridge": "./dist/cli.js"
+    "arp-cloud-bridge": "dist/cli.js"
   },
   "files": [
     "dist",
