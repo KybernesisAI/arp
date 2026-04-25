@@ -4,11 +4,20 @@
  * On inbound:
  *   1. cloud-client receives `inbound_message` from the cloud-gateway
  *   2. We decode the JWS payload to get the DIDComm body
- *   3. Hand `body.text` to the adapter; adapter returns a reply string
- *   4. We sign a response envelope and send it via outbound_envelope
+ *   3. If the message's thid matches an awaiting `awaitReply()`, resolve
+ *      that promise + skip the adapter — the message was a reply to an
+ *      outbound this process initiated, not a fresh agent-bound prompt
+ *   4. Otherwise hand `body.text` to the adapter; adapter returns a reply
+ *      string, we sign + send a response envelope
  *
- * The bridge process is stateless. Conversation state, memory, skills —
- * all of that lives inside the agent framework. We're just transport.
+ * On outbound (new in 0.2.0):
+ *   - `sendOutbound({ to, text, ... })` signs an
+ *     `https://didcomm.org/arp/1.0/request` envelope and pushes it through
+ *     the WS. Returns the generated msgId/thid so the caller can match a
+ *     reply via `awaitReply(thid)`.
+ *
+ * The bridge process is otherwise stateless — conversation state, memory,
+ * skills all live inside the agent framework.
  */
 
 import { readFileSync } from 'node:fs';
@@ -33,12 +42,64 @@ interface HandoffBundle {
   gateway_ws_url: string;
 }
 
+export interface SendOutboundParams {
+  /** Recipient DID. */
+  to: string;
+  /** Plaintext body. */
+  text: string;
+  /**
+   * Existing thread id to continue. If unset, a new thid (= msgId) is
+   * minted; use the returned `thid` to await the reply.
+   */
+  thid?: string;
+  /**
+   * Connection id (Cedar PDP scope). Required for any peer that's not
+   * the sender themselves — without it the gateway returns
+   * `missing_connection_id`. Self-messages with no connectionId fall
+   * back to the self-demo permit-all path.
+   */
+  connectionId?: string | null;
+  /** DIDComm protocol URI. Defaults to `https://didcomm.org/arp/1.0/request`. */
+  msgType?: string;
+}
+
+export interface SendOutboundResult {
+  msgId: string;
+  thid: string;
+  gatewayResponse: { ok: boolean; error?: string; status: number; body: unknown };
+}
+
+export interface AwaitReplyResult {
+  thid: string;
+  peerDid: string;
+  text: string;
+  body: Record<string, unknown>;
+}
+
 export interface BridgeHandle {
   readonly agentDid: string;
   readonly gatewayWsUrl: string;
   readonly adapterName: string;
   state(): string;
   stop(): Promise<void>;
+  /**
+   * Sign + send a DIDComm envelope. POSTs to the gateway's
+   * /didcomm?target=<peerHost> endpoint (works through reverse proxies
+   * that overwrite Host headers).
+   */
+  sendOutbound(params: SendOutboundParams): Promise<SendOutboundResult>;
+  /**
+   * Wait for an inbound DIDComm whose thid matches. Resolves on receipt
+   * (the message is also intercepted — the agent's adapter never sees
+   * it). Rejects after `timeoutMs` (default 30 000 ms).
+   */
+  awaitReply(thid: string, timeoutMs?: number): Promise<AwaitReplyResult>;
+}
+
+interface PendingReply {
+  resolve: (r: AwaitReplyResult) => void;
+  reject: (err: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
@@ -53,10 +114,17 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
   const privateKey = multibaseEd25519ToRaw(bundle.agent_private_key_multibase);
   const cloudWsUrl = opts.cloudWsUrl ?? bundle.gateway_ws_url;
 
+  // Derive HTTP gateway URL from the WS URL — same host, different scheme/path.
+  const gatewayHttp = cloudWsUrl
+    .replace(/^wss:/, 'https:')
+    .replace(/^ws:/, 'http:')
+    .replace(/\/ws$/, '');
+
   if (opts.adapter.init) {
     await opts.adapter.init();
   }
 
+  const pending = new Map<string, PendingReply>();
   let client: CloudClientHandle | null = null;
 
   client = createCloudClient({
@@ -73,7 +141,7 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
       console.error(`[bridge] cloud-client error: ${err.message}`);
     },
     onIncoming: async (input) => {
-      await handleInbound(input, opts.adapter, client!, agentDid, privateKey);
+      await handleInbound(input, opts.adapter, client!, agentDid, privateKey, pending);
     },
   });
 
@@ -83,10 +151,69 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
     adapterName: opts.adapter.name,
     state: () => (client ? client.state() : 'stopped'),
     async stop() {
+      // Reject any outstanding awaiting promises so callers don't hang.
+      for (const [, p] of pending) {
+        clearTimeout(p.timer);
+        p.reject(new Error('bridge stopped'));
+      }
+      pending.clear();
       if (client) {
         await client.stop();
         client = null;
       }
+    },
+    async sendOutbound(params) {
+      const msgId = randomUUID();
+      const thid = params.thid ?? msgId;
+      const msgType = params.msgType ?? 'https://didcomm.org/arp/1.0/request';
+      const messageBody: Record<string, unknown> = { text: params.text };
+      if (params.connectionId) messageBody['connection_id'] = params.connectionId;
+      const env = await signEnvelope({
+        message: {
+          id: msgId,
+          type: msgType,
+          from: agentDid,
+          to: [params.to],
+          thid,
+          body: messageBody,
+        },
+        signerDid: agentDid,
+        privateKey,
+      });
+      const peerHost = params.to.replace(/^did:web:/, '');
+      const url = `${gatewayHttp}/didcomm?target=${encodeURIComponent(peerHost)}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/didcomm-signed+json' },
+        body: env.compact,
+      });
+      const text = await res.text().catch(() => '');
+      let body: unknown = null;
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = text;
+      }
+      return {
+        msgId,
+        thid,
+        gatewayResponse: {
+          ok: res.ok,
+          status: res.status,
+          body,
+          ...(res.ok ? {} : { error: typeof body === 'object' && body && 'error' in body ? String((body as { error: unknown }).error) : `http_${res.status}` }),
+        },
+      };
+    },
+    awaitReply(thid, timeoutMs = 30_000) {
+      return new Promise<AwaitReplyResult>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pending.delete(thid);
+          reject(new Error(`awaitReply(${thid}): timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+        timer.unref?.();
+        pending.set(thid, { resolve, reject, timer });
+      });
     },
   };
 }
@@ -97,6 +224,7 @@ async function handleInbound(
   client: CloudClientHandle,
   agentDid: string,
   privateKey: Uint8Array,
+  pending: Map<string, PendingReply>,
 ): Promise<void> {
   if (input.decision !== 'allow') {
     // eslint-disable-next-line no-console
@@ -117,6 +245,17 @@ async function handleInbound(
     typeof decoded.body?.['text'] === 'string'
       ? (decoded.body['text'] as string)
       : JSON.stringify(decoded.body ?? {});
+
+  // ---- intercept replies to outbound sends -------------------------------
+  if (thid && pending.has(thid)) {
+    const p = pending.get(thid)!;
+    pending.delete(thid);
+    clearTimeout(p.timer);
+    p.resolve({ thid, peerDid, text, body: decoded.body ?? {} });
+    // eslint-disable-next-line no-console
+    console.log(`[bridge] ← ${peerDid}: ${truncate(text, 80)}  (matched awaitReply)`);
+    return;
+  }
 
   // eslint-disable-next-line no-console
   console.log(`[bridge] ← ${peerDid}: ${truncate(text, 80)}`);

@@ -14,7 +14,13 @@
  * what you want.
  */
 
-export { startBridge, type BridgeHandle } from './bridge.js';
+export {
+  startBridge,
+  type BridgeHandle,
+  type SendOutboundParams,
+  type SendOutboundResult,
+  type AwaitReplyResult,
+} from './bridge.js';
 export type { Adapter, InboundContext, BridgeOptions } from './types.js';
 export {
   createKyberBotAdapter,
