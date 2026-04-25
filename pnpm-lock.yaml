@@ -685,6 +685,34 @@ importers:
         specifier: ^2.0.0
         version: 2.1.0
 
+  packages/cloud-bridge:
+    dependencies:
+      '@kybernesis/arp-cloud-client':
+        specifier: ^0.2.0
+        version: 0.2.0
+      '@kybernesis/arp-transport':
+        specifier: ^0.3.2
+        version: 0.3.2
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.1
+    devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.5.4)(yaml@2.8.3)
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
+
   packages/cloud-client:
     dependencies:
       '@noble/ed25519':
@@ -2032,6 +2060,19 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@kybernesis/arp-cloud-client@0.2.0':
+    resolution: {integrity: sha512-KmCOMAeOOdkGyIcUKEWRR+0aG6OEBdwhvNmUao99DJyChHbfZtn5ZLbrY4JJAd8v7fHIakWLLEYXm+wRBOpsTA==}
+    hasBin: true
+
+  '@kybernesis/arp-resolver@0.3.1':
+    resolution: {integrity: sha512-NT333S6E/lDEY5PPFPkuMH9sSqJS1sRkabB6Bwpa5Rp65cazv4In2qhGVHDniwc5zniWsJXMuXxnV2GAoF884w==}
+
+  '@kybernesis/arp-spec@0.2.0':
+    resolution: {integrity: sha512-OsfCza4sTGomkd9UPlea7EP/DTeFq8YYVY/adWY6BRvHnIKn2ytPojxqI2hZg0SRebVik5jWHRetbMpPqcFyGg==}
+
+  '@kybernesis/arp-transport@0.3.2':
+    resolution: {integrity: sha512-489PI+kZR9v40OgMk0NF32kY5RZurts30ZcLHwapT9Tb8AMDuo2bgwJ4fwdNOwhgdbmWfnOK4mG/l9bL7fUkRw==}
+
   '@langchain/core@0.3.80':
     resolution: {integrity: sha512-vcJDV2vk1AlCwSh3aBm/urQ1ZrlXFFBocv11bz/NBUfLWD5/UDNMzwPdaAd2dKvNmTWa9FM2lirLU3+JCf4cRA==}
     engines: {node: '>=18'}
@@ -2446,6 +2487,9 @@ packages:
 
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
+
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -5863,6 +5907,31 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@kybernesis/arp-cloud-client@0.2.0':
+    dependencies:
+      '@noble/ed25519': 2.3.0
+      ws: 8.20.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@kybernesis/arp-resolver@0.3.1':
+    dependencies:
+      '@kybernesis/arp-spec': 0.2.0
+      zod: 3.25.76
+
+  '@kybernesis/arp-spec@0.2.0':
+    dependencies:
+      zod: 3.25.76
+
+  '@kybernesis/arp-transport@0.3.2':
+    dependencies:
+      '@kybernesis/arp-resolver': 0.3.1
+      '@kybernesis/arp-spec': 0.2.0
+      '@noble/ed25519': 2.3.0
+      better-sqlite3: 11.10.0
+      jose: 5.10.0
+
   '@langchain/core@0.3.80':
     dependencies:
       '@cfworker/json-schema': 4.1.1
@@ -6300,6 +6369,8 @@ snapshots:
   '@types/hast@3.0.4':
     dependencies:
       '@types/unist': 3.0.3
+
+  '@types/js-yaml@4.0.9': {}
 
   '@types/json-schema@7.0.15': {}
 

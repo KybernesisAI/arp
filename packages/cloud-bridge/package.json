@@ -1,0 +1,49 @@
+{
+  "name": "@kybernesis/arp-cloud-bridge",
+  "version": "0.1.0",
+  "description": "External bridge: connects ARP cloud-gateway to a locally running agent framework (KyberBot, OpenClaw, Hermes) via that framework's existing native API. No code changes to the agent framework.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/cloud-bridge"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "arp-cloud-bridge": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kybernesis/arp-cloud-client": "^0.2.0",
+    "@kybernesis/arp-transport": "^0.3.2",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.9.0",
+    "tsup": "^8.3.5",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}
