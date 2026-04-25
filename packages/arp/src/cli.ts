@@ -46,8 +46,10 @@ import {
 } from './manifest.js';
 import * as host from './host.js';
 import * as service from './service.js';
+import * as send from './send.js';
+import * as skill from './skill.js';
 
-const VERSION = '0.6.1';
+const VERSION = '0.7.0';
 
 interface ResolvedConfig {
   handoffPath: string;
@@ -188,6 +190,11 @@ interface Flags {
   internalSupervisor?: boolean;
   help?: boolean;
   version?: boolean;
+  // arpc send
+  async?: boolean;
+  timeoutSec?: number;
+  connectionId?: string;
+  as?: string;
 }
 
 function parseArgs(argv: string[]): { cmd: string; sub: string | null; positional: string[]; flags: Flags } {
@@ -221,6 +228,18 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
       case '--internal-supervisor':
         flags.internalSupervisor = true;
         break;
+      case '--async':
+        flags.async = true;
+        break;
+      case '--timeout':
+        flags.timeoutSec = Number(next() ?? '30');
+        break;
+      case '--connection':
+        flags.connectionId = next();
+        break;
+      case '--as':
+        flags.as = next();
+        break;
       case '-h':
       case '--help':
         flags.help = true;
@@ -238,7 +257,12 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
     }
   }
   if (positional[0]) cmd = positional[0]!;
-  if ((cmd === 'host' || cmd === 'service') && positional[1]) sub = positional[1]!;
+  if (
+    (cmd === 'host' || cmd === 'service' || cmd === 'contacts' || cmd === 'skill') &&
+    positional[1]
+  ) {
+    sub = positional[1]!;
+  }
   return { cmd, sub, positional, flags };
 }
 
@@ -259,6 +283,17 @@ Many agents — supervisor (one process for all, daemonised):
   arpc host list             Print the agent list.
   arpc host add <folder>     Add an agent folder to host.yaml.
   arpc host remove <folder>  Remove an agent folder.
+
+Send a message (uses the running supervisor):
+  arpc send <name|did> "<text>"   Send to a contact (or did:web: directly).
+                                   By default waits up to 30s for a reply.
+  arpc contacts list               Show this agent's address book.
+  arpc contacts add <name> <did>   Add a contact entry.
+  arpc contacts remove <name>      Remove a contact entry.
+
+Skills (drop a SKILL.md template into the agent folder):
+  arpc skill install contact       Teach the LLM to call \`arpc send\` when
+                                   the user asks it to message another agent.
 
 Auto-start at login (macOS launchd):
   arpc service install       Run the supervisor automatically on every login.
@@ -501,6 +536,20 @@ async function main(): Promise<void> {
       return;
     case 'service':
       cmdService(sub);
+      return;
+    case 'send':
+      await send.cmdSend(positional, {
+        async: flags.async,
+        ...(flags.timeoutSec !== undefined ? { timeoutSec: flags.timeoutSec } : {}),
+        ...(flags.connectionId ? { connectionId: flags.connectionId } : {}),
+        ...(flags.as ? { as: flags.as } : {}),
+      });
+      return;
+    case 'contacts':
+      send.cmdContacts(sub, positional);
+      return;
+    case 'skill':
+      skill.cmdSkill(sub, positional);
       return;
     default:
       console.error(`unknown command: ${cmd}\n`);

@@ -37,6 +37,7 @@ import {
   readHostConfig,
   type HostAgent,
 } from './host-config.js';
+import { startIpcServer, type SupervisedRef, type IpcServerHandle } from './ipc.js';
 
 interface SupervisedAgent {
   agent: HostAgent;
@@ -233,6 +234,23 @@ async function start(opts: SupervisorOptions): Promise<SupervisorHandle> {
 
   await Promise.all(supervised.map((s) => startOne(s)));
 
+  // ---- start the IPC control server -------------------------------------
+  let ipc: IpcServerHandle | null = null;
+  try {
+    ipc = await startIpcServer({
+      version: SUPERVISOR_VERSION,
+      getSupervised: (): SupervisedRef[] =>
+        supervised
+          .filter((s) => !s.stopRequested)
+          .map((s) => ({ root: s.agent.root, bridge: s.bridge })),
+    });
+    // eslint-disable-next-line no-console
+    console.log(`[supervisor] ipc on http://127.0.0.1:${ipc.port}`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[supervisor] ipc server failed to bind: ${(err as Error).message}`);
+  }
+
   let stopped = false;
 
   // ---- hot-reload watcher --------------------------------------------------
@@ -257,10 +275,20 @@ async function start(opts: SupervisorOptions): Promise<SupervisorHandle> {
           /* ignore */
         }
       }
+      if (ipc) {
+        try {
+          await ipc.close();
+        } catch {
+          /* ignore */
+        }
+      }
       await Promise.all(supervised.map((s) => stopOne(s)));
     },
   };
 }
+
+// Bumped on every release that adds IPC fields.
+const SUPERVISOR_VERSION = '0.7.0';
 
 async function reload(configPath: string, supervised: SupervisedAgent[]): Promise<void> {
   let next: HostAgent[];
