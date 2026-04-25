@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Badge,
   Button,
@@ -36,6 +37,19 @@ export interface ScopeOption {
   risk: string;
 }
 
+function suggestContactName(did: string): string {
+  // did:web:samantha.agent → samantha
+  // did:web:owner.samantha.agent → samantha
+  const m = did.match(/^did:web:([^:]+)/);
+  if (!m) return 'peer';
+  const host = m[1] ?? 'peer';
+  const labels = host.split('.');
+  if (labels.length >= 2 && labels[labels.length - 1] === 'agent') {
+    return labels[labels.length - 2] ?? 'peer';
+  }
+  return labels[0] ?? 'peer';
+}
+
 interface GeneratedState {
   invitationId: string;
   invitationUrl: string;
@@ -69,7 +83,20 @@ export function PairForm({
   bundles: BundleOption[];
 }): React.JSX.Element {
   void scopes;
-  const [issuerAgent, setIssuerAgent] = useState(agents[0]?.did ?? '');
+  const params = useSearchParams();
+  const fromQuery = params?.get('from') ?? null;
+  const initialIssuer =
+    fromQuery && agents.some((a) => a.did === fromQuery)
+      ? fromQuery
+      : agents[0]?.did ?? '';
+  const [issuerAgent, setIssuerAgent] = useState(initialIssuer);
+  useEffect(() => {
+    if (fromQuery && agents.some((a) => a.did === fromQuery) && fromQuery !== issuerAgent) {
+      setIssuerAgent(fromQuery);
+    }
+    // intentionally only run when fromQuery changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromQuery]);
   const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
   const [purpose, setPurpose] = useState('Test connection');
   const [bundleId, setBundleId] = useState(bundles[0]?.id ?? '');
@@ -305,6 +332,27 @@ export function PairForm({
                 Anyone who opens this URL and signs in to ARP Cloud can accept
                 the invitation. Share over a channel you trust.
               </div>
+              <details className="mt-6 border-t border-rule pt-4 text-body-sm">
+                <summary className="cursor-pointer font-mono text-kicker uppercase text-muted">
+                  ▸ AFTER ACCEPT — ADD THE PEER TO YOUR LOCAL CONTACTS
+                </summary>
+                <p className="mt-3 text-ink-2">
+                  Once the peer accepts, both sides have an active connection
+                  in the cloud. To address the peer by name from your local
+                  agent (so the LLM&apos;s contact skill can resolve it), drop
+                  this into your terminal in the agent&apos;s folder:
+                </p>
+                <Pre className="mt-3 text-xs leading-snug">
+{`cd ~/your-agent-folder
+arpc contacts add ${suggestContactName(audienceDid)} ${audienceDid}`}
+                </Pre>
+                <p className="mt-3 text-ink-2">
+                  Then your agent will be able to message them by name —
+                  e.g. <Code>arpc send {suggestContactName(audienceDid)} &quot;hi&quot;</Code>{' '}
+                  — and the contact skill (<Code>arpc skill install contact</Code>)
+                  will pick it up when the user asks.
+                </p>
+              </details>
             </>
           )}
         </div>

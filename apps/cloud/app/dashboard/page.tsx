@@ -251,8 +251,14 @@ function AgentRow({
           </>
         )}
       </div>
-      <div className="col-span-12 mt-2">
+      <div className="col-span-12 mt-2 flex flex-wrap gap-2">
         <SelfTestConnectionButton agentDid={agent.did} />
+        <Link
+          href={`/pair?from=${encodeURIComponent(agent.did)}`}
+          className="font-mono text-kicker uppercase text-ink border border-rule px-3 py-1.5 hover:bg-paper-2"
+        >
+          Pair with another agent →
+        </Link>
       </div>
     </li>
   );
