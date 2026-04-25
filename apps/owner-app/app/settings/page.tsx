@@ -4,6 +4,7 @@ import { OwnerAppShell } from '@/components/OwnerAppShell';
 import { env } from '@/lib/env';
 import { getSession } from '@/lib/session';
 import { RuntimeClient } from '@/lib/runtime-client';
+import { PasskeySection } from './PasskeySection';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,16 @@ export default async function SettingsPage() {
             <dd>{connections.filter((c) => c.status === 'active').length}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="card mb-4 space-y-3 text-sm">
+        <h3 className="font-semibold">Passkeys</h3>
+        <p className="text-arp-muted">
+          Sign in with Touch ID / Face ID / Windows Hello. Passkeys live in
+          your browser&apos;s authenticator and unlock your owner-app session
+          without typing a recovery phrase.
+        </p>
+        <PasskeySection />
       </section>
 
       <section className="card mb-4 space-y-2 text-sm">
