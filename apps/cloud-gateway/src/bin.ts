@@ -53,9 +53,15 @@ async function main(): Promise<void> {
     db = pgliteDb as unknown as CloudDbClient;
   }
 
+  // Bind 0.0.0.0 by default in production (Railway, Fly, etc need to
+  // reach the container from outside loopback). HOST=127.0.0.1 falls
+  // back to loopback for local dev. Setting HOST explicitly overrides.
+  const hostname =
+    process.env['HOST'] ?? (process.env['DATABASE_URL'] ? '0.0.0.0' : '127.0.0.1');
+
   const cedarSchemaJson = loadCedarSchema(cedarPath);
-  const handle = await startGateway(port, { db, cedarSchemaJson, logger });
-  logger.info({ port: handle.port }, 'arp-cloud-gateway listening');
+  const handle = await startGateway(port, { db, cedarSchemaJson, logger, hostname });
+  logger.info({ port: handle.port, hostname }, 'arp-cloud-gateway listening');
 
   const stop = async () => {
     logger.info({}, 'shutdown');

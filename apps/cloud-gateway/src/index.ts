@@ -31,6 +31,13 @@ export interface GatewayOptions {
   peerResolver?: PeerResolver;
   logger?: CloudRuntimeLogger;
   metrics?: TenantMetrics;
+  /**
+   * Bind hostname. Defaults to `127.0.0.1` for local + tests so dev
+   * boxes don't accidentally expose the gateway. Production deploys
+   * (Railway, Fly, etc) MUST set this to `0.0.0.0` so the platform's
+   * load balancer can reach the container.
+   */
+  hostname?: string;
   /** Optional clock injection. */
   now?: () => number;
 }
@@ -63,17 +70,18 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     ...(opts.now ? { now: opts.now } : {}),
   });
 
+  const hostname = opts.hostname ?? '127.0.0.1';
   const server = createAdaptorServer({
     fetch: app.fetch,
     port,
-    hostname: '127.0.0.1',
+    hostname,
   }) as unknown as HttpServer;
 
   const ws = createCloudWsServer({ db: opts.db, sessions, logger });
   ws.attach(server);
 
   const actualPort = await new Promise<number>((resolve) => {
-    server.listen(port, '127.0.0.1', () => {
+    server.listen(port, hostname, () => {
       const addr = server.address();
       if (addr && typeof addr === 'object') resolve(addr.port);
       else resolve(port);
