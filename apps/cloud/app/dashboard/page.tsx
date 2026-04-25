@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { AppShell } from '@/components/app/AppShell';
 import { ProvisionAgentButton } from './ProvisionAgentButton';
+import { SelfTestConnectionButton } from './SelfTestConnectionButton';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 
 export const runtime = 'nodejs';
@@ -249,6 +250,9 @@ function AgentRow({
             {agent.lastAuditAgo}
           </>
         )}
+      </div>
+      <div className="col-span-12 mt-2">
+        <SelfTestConnectionButton agentDid={agent.did} />
       </div>
     </li>
   );
