@@ -5,7 +5,7 @@
  * Detection precedence (in order, first match wins):
  *   1. `arp.json` in the cwd          — authoritative manifest
  *   2. `identity.yaml` in the cwd     — legacy: assume framework=kyberbot
- *   3. otherwise                      — error, suggest `arp init`
+ *   3. otherwise                      — error, suggest `arpc init`
  *
  * Common usage — non-technical-friendly:
  *
@@ -46,7 +46,7 @@ import {
 } from './manifest.js';
 import * as host from './host.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 interface ResolvedConfig {
   handoffPath: string;
@@ -67,7 +67,7 @@ function findHandoff(dir: string): string | null {
     if (matches.length === 1) return resolve(dir, matches[0]!);
     if (matches.length > 1) {
       console.error(
-        `arp: multiple handoff files in ${dir} — set "handoff" in arp.json or pass --handoff:\n  ${matches.join('\n  ')}`,
+        `arpc: multiple handoff files in ${dir} — set "handoff" in arp.json or pass --handoff:\n  ${matches.join('\n  ')}`,
       );
       process.exit(2);
     }
@@ -89,7 +89,7 @@ function resolveFromManifest(cwd: string, m: ArpManifest, flagHandoff?: string):
       : findHandoff(cwd);
   if (!handoffPath) {
     console.error(
-      `arp: arp.json found but no handoff JSON. Set "handoff" in arp.json, ` +
+      `arpc: arp.json found but no handoff JSON. Set "handoff" in arp.json, ` +
         `or place arp-handoff.json next to it.`,
     );
     process.exit(1);
@@ -103,7 +103,7 @@ function resolveFromManifest(cwd: string, m: ArpManifest, flagHandoff?: string):
   };
   if (m.framework === 'generic-http') {
     if (!m['generic-http']) {
-      console.error(`arp: framework="generic-http" requires a "generic-http" block in arp.json`);
+      console.error(`arpc: framework="generic-http" requires a "generic-http" block in arp.json`);
       process.exit(1);
     }
     cfg.url = m['generic-http'].url;
@@ -111,7 +111,7 @@ function resolveFromManifest(cwd: string, m: ArpManifest, flagHandoff?: string):
   }
   if (m.framework === 'openclaw' || m.framework === 'hermes') {
     console.error(
-      `arp: framework="${m.framework}" — adapter not yet implemented. Use framework="generic-http" for now.`,
+      `arpc: framework="${m.framework}" — adapter not yet implemented. Use framework="generic-http" for now.`,
     );
     process.exit(1);
   }
@@ -122,11 +122,11 @@ function resolveFromAutoDetect(cwd: string, flags: Flags): ResolvedConfig {
   const handoffPath = flags.handoff ? resolvePath(cwd, flags.handoff) : findHandoff(cwd);
   if (!handoffPath) {
     console.error(
-      `arp: no handoff file in ${cwd}.\n\n` +
+      `arpc: no handoff file in ${cwd}.\n\n` +
         `Either:\n` +
         `  • Download arp-handoff.json from https://cloud.arp.run/dashboard\n` +
         `    (provision your .agent domain → "Download <domain>.arp-handoff.json")\n` +
-        `  • Or run \`arp init\` in this folder to declare the framework + handoff path.`,
+        `  • Or run \`arpc init\` in this folder to declare the framework + handoff path.`,
     );
     process.exit(1);
   }
@@ -147,8 +147,8 @@ function resolveFromAutoDetect(cwd: string, flags: Flags): ResolvedConfig {
   }
 
   console.error(
-    `arp: couldn't auto-detect agent framework in ${cwd}.\n\n` +
-      `Run \`arp init\` to declare the framework explicitly, or pass:\n` +
+    `arpc: couldn't auto-detect agent framework in ${cwd}.\n\n` +
+      `Run \`arpc init\` to declare the framework explicitly, or pass:\n` +
       `  arp --url http://127.0.0.1:9090/arp [--token <bearer>]\n`,
   );
   process.exit(1);
@@ -159,7 +159,7 @@ function resolveConfig(cwd: string, flags: Flags): ResolvedConfig {
     try {
       return readManifest(cwd);
     } catch (err) {
-      console.error(`arp: ${(err as Error).message}`);
+      console.error(`arpc: ${(err as Error).message}`);
       process.exit(1);
     }
   })();
@@ -241,56 +241,56 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
   return { cmd, sub, positional, flags };
 }
 
-const HELP = `arp — connect local agents to ARP Cloud.
+const HELP = `arpc — connect local agents to ARP Cloud.
 
 One agent — single-shot:
-  arp [connect]              Connect this folder's agent (default).
-  arp init [--yes]           Create arp.json in this folder. Auto-detects
+  arpc [connect]             Connect this folder's agent (default).
+  arpc init [--yes]          Create arp.json in this folder. Auto-detects
                              sensible defaults; --yes skips prompts.
-  arp doctor                 Show what would connect, without doing it.
+  arpc doctor                Show what would connect, without doing it.
 
-Many agents — supervisor (one process for all):
-  arp host                   Foreground supervisor — runs every agent
+Many agents — supervisor (one process for all, daemonised):
+  arpc host                  Foreground supervisor — runs every agent
                              listed in ~/.arp/host.yaml. Ctrl-C to stop.
-  arp host start             Daemonize the supervisor. Logs to ~/.arp/host.log.
-  arp host stop              Stop the daemon.
-  arp host status            Daemon state + configured agents.
-  arp host list              Print the agent list.
-  arp host add <folder>      Add an agent folder to host.yaml.
-  arp host remove <folder>   Remove an agent folder.
+  arpc host start            Daemonise the supervisor. Logs to ~/.arp/host.log.
+  arpc host stop             Stop the daemon.
+  arpc host status           Daemon state + configured agents.
+  arpc host list             Print the agent list.
+  arpc host add <folder>     Add an agent folder to host.yaml.
+  arpc host remove <folder>  Remove an agent folder.
 
 Misc:
-  arp version
-  arp help
+  arpc version
+  arpc help
 
 Detection (single-agent mode reads cwd; supervisor reads each folder):
-  1. arp.json                — authoritative manifest. Run \`arp init\`.
+  1. arp.json                — authoritative manifest. Run \`arpc init\`.
   2. identity.yaml           — legacy: assumes framework=kyberbot.
-  3. otherwise               — error, suggests \`arp init\`.
+  3. otherwise               — error, suggests \`arpc init\`.
 
 Optional flags (rarely needed; arp.json is the right place for these):
   --handoff <path>           Override handoff JSON path
   --url <url>                Generic-HTTP target (when not kyberbot)
   --token <token>            Bearer token for the generic-HTTP target
   --cloud-ws-url <ws-url>    Override the gateway WS URL embedded in the handoff
-  --framework <name>         For \`arp init\`: skip the prompt
+  --framework <name>         For \`arpc init\`: skip the prompt
   -h, --help
   -v, --version
 
 Get started:
-  Single agent:
-    1. Provision a .agent domain at https://cloud.arp.run/dashboard
-    2. Download the handoff JSON next to identity.yaml
-    3. cd into the folder
-    4. arp init     # one-time, writes arp.json
-    5. arp          # connect
+  Single agent (daemon — recommended even for one):
+    arpc host add ~/atlas
+    arpc host start
 
-  Multiple agents (the right way for daily use):
-    arp host add ~/atlas
-    arp host add ~/nova
-    arp host add ~/samantha
-    arp host start    # daemonizes; survives terminal close
-    arp host status   # confirm
+  Single agent (foreground):
+    cd ~/atlas
+    arpc
+
+  Multiple agents:
+    arpc host add ~/atlas
+    arpc host add ~/nova
+    arpc host add ~/samantha
+    arpc host start
 `;
 
 // ---- subcommands -----------------------------------------------------------
@@ -300,7 +300,7 @@ async function cmdConnect(flags: Flags): Promise<void> {
   const cfg = resolveConfig(cwd, flags);
   const adapter = buildAdapter(cfg);
 
-  console.log(`arp · framework=${cfg.framework} · source=${cfg.source} · cwd=${cwd}`);
+  console.log(`arpc · framework=${cfg.framework} · source=${cfg.source} · cwd=${cwd}`);
   const bridge = await startBridge({
     handoffPath: cfg.handoffPath,
     adapter,
@@ -336,7 +336,7 @@ async function cmdDoctor(flags: Flags): Promise<void> {
     console.error(`could not parse handoff: ${(err as Error).message}`);
     process.exit(2);
   }
-  console.log(`arp doctor — what we'd connect:`);
+  console.log(`arpc doctor — what we'd connect:`);
   console.log(`  cwd:           ${cwd}`);
   console.log(`  detection:     ${cfg.source}`);
   console.log(`  handoff:       ${cfg.handoffPath} (${basename(cfg.handoffPath)})`);
@@ -348,7 +348,7 @@ async function cmdDoctor(flags: Flags): Promise<void> {
     console.log(`  generic url:   ${cfg.url}`);
     console.log(`  generic token: ${cfg.token ? '<set>' : '<not set>'}`);
   }
-  console.log(`\nLooks good? Run \`arp\` (no args) to actually connect.`);
+  console.log(`\nLooks good? Run \`arpc\` (no args) to actually connect.`);
 }
 
 async function cmdInit(flags: Flags): Promise<void> {
@@ -501,7 +501,7 @@ async function main(): Promise<void> {
 
 async function cmdHost(sub: string | null, positional: string[], flags: Flags): Promise<void> {
   if (flags.internalSupervisor) {
-    // Reserved entry point used by `arp host start` after fork.
+    // Reserved entry point used by `arpc host start` after fork.
     await host.runForeground();
     return;
   }
@@ -537,6 +537,6 @@ async function cmdHost(sub: string | null, positional: string[], flags: Flags): 
 }
 
 main().catch((err) => {
-  console.error(`arp: fatal: ${(err as Error).message}`);
+  console.error(`arpc: fatal: ${(err as Error).message}`);
   process.exit(1);
 });

@@ -10,8 +10,8 @@
  * unaffected.
  *
  * Used by both:
- *   - `arp host` (foreground)        — logs go to the controlling tty
- *   - `arp host start` (daemon)      — same code, but stdio is the
+ *   - `arpc host` (foreground)        — logs go to the controlling tty
+ *   - `arpc host start` (daemon)      — same code, but stdio is the
  *     daemon's redirected log file
  */
 
@@ -66,7 +66,7 @@ function loadAgentConfig(root: string): {
     if (existsSync(resolve(root, 'identity.yaml'))) {
       manifest = { framework: 'kyberbot', kyberbot: { root: '.' } };
     } else {
-      throw new Error(`${root}: no arp.json (run \`arp init\` in that folder first)`);
+      throw new Error(`${root}: no arp.json (run \`arpc init\` in that folder first)`);
     }
   }
   const handoffRel = manifest.handoff ?? './arp-handoff.json';
@@ -173,7 +173,7 @@ function scheduleRestart(s: SupervisedAgent): void {
 export async function startSupervisor(agents: HostAgent[]): Promise<SupervisorHandle> {
   if (agents.length === 0) {
     // eslint-disable-next-line no-console
-    console.log('arp host: no agents configured. Add one with `arp host add <folder>`.');
+    console.log('arp host: no agents configured. Add one with `arpc host add <folder>`.');
   }
   const supervised: SupervisedAgent[] = agents.map((a) => ({
     agent: a,
