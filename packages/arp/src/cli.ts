@@ -2,82 +2,130 @@
 /**
  * arp — single-command CLI for connecting a local agent to ARP Cloud.
  *
- * Auto-detects from the current directory:
- *   1. The handoff JSON (looks for `arp-handoff.json` or `*.arp-handoff.json`)
- *   2. The agent framework (kyberbot if `identity.yaml` exists; falls back
- *      to a generic-http target you wire yourself)
+ * Detection precedence (in order, first match wins):
+ *   1. `arp.json` in the cwd          — authoritative manifest
+ *   2. `identity.yaml` in the cwd     — legacy: assume framework=kyberbot
+ *   3. otherwise                      — error, suggest `arp init`
  *
  * Common usage — non-technical-friendly:
  *
- *   cd ~/atlas        # your agent folder
- *   npx @kybernesis/arp
+ *   cd ~/atlas
+ *   npx @kybernesis/arp                # connects (default subcommand)
  *
- * No flags. Bridge connects, stays running, relays inbound DIDComm to
- * the local agent. Ctrl-C to stop.
+ * If detection fails:
+ *
+ *   npx @kybernesis/arp init           # creates arp.json interactively
+ *   npx @kybernesis/arp                # then connect
  *
  * Subcommands:
  *
  *   (default)   Same as `connect`. Boots the bridge.
- *   connect     Explicit form of the default — connect the bridge.
- *   doctor      Print what we found in this directory + what we'd
- *               connect with. Doesn't actually open the WS.
+ *   connect     Explicit form — connect the bridge.
+ *   init        Create / overwrite arp.json in this folder.
+ *   doctor      Print what we'd connect, without opening the WS.
  *   version     Print version.
  *   help        Print help.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, isAbsolute, basename } from 'node:path';
 import { readdirSync } from 'node:fs';
+import { createInterface } from 'node:readline/promises';
 import {
   startBridge,
   createKyberBotAdapter,
   createGenericHttpAdapter,
   type Adapter,
 } from '@kybernesis/arp-cloud-bridge';
+import {
+  readManifest,
+  serializeManifest,
+  manifestPath,
+  type ArpManifest,
+  type Framework,
+} from './manifest.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
-interface DetectedConfig {
+interface ResolvedConfig {
   handoffPath: string;
-  framework: 'kyberbot' | 'generic-http';
+  framework: Framework;
   agentRoot: string;
-  // generic-http only:
+  // generic-http only
   url?: string;
   token?: string;
+  source: 'manifest' | 'auto-detect';
 }
 
 function findHandoff(dir: string): string | null {
   const direct = resolve(dir, 'arp-handoff.json');
   if (existsSync(direct)) return direct;
-  // Fallback: any *.arp-handoff.json (like atlas.agent.arp-handoff.json)
   try {
     const entries = readdirSync(dir);
     const matches = entries.filter((f) => f.endsWith('.arp-handoff.json'));
     if (matches.length === 1) return resolve(dir, matches[0]!);
     if (matches.length > 1) {
       console.error(
-        `arp: multiple handoff files in ${dir} — pass one explicitly with --handoff:\n  ${matches.join('\n  ')}`,
+        `arp: multiple handoff files in ${dir} — set "handoff" in arp.json or pass --handoff:\n  ${matches.join('\n  ')}`,
       );
       process.exit(2);
     }
   } catch {
-    /* unreadable dir */
+    /* unreadable */
   }
   return null;
 }
 
-function detect(cwd: string, flags: { handoff?: string; url?: string; token?: string }): DetectedConfig {
-  const handoffPath = flags.handoff
-    ? isAbsolute(flags.handoff)
-      ? flags.handoff
-      : resolve(cwd, flags.handoff)
-    : findHandoff(cwd);
+function resolvePath(dir: string, p: string): string {
+  return isAbsolute(p) ? p : resolve(dir, p);
+}
+
+function resolveFromManifest(cwd: string, m: ArpManifest, flagHandoff?: string): ResolvedConfig {
+  const handoffPath = flagHandoff
+    ? resolvePath(cwd, flagHandoff)
+    : m.handoff
+      ? resolvePath(cwd, m.handoff)
+      : findHandoff(cwd);
+  if (!handoffPath) {
+    console.error(
+      `arp: arp.json found but no handoff JSON. Set "handoff" in arp.json, ` +
+        `or place arp-handoff.json next to it.`,
+    );
+    process.exit(1);
+  }
+
+  const cfg: ResolvedConfig = {
+    handoffPath,
+    framework: m.framework,
+    agentRoot: m.kyberbot?.root ? resolvePath(cwd, m.kyberbot.root) : cwd,
+    source: 'manifest',
+  };
+  if (m.framework === 'generic-http') {
+    if (!m['generic-http']) {
+      console.error(`arp: framework="generic-http" requires a "generic-http" block in arp.json`);
+      process.exit(1);
+    }
+    cfg.url = m['generic-http'].url;
+    if (m['generic-http'].token) cfg.token = m['generic-http'].token;
+  }
+  if (m.framework === 'openclaw' || m.framework === 'hermes') {
+    console.error(
+      `arp: framework="${m.framework}" — adapter not yet implemented. Use framework="generic-http" for now.`,
+    );
+    process.exit(1);
+  }
+  return cfg;
+}
+
+function resolveFromAutoDetect(cwd: string, flags: Flags): ResolvedConfig {
+  const handoffPath = flags.handoff ? resolvePath(cwd, flags.handoff) : findHandoff(cwd);
   if (!handoffPath) {
     console.error(
       `arp: no handoff file in ${cwd}.\n\n` +
-        `Download arp-handoff.json from https://cloud.arp.run/dashboard\n` +
-        `(provision your .agent domain, click "Download <domain>.arp-handoff.json")\n` +
-        `and save it next to your agent's identity.yaml. Then re-run \`arp\`.`,
+        `Either:\n` +
+        `  • Download arp-handoff.json from https://cloud.arp.run/dashboard\n` +
+        `    (provision your .agent domain → "Download <domain>.arp-handoff.json")\n` +
+        `  • Or run \`arp init\` in this folder to declare the framework + handoff path.`,
     );
     process.exit(1);
   }
@@ -89,25 +137,36 @@ function detect(cwd: string, flags: { handoff?: string; url?: string; token?: st
       agentRoot: cwd,
       url: flags.url,
       ...(flags.token ? { token: flags.token } : {}),
+      source: 'auto-detect',
     };
   }
 
   if (existsSync(resolve(cwd, 'identity.yaml'))) {
-    return { handoffPath, framework: 'kyberbot', agentRoot: cwd };
+    return { handoffPath, framework: 'kyberbot', agentRoot: cwd, source: 'auto-detect' };
   }
 
   console.error(
     `arp: couldn't auto-detect agent framework in ${cwd}.\n\n` +
-      `Supported auto-detect:\n` +
-      `  • kyberbot       — looks for identity.yaml in cwd\n` +
-      `\n` +
-      `For other frameworks, point at your agent's HTTP endpoint:\n` +
+      `Run \`arp init\` to declare the framework explicitly, or pass:\n` +
       `  arp --url http://127.0.0.1:9090/arp [--token <bearer>]\n`,
   );
   process.exit(1);
 }
 
-function buildAdapter(cfg: DetectedConfig): Adapter {
+function resolveConfig(cwd: string, flags: Flags): ResolvedConfig {
+  const m = (() => {
+    try {
+      return readManifest(cwd);
+    } catch (err) {
+      console.error(`arp: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  })();
+  if (m) return resolveFromManifest(cwd, m, flags.handoff);
+  return resolveFromAutoDetect(cwd, flags);
+}
+
+function buildAdapter(cfg: ResolvedConfig): Adapter {
   if (cfg.framework === 'kyberbot') {
     return createKyberBotAdapter({ root: cfg.agentRoot });
   }
@@ -122,6 +181,8 @@ interface Flags {
   url?: string;
   token?: string;
   cloudWsUrl?: string;
+  framework?: Framework;
+  yes?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -146,6 +207,13 @@ function parseArgs(argv: string[]): { cmd: string; flags: Flags } {
       case '--cloud-ws-url':
         flags.cloudWsUrl = next();
         break;
+      case '--framework':
+        flags.framework = next() as Framework;
+        break;
+      case '--yes':
+      case '-y':
+        flags.yes = true;
+        break;
       case '-h':
       case '--help':
         flags.help = true;
@@ -169,37 +237,42 @@ function parseArgs(argv: string[]): { cmd: string; flags: Flags } {
 const HELP = `arp — connect a local agent to ARP Cloud.
 
 Usage:
-  arp [connect]              Connect this folder's agent to the cloud (default).
-  arp doctor                 Print what we'd connect, without opening the WS.
+  arp [connect]              Connect this folder's agent (default).
+  arp init [--yes]           Create arp.json in this folder. Interactive
+                             unless --yes (auto-detects sensible defaults).
+  arp doctor                 Show what would connect, without doing it.
   arp version                Print CLI version.
   arp help                   This help.
 
-Auto-detection:
-  Reads ${resolve('arp-handoff.json')} (or *.arp-handoff.json) from the cwd.
-  Detects KyberBot when identity.yaml is present.
+Detection (used when reading the current folder):
+  1. arp.json                — authoritative manifest. Run \`arp init\` to create.
+  2. identity.yaml           — legacy auto-detect: assumes framework=kyberbot.
+  3. otherwise               — error, suggests \`arp init\`.
 
-Optional flags (rarely needed):
+Optional flags (rarely needed; arp.json is the right place for these):
   --handoff <path>           Override handoff JSON path
   --url <url>                Generic-HTTP target (when not kyberbot)
   --token <token>            Bearer token for the generic-HTTP target
   --cloud-ws-url <ws-url>    Override the gateway WS URL embedded in the handoff
+  --framework <name>         For \`arp init\`: skip the prompt
   -h, --help
   -v, --version
 
 Get started:
-  1. Open https://cloud.arp.run/dashboard, register a .agent domain,
-     click "Provision agent", download the handoff JSON.
-  2. Save it next to your agent's identity.yaml (e.g. ~/atlas/arp-handoff.json).
-  3. cd into that folder.
+  1. Provision your .agent domain at https://cloud.arp.run/dashboard
+  2. Download the handoff JSON next to your agent's identity.yaml
+  3. cd into the folder
   4. Run:  npx @kybernesis/arp
 `;
 
+// ---- subcommands -----------------------------------------------------------
+
 async function cmdConnect(flags: Flags): Promise<void> {
   const cwd = process.cwd();
-  const cfg = detect(cwd, flags);
+  const cfg = resolveConfig(cwd, flags);
   const adapter = buildAdapter(cfg);
 
-  console.log(`arp · framework=${cfg.framework} · cwd=${cwd}`);
+  console.log(`arp · framework=${cfg.framework} · source=${cfg.source} · cwd=${cwd}`);
   const bridge = await startBridge({
     handoffPath: cfg.handoffPath,
     adapter,
@@ -224,7 +297,7 @@ async function cmdConnect(flags: Flags): Promise<void> {
 
 async function cmdDoctor(flags: Flags): Promise<void> {
   const cwd = process.cwd();
-  const cfg = detect(cwd, flags);
+  const cfg = resolveConfig(cwd, flags);
   let agentDid = '<unknown>';
   let gatewayWsUrl = '<unknown>';
   try {
@@ -235,8 +308,9 @@ async function cmdDoctor(flags: Flags): Promise<void> {
     console.error(`could not parse handoff: ${(err as Error).message}`);
     process.exit(2);
   }
-  console.log('arp doctor — what we\'d connect:');
+  console.log(`arp doctor — what we'd connect:`);
   console.log(`  cwd:           ${cwd}`);
+  console.log(`  detection:     ${cfg.source}`);
   console.log(`  handoff:       ${cfg.handoffPath} (${basename(cfg.handoffPath)})`);
   console.log(`  framework:     ${cfg.framework}`);
   console.log(`  agent root:    ${cfg.agentRoot}`);
@@ -249,6 +323,123 @@ async function cmdDoctor(flags: Flags): Promise<void> {
   console.log(`\nLooks good? Run \`arp\` (no args) to actually connect.`);
 }
 
+async function cmdInit(flags: Flags): Promise<void> {
+  const cwd = process.cwd();
+  const target = manifestPath(cwd);
+
+  if (existsSync(target) && !flags.yes) {
+    const ok = await confirm(`arp.json already exists in ${cwd}. Overwrite?`, false);
+    if (!ok) {
+      console.log('Aborted.');
+      return;
+    }
+  }
+
+  // Auto-detect defaults
+  const hasIdentityYaml = existsSync(resolve(cwd, 'identity.yaml'));
+  const handoff = findHandoff(cwd);
+  const handoffSuggestion = handoff ? `./${basename(handoff)}` : './arp-handoff.json';
+
+  let framework: Framework | null = flags.framework ?? null;
+  if (!framework) {
+    if (flags.yes && hasIdentityYaml) framework = 'kyberbot';
+    else framework = (await pick(
+      'Which framework powers this agent?',
+      [
+        { value: 'kyberbot', label: hasIdentityYaml ? 'kyberbot   (detected — identity.yaml is here)' : 'kyberbot' },
+        { value: 'openclaw', label: 'openclaw   (adapter not yet implemented — placeholder)' },
+        { value: 'hermes', label: 'hermes     (adapter not yet implemented — placeholder)' },
+        { value: 'generic-http', label: 'generic-http  (custom: any HTTP endpoint that takes { prompt })' },
+      ],
+      hasIdentityYaml ? 'kyberbot' : 'generic-http',
+    )) as Framework;
+  }
+
+  const m: ArpManifest = { framework, handoff: handoffSuggestion };
+
+  if (framework === 'kyberbot') {
+    m.kyberbot = { root: '.' };
+  } else if (framework === 'generic-http') {
+    let url = '';
+    let token: string | undefined;
+    if (!flags.yes) {
+      url = (await prompt('Local HTTP endpoint URL', 'http://127.0.0.1:8080/arp')).trim();
+      const tokenIn = (await prompt('Bearer token (blank to skip; use ${ENV_VAR} for interpolation)', '')).trim();
+      if (tokenIn) token = tokenIn;
+    } else {
+      url = 'http://127.0.0.1:8080/arp';
+    }
+    m['generic-http'] = { url, ...(token ? { token } : {}) };
+  } else if (framework === 'openclaw') {
+    m.openclaw = { configPath: './openclaw.json' };
+  } else if (framework === 'hermes') {
+    m.hermes = { configPath: './hermes.config.ts' };
+  }
+
+  writeFileSync(target, serializeManifest(m));
+  console.log(`\nWrote ${target}`);
+  console.log('\nContents:');
+  console.log(serializeManifest(m).split('\n').map((l) => `  ${l}`).join('\n'));
+  if (framework === 'kyberbot' || framework === 'generic-http') {
+    console.log('Next:  arp');
+  } else {
+    console.log(`Next:  ${framework} adapter is not yet implemented. Switch to "generic-http" for now.`);
+  }
+}
+
+// ---- prompts (no external deps) -------------------------------------------
+
+async function prompt(question: string, defaultValue: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question}${defaultValue ? ` [${defaultValue}]` : ''}: `);
+    return answer.trim() === '' ? defaultValue : answer;
+  } finally {
+    rl.close();
+  }
+}
+
+async function confirm(question: string, defaultValue: boolean): Promise<boolean> {
+  const hint = defaultValue ? 'Y/n' : 'y/N';
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`${question} [${hint}]: `)).trim().toLowerCase();
+    if (!answer) return defaultValue;
+    return answer === 'y' || answer === 'yes';
+  } finally {
+    rl.close();
+  }
+}
+
+async function pick(
+  question: string,
+  options: Array<{ value: string; label: string }>,
+  defaultValue: string,
+): Promise<string> {
+  console.log(question);
+  for (let i = 0; i < options.length; i++) {
+    const o = options[i]!;
+    const marker = o.value === defaultValue ? '›' : ' ';
+    console.log(`  ${marker} ${i + 1}. ${o.label}`);
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`Choose 1-${options.length} or hit enter for default [${defaultValue}]: `)).trim();
+    if (!answer) return defaultValue;
+    const idx = Number(answer);
+    if (Number.isInteger(idx) && idx >= 1 && idx <= options.length) {
+      return options[idx - 1]!.value;
+    }
+    if (options.find((o) => o.value === answer)) return answer;
+    console.error(`invalid choice: ${answer}`);
+    process.exit(2);
+  } finally {
+    rl.close();
+  }
+}
+
+// ---- main ------------------------------------------------------------------
+
 async function main(): Promise<void> {
   const { cmd, flags } = parseArgs(process.argv.slice(2));
   if (flags.help || cmd === 'help') {
@@ -259,17 +450,22 @@ async function main(): Promise<void> {
     console.log(`@kybernesis/arp ${VERSION}`);
     return;
   }
-  if (cmd === 'connect' || cmd === 'run') {
-    await cmdConnect(flags);
-    return;
+  switch (cmd) {
+    case 'connect':
+    case 'run':
+      await cmdConnect(flags);
+      return;
+    case 'doctor':
+      await cmdDoctor(flags);
+      return;
+    case 'init':
+      await cmdInit(flags);
+      return;
+    default:
+      console.error(`unknown command: ${cmd}\n`);
+      process.stdout.write(HELP);
+      process.exit(2);
   }
-  if (cmd === 'doctor') {
-    await cmdDoctor(flags);
-    return;
-  }
-  console.error(`unknown command: ${cmd}\n`);
-  process.stdout.write(HELP);
-  process.exit(2);
 }
 
 main().catch((err) => {
