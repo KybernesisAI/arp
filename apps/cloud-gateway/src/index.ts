@@ -15,6 +15,7 @@ import {
   createSessionRegistry,
   createLogger,
   createInMemoryMetrics,
+  createCloudAwareResolver,
   type CloudRuntimeLogger,
   type TenantMetrics,
   type PeerResolver,
@@ -54,7 +55,7 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
   const metrics = opts.metrics ?? createInMemoryMetrics();
   const sessions = createSessionRegistry();
   const pdp: Pdp = createPdp(opts.cedarSchemaJson);
-  const peerResolver: PeerResolver = opts.peerResolver ?? buildDefaultResolver();
+  const peerResolver: PeerResolver = opts.peerResolver ?? buildCloudAwareResolver(opts.db);
 
   const auditFactory = (tenantDb: TenantDb): PostgresAudit =>
     createPostgresAudit({ tenantDb, logger });
@@ -110,6 +111,21 @@ function buildDefaultResolver(): PeerResolver {
       return result.value;
     },
   };
+}
+
+/**
+ * Resolver that first checks the cloud's own `agents` table — peers
+ * provisioned through cloud.arp.run have their public keys stored
+ * locally and don't need (and often can't be reached via) public DNS.
+ * Falls back to standard did:web HTTPS resolution for anyone outside
+ * our tenant graph.
+ *
+ * Implementation lives in @kybernesis/arp-cloud-runtime where the
+ * drizzle dep is already on the dependency tree.
+ */
+function buildCloudAwareResolver(db: CloudDbClient): PeerResolver {
+  const fallback = buildDefaultResolver();
+  return createCloudAwareResolver(db, fallback);
 }
 
 export function loadCedarSchema(path: string): string {
