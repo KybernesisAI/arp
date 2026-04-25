@@ -244,11 +244,13 @@ describe('Phase 9b — v2.1 registrar flow (integration)', () => {
     expect(bindRes.status).toBe(200);
     const bindBody = (await bindRes.json()) as { ok: boolean; tenant_id: string | null };
     expect(bindBody.ok).toBe(true);
-    // tenant_id is null here because the registrar's principal_did is the
-    // cloud alias, which is NOT what's stored in tenants.principal_did
-    // (that's the raw did:key). The alias → tenantId linkage is the
-    // responsibility of a future reconciliation job.
-    expect(bindBody.tenant_id).toBeNull();
+    // tenant_id is now linked because the registrar's principal_did is
+    // the cloud-managed alias `did:web:cloud.arp.run:u:<uuid>` — the
+    // bind handler parses the UUID + matches it against tenants.id
+    // directly (Phase 10.5 fix). For sidecar-hosted agents whose
+    // principal_did IS the tenant's stored DID, the exact-match
+    // fallback still works.
+    expect(bindBody.tenant_id).toBe(tenantBody.tenantId);
 
     const bindingRows = await currentDb.db
       .select()
