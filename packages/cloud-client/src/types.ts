@@ -9,8 +9,22 @@ export interface CloudClientConfig {
    * authenticate.
    */
   agentPrivateKey: Uint8Array;
-  /** Local agent HTTP URL that accepts inbound tasks (e.g. http://127.0.0.1:4500). */
-  agentApiUrl: string;
+  /**
+   * Local agent HTTP URL that accepts inbound tasks (e.g.
+   * http://127.0.0.1:4500). Required when `onIncoming` is not set; the
+   * client POSTs each inbound envelope to `${agentApiUrl}/didcomm`. When
+   * `onIncoming` is provided, this field is ignored.
+   */
+  agentApiUrl?: string;
+  /**
+   * In-process delivery callback. When set, takes precedence over
+   * `agentApiUrl` — every inbound message is handed to this callback
+   * instead of being POSTed over HTTP. Returning resolves → cloud is
+   * acked; throwing → no ack, cloud requeues after 30s. Use this when
+   * the cloud-client lives in the same process as the agent (e.g. the
+   * KyberBot ARP channel) to avoid an unnecessary localhost HTTP hop.
+   */
+  onIncoming?: (input: InboundMessage) => Promise<void>;
   /** Client version tag sent on hello. Defaults to package.json version. */
   clientVersion?: string;
   /** Max backoff between reconnect attempts in ms. Default 60_000. */
@@ -40,6 +54,25 @@ export type CloudClientState =
   | 'connected'
   | 'disconnected'
   | 'stopped';
+
+export interface InboundMessage {
+  /** Raw signed-envelope wire bytes (compact JWS). The cloud has already verified the signature. */
+  envelope: string;
+  /** Original message id from the peer's envelope. */
+  msgId: string;
+  /** DIDComm protocol URI from the inbound envelope. */
+  msgType: string;
+  /** Sender DID, when the cloud could resolve it from the envelope kid. */
+  peerDid: string | null;
+  /** Active connection id, when this message belongs to a connection. */
+  connectionId: string | null;
+  /** PDP decision pre-computed by the cloud — agents should honour this. */
+  decision: 'allow' | 'deny';
+  /** Obligations the cloud merged from the connection token + dynamic policies. */
+  obligations: Array<{ type: string; params: Record<string, unknown> }>;
+  /** Names of policies that fired in the cloud PDP. Useful for audit. */
+  policiesFired: string[];
+}
 
 export interface CloudClientHandle {
   readonly state: () => CloudClientState;
