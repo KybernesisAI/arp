@@ -17,9 +17,10 @@ import {
   signInWithPasskey,
 } from '@/lib/principal-key-passkey';
 import {
+  deriveKeysFromRecoveryPhrase,
   getOrCreatePrincipalKey,
   hasPrincipalKey,
-  importFromRecoveryPhrase,
+  persistDerivedKey,
   type PrincipalKey,
 } from '@/lib/principal-key-browser';
 import { base64urlEncode } from '@kybernesis/arp-transport/browser';
@@ -236,22 +237,47 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
     setBusy(true);
     try {
       const trimmed = phrase.trim().replace(/\s+/g, ' ').toLowerCase();
-      const wordCount = trimmed.split(' ').length;
+      const wordCount = trimmed.split(' ').filter(Boolean).length;
       if (wordCount !== 12) {
         throw new Error(`expected 12 words, got ${wordCount}`);
       }
-      await importFromRecoveryPhrase(trimmed);
-      const key = await getOrCreatePrincipalKey();
-      await runChallengeVerify(key);
-      // runChallengeVerify redirects on success; on failure throws here
-    } catch (err) {
-      if (err instanceof NoTenantError) {
-        setError(
-          `This recovery phrase derives ${err.principalDid}, but no ARP Cloud tenant is registered to it. Visit /onboarding to create an account with this key, or paste a different recovery phrase.`,
-        );
-      } else {
-        setError((err as Error).message);
+      // Derive BOTH v1 and v2 keys from the phrase WITHOUT persisting.
+      // v1 (entropy-padded seed, Phase 8.5) and v2 (HKDF-SHA256, Phase 9d)
+      // produce different DIDs from the same entropy. We don't know which
+      // version the user's tenant was registered under, so try v2 first,
+      // fall back to v1, and persist whichever the server recognises.
+      const { canonicalPhrase, v1, v2 } = await deriveKeysFromRecoveryPhrase(
+        trimmed,
+      );
+
+      // Attempt v2 first — that's the post-9d default.
+      try {
+        await runChallengeVerify(v2.key);
+        // Success: persist v2 to localStorage and let runChallengeVerify
+        // do the redirect.
+        persistDerivedKey(v2.stored, canonicalPhrase, 'v2');
+        return;
+      } catch (errV2) {
+        if (!(errV2 instanceof NoTenantError)) {
+          throw errV2; // network or signature error — surface as-is
+        }
+        // v2 derivation has no tenant; try v1.
       }
+
+      try {
+        await runChallengeVerify(v1.key);
+        persistDerivedKey(v1.stored, canonicalPhrase, 'v1');
+        return;
+      } catch (errV1) {
+        if (errV1 instanceof NoTenantError) {
+          throw new Error(
+            `This recovery phrase derives ${v2.key.did} (v2 HKDF) and ${v1.key.did} (v1 entropy-padded), but neither has a registered ARP Cloud tenant. Either visit /onboarding to create an account with this key, or paste a different recovery phrase.`,
+          );
+        }
+        throw errV1;
+      }
+    } catch (err) {
+      setError((err as Error).message);
       setBusy(false);
     }
   }

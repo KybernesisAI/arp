@@ -254,6 +254,54 @@ export async function importFromRecoveryPhrase(
   savePhrase(canonical, version);
 }
 
+/**
+ * Derive both v1 and v2 PrincipalKey objects from a recovery phrase
+ * WITHOUT writing them to localStorage. Used by the login flow when we
+ * don't yet know which version the user's tenant was registered under
+ * — we try v2 against the server, fall back to v1, then persist
+ * whichever succeeded via {@link persistDerivedKey}.
+ *
+ * The phrase is the canonical 12-word BIP-39 string. Throws on
+ * malformed input; never touches localStorage.
+ */
+export async function deriveKeysFromRecoveryPhrase(
+  phrase: string,
+): Promise<{
+  canonicalPhrase: string;
+  v1: { key: PrincipalKey; stored: StoredKey };
+  v2: { key: PrincipalKey; stored: StoredKey };
+}> {
+  const normalized = phrase.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!validateMnemonic(normalized, wordlist)) {
+    throw new Error('invalid recovery phrase');
+  }
+  const entropy = mnemonicToEntropy(normalized, wordlist);
+  const canonical = entropyToMnemonic(entropy, wordlist);
+  const v1Stored = await createFromEntropyV1(entropy);
+  const v2Stored = await createFromEntropyV2(entropy);
+  return {
+    canonicalPhrase: canonical,
+    v1: { key: toPrincipalKey(v1Stored), stored: v1Stored },
+    v2: { key: toPrincipalKey(v2Stored), stored: v2Stored },
+  };
+}
+
+/**
+ * Persist a previously-derived key + phrase to localStorage. Pairs with
+ * {@link deriveKeysFromRecoveryPhrase} — the login form derives both
+ * versions, finds which one the server recognises, then calls this
+ * with the winning version.
+ */
+export function persistDerivedKey(
+  stored: StoredKey,
+  phrase: string,
+  version: KeyVersion,
+): void {
+  ensureBrowser();
+  saveStored(stored, version);
+  savePhrase(phrase, version);
+}
+
 export async function clearPrincipalKey(): Promise<void> {
   ensureBrowser();
   localStorage.removeItem(STORAGE_KEY);
