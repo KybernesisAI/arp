@@ -210,19 +210,26 @@ export function ProvisionAgentButton({
           </div>
           <details className="text-body-sm">
             <summary className="cursor-pointer font-mono text-kicker uppercase text-muted">
-              ▸ NEXT STEP — WIRE LOCAL KYBERBOT
+              ▸ NEXT STEP — CONNECT YOUR LOCAL AGENT
             </summary>
             <Pre className="mt-3 text-xs leading-snug">
-{`# 1. save the downloaded JSON next to your KyberBot config
-mv ~/Downloads/${domain}.arp-handoff.json ~/atlas/${domain}.arp-handoff.json
+{`# 1. install arpc (one-time, global)
+npm install -g @kybernesis/arp
 
-# 2. run the bridge in a separate terminal:
-npx -y @kybernesis/arp-cloud-bridge \\
-  --handoff ~/atlas/${domain}.arp-handoff.json \\
-  --target kyberbot \\
-  --kyberbot-root ~/atlas
-# bridge connects to ${response.gateway_ws_url} and routes inbound
-# DIDComm to your local kyberbot agent at ${response.agent_did}.`}
+# 2. drop the handoff next to your agent's config
+mv ~/Downloads/${domain}.arp-handoff.json ~/your-agent/arp-handoff.json
+
+# 3. add the agent folder + start the supervisor
+arpc host add ~/your-agent
+arpc host start          # daemonises — runs in background
+
+# 4. (optional) auto-start at login
+arpc service install     # macOS launchd, survives reboots
+
+# Verify
+arpc host status         # should show "running" with your agent listed
+# Connection routes inbound DIDComm to ${response.agent_did}
+# through ${response.gateway_ws_url}.`}
             </Pre>
           </details>
           <div className="mt-4">

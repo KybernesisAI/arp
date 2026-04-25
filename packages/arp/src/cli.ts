@@ -45,8 +45,9 @@ import {
   type Framework,
 } from './manifest.js';
 import * as host from './host.js';
+import * as service from './service.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 
 interface ResolvedConfig {
   handoffPath: string;
@@ -237,7 +238,7 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
     }
   }
   if (positional[0]) cmd = positional[0]!;
-  if (cmd === 'host' && positional[1]) sub = positional[1]!;
+  if ((cmd === 'host' || cmd === 'service') && positional[1]) sub = positional[1]!;
   return { cmd, sub, positional, flags };
 }
 
@@ -258,6 +259,12 @@ Many agents — supervisor (one process for all, daemonised):
   arpc host list             Print the agent list.
   arpc host add <folder>     Add an agent folder to host.yaml.
   arpc host remove <folder>  Remove an agent folder.
+
+Auto-start at login (macOS launchd):
+  arpc service install       Run the supervisor automatically on every login.
+                             Survives reboots. Logs go to ~/.arp/host.log.
+  arpc service uninstall     Stop auto-starting (does not affect a running daemon).
+  arpc service status        Whether launchd has the agent loaded.
 
 Misc:
   arpc version
@@ -492,8 +499,30 @@ async function main(): Promise<void> {
     case 'host':
       await cmdHost(sub, positional, flags);
       return;
+    case 'service':
+      cmdService(sub);
+      return;
     default:
       console.error(`unknown command: ${cmd}\n`);
+      process.stdout.write(HELP);
+      process.exit(2);
+  }
+}
+
+function cmdService(sub: string | null): void {
+  if (!sub || sub === 'status') {
+    service.status();
+    return;
+  }
+  switch (sub) {
+    case 'install':
+      service.install();
+      return;
+    case 'uninstall':
+      service.uninstall();
+      return;
+    default:
+      console.error(`unknown service subcommand: ${sub}\n`);
       process.stdout.write(HELP);
       process.exit(2);
   }

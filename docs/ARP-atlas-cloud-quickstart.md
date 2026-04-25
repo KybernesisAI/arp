@@ -89,39 +89,67 @@ curl -s http://127.0.0.1:3456/health | jq '.status'
 
 ---
 
-## Step 4 · Run the bridge
+## Step 4 · Install `arpc` and start the supervisor
 
-In a **second terminal**:
+The `arpc` CLI is what connects your local agent(s) to ARP Cloud. One
+install handles any number of agents.
 
 ```bash
-npx -y @kybernesis/arp-cloud-bridge \
-  --handoff ~/atlas/arp-handoff.json \
-  --target kyberbot \
-  --kyberbot-root ~/atlas
+npm install -g @kybernesis/arp     # one-time
 ```
 
-The `-y` skips `npx`'s install confirmation prompt. The package is
-~150 KB — first run takes a few seconds to fetch; subsequent runs are
-instant from the npx cache.
+Then add Atlas's folder and start the supervisor as a background daemon:
 
-Expected output:
+```bash
+arpc host add ~/atlas
+arpc host start
+arpc host status     # confirm
+```
+
+Expected `status` output:
 
 ```
-[bridge] starting · adapter=kyberbot · handoff=/Users/.../arp-handoff.json
-[bridge] kyberbot adapter ready · root=/Users/ianborders/atlas · base=http://127.0.0.1:3456 · agent=Atlas
-─────────────────────────────────────────────
-[bridge] agent did:    did:web:atlas.agent
-[bridge] gateway:      wss://gateway.arp.run/ws
-[bridge] adapter:      kyberbot
-─────────────────────────────────────────────
-[bridge] cloud-client state: connecting
-[bridge] cloud-client state: connected
+arpc host · running · pid <…>
+  config: /Users/<you>/.arp/host.yaml
+  log:    /Users/<you>/.arp/host.log
+  agents: 1
+    • /Users/<you>/atlas
+```
+
+The daemon survives terminal close, auto-restarts crashed bridges with
+exponential backoff, and pipes all agents' logs into
+`~/.arp/host.log`. Add more agents anytime — `arpc host add ~/nova`
++ `arpc host stop && arpc host start` to pick them up.
+
+### Step 4a · (Recommended) Auto-start at login
+
+Want Atlas to come online automatically every time you log in? One
+command installs a macOS launchd LaunchAgent:
+
+```bash
+arpc service install
+```
+
+This writes `~/Library/LaunchAgents/com.kybernesis.arpc-host.plist`
+and tells launchd to load it. The supervisor will start at every
+login, restart on crash, and log to the same place.
+
+`arpc service uninstall` reverses it. `arpc service status` shows
+whether launchd has it loaded.
+
+### Step 4b · Foreground mode (for debugging)
+
+If you want to watch logs scroll live in a terminal:
+
+```bash
+cd ~/atlas
+arpc                  # foreground — Ctrl-C to stop
 ```
 
 If you see `bearer_expired` / `bad_signature` / `unknown_agent`, jump to
 [Troubleshooting](#troubleshooting).
 
-Don't close this terminal either — the bridge needs to stay up to
+The daemon (host or service mode) keeps running in the background —
 relay messages.
 
 ---
@@ -208,20 +236,32 @@ relationship; they pass once you've connected at least one peer.
 
 ## Daily operation
 
-Two long-running processes:
+Two long-running things:
 
 | Process | Where | Purpose |
 |---|---|---|
 | `kyberbot` | `cd ~/atlas && kyberbot` | The agent itself |
-| `npx @kybernesis/arp-cloud-bridge ...` | second terminal | Cloud relay |
+| `arpc host` daemon (or launchd) | background | Cloud relay |
 
-If either dies, restart it. If kyberbot dies, the bridge keeps trying
-to reach `:3456` and reports failed deliveries (cloud requeues). If the
-bridge dies, kyberbot keeps running normally — only ARP is offline;
-inbound DIDComm queues at the cloud-gateway and drains on reconnect.
+If kyberbot dies the supervisor keeps trying to reach `:3456` and
+reports failed deliveries to the daemon log; cloud-side queues hold
+inbound until the bridge reconnects. If the supervisor dies the
+agents keep running normally — only ARP is offline; inbound DIDComm
+queues at the gateway and drains on reconnect.
 
-For long-running setups consider running the bridge under `launchd`
-(macOS) or `systemd` (Linux) so it auto-restarts.
+Cheatsheet:
+
+```bash
+arpc host status         # is the daemon up? which agents?
+arpc host stop           # take all agents offline
+arpc host start          # bring them back
+arpc host add ~/nova     # add another agent (then stop && start)
+arpc host remove ~/nova  # remove one
+tail -f ~/.arp/host.log  # what's it doing right now
+arpc service status      # is launchd auto-starting it at login?
+arpc service install     # turn auto-start on
+arpc service uninstall   # turn auto-start off
+```
 
 ---
 
