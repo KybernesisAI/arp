@@ -6,7 +6,7 @@
  *   1. Registrar redirects user to GET /onboard?domain=<sld>&registrar=X&callback=Y
  *   2. User's browser generates a did:key, creates a tenant via POST /api/tenants
  *   3. Browser signs a representation JWT whose iss is the cloud-managed
- *      did:web alias (did:web:arp.cloud:u:<tenantId>)
+ *      did:web alias (did:web:cloud.arp.run:u:<tenantId>)
  *   4. Browser redirects back to the registrar's callback with principal_did
  *      + signed_representation_jwt
  *   5. Registrar POSTs /internal/registrar/bind (PSK-gated) with the payload
@@ -214,7 +214,7 @@ describe('Phase 9b — v2.1 registrar flow (integration)', () => {
 
     // Step 4: Browser signs a representation JWT whose iss is the cloud-
     // managed did:web alias.
-    const cloudIssuer = `did:web:arp.cloud:u:${tenantId}`;
+    const cloudIssuer = `did:web:cloud.arp.run:u:${tenantId}`;
     const agentDid = `did:web:${domain}`;
     const representationJwt = await signRepresentationJwt(
       cloudIssuer,

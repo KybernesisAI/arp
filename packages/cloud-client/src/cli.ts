@@ -27,7 +27,7 @@ async function cmdInit(): Promise<void> {
   const rl = createInterface({ input: stdin, output: stdout });
   try {
     const defaultKeyPath = join(defaultConfigDir(), 'private.key');
-    const cloud = (await rl.question('Cloud WS URL [wss://arp.cloud/ws]: ')).trim() || 'wss://arp.cloud/ws';
+    const cloud = (await rl.question('Cloud WS URL [wss://cloud.arp.run/ws]: ')).trim() || 'wss://cloud.arp.run/ws';
     const did = (await rl.question('Agent DID (e.g. did:web:samantha.agent): ')).trim();
     if (!did) throw new Error('agent DID required');
     const localUrl = (await rl.question('Local agent URL [http://127.0.0.1:4500]: ')).trim() || 'http://127.0.0.1:4500';

@@ -1,7 +1,7 @@
 /**
  * @kybernesis/arp-cloud-client — outbound client for ARP Cloud.
  *
- * Tiny by design (≤500 source LOC). Opens a WebSocket to arp.cloud,
+ * Tiny by design (≤500 source LOC). Opens a WebSocket to cloud.arp.run,
  * relays inbound DIDComm envelopes to a locally running agent, pushes
  * local replies back out. Exponential backoff reconnect. Hourly
  * token rotation. No DIDComm imports — the cloud verified the

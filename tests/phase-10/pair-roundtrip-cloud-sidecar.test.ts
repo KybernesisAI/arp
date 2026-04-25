@@ -1,7 +1,7 @@
 /**
  * Phase 10 slice 10e — A2: cloud↔sidecar pairing round-trip.
  *
- * One side is a cloud tenant on `arp.cloud`; the other side is an agent
+ * One side is a cloud tenant on `cloud.arp.run`; the other side is an agent
  * running behind a local sidecar (`createRuntime`). We verify both halves
  * end up with a Connection Token referencing the same `connection_id`,
  * even though the cloud side has no acceptor cloud-tenant insert (the

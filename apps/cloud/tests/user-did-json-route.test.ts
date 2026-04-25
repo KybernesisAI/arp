@@ -80,7 +80,7 @@ describe('GET /u/<uuid>/did.json', () => {
       assertionMethod: string[];
       keyAgreement: string[];
     };
-    const didSubject = `did:web:arp.cloud:u:${tenantId}`;
+    const didSubject = `did:web:cloud.arp.run:u:${tenantId}`;
     expect(body.id).toBe(didSubject);
     expect(body.controller).toBe(didSubject);
     expect(body.verificationMethod).toHaveLength(1);
@@ -136,7 +136,7 @@ describe('GET /u/<uuid>/did.json', () => {
       keyAgreement: string[];
     };
     expect(body.verificationMethod).toHaveLength(2);
-    const didSubject = `did:web:arp.cloud:u:${tenantId}`;
+    const didSubject = `did:web:cloud.arp.run:u:${tenantId}`;
     expect(body.verificationMethod[0]?.id).toBe(`${didSubject}#key-1`);
     expect(body.verificationMethod[0]?.publicKeyMultibase).toBe(PUBLIC_KEY_MULTIBASE);
     expect(body.verificationMethod[1]?.id).toBe(`${didSubject}#key-0`);

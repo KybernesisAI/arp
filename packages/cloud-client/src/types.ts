@@ -1,5 +1,5 @@
 export interface CloudClientConfig {
-  /** WebSocket URL, e.g. wss://arp.cloud/ws or ws://localhost:3001/ws. */
+  /** WebSocket URL, e.g. wss://cloud.arp.run/ws or ws://localhost:3001/ws. */
   cloudWsUrl: string;
   /** Agent DID, e.g. did:web:samantha.agent. */
   agentDid: string;

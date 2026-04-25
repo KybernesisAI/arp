@@ -196,7 +196,7 @@ describe('POST /api/onboard/complete', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sessionId,
-        principalDid: `did:web:arp.cloud:u:${tenantId}`,
+        principalDid: `did:web:cloud.arp.run:u:${tenantId}`,
       }),
     });
     const res = await OnboardCompletePost(req);
