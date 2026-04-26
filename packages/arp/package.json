@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "ARP CLI (`arpc`) — one command to connect local agents (KyberBot, OpenClaw, Hermes, etc.) to ARP Cloud. Auto-detects each framework + handoff. Includes a daemon supervisor for running many agents in one background process.",
   "license": "MIT",
   "repository": {
@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kybernesis/arp-cloud-bridge": "workspace:*",
+    "@kybernesis/arp-cloud-bridge": "^0.2.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
