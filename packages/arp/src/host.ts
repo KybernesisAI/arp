@@ -52,11 +52,11 @@ function isLaunchdLoaded(): boolean {
 
 /**
  * Returns the pid of the launchd-managed daemon if it's currently
- * running. `launchctl list <label>` prints a header line + a tab-
- * separated row whose first column is the pid (or `-` when the job is
- * loaded but not running). Used by `arpc host status` so the daemon
- * shows as running when started via `arpc service install`, not just
- * when started via `arpc host start`.
+ * running. `launchctl list <label>` prints a plist-style dict — NOT a
+ * tabular row — so we extract the `"PID" = <n>;` line. When the job
+ * is loaded but not running, the dict has no PID key and we return
+ * null. Used by `arpc host status` so the daemon shows as running
+ * when started via `arpc service install`, not just `arpc host start`.
  */
 function launchdPidIfRunning(): number | null {
   if (process.platform !== 'darwin') return null;
@@ -69,19 +69,11 @@ function launchdPidIfRunning(): number | null {
   } catch {
     return null;
   }
-  // Expected layout:
-  //   PID	Status	Label
-  //   12345	0	com.kybernesis.arpc-host
-  for (const line of out.split('\n')) {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length < 3) continue;
-    const head = parts[0];
-    if (!head || head === 'PID') continue;
-    if (head === '-') return null;
-    const n = Number(head);
-    if (Number.isInteger(n) && n > 0) return n;
-  }
-  return null;
+  // Sample line we want: `\t"PID" = 32636;`
+  const m = out.match(/"PID"\s*=\s*(\d+)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 function readPid(): number | null {
