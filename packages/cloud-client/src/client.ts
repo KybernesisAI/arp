@@ -50,7 +50,8 @@ type ServerEvent =
   | InboundEvent
   | { kind: 'server_hello'; agentDid: string; serverTime: number; queuedCount: number }
   | { kind: 'ping'; nonce: string }
-  | { kind: 'revocation'; connectionId: string; reason: string };
+  | { kind: 'revocation'; connectionId: string; reason: string }
+  | { kind: 'shutdown'; reason: string };
 
 const TOKEN_ROTATE_MS = 55 * 60 * 1000; // 55 minutes
 
@@ -197,6 +198,18 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
         );
       } else if (event.kind === 'server_hello') {
         // nothing to do; informational
+      } else if (event.kind === 'shutdown') {
+        // Server told us it's going away (deploy / scale-down).
+        // Reset the backoff counter so the onclose handler reconnects
+        // immediately to the next container instead of waiting through
+        // exponential backoff. The actual close will fire when the
+        // server hangs up.
+        reconnectAttempts = 0;
+        try {
+          sock.close(1001, 'server_shutdown');
+        } catch {
+          /* socket may already be closing */
+        }
       }
     };
     sock.onerror = (ev) => {

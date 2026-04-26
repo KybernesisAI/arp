@@ -77,6 +77,18 @@ export type WsServerEvent =
       kind: 'revocation';
       connectionId: string;
       reason: string;
+    }
+  | {
+      /**
+       * Server is shutting down (gracefully). Clients should close their
+       * WS and reconnect immediately — usually a fresh container is
+       * already accepting connections, so skipping the exponential
+       * backoff matters. Without this, a Railway redeploy leaves
+       * bridges pinned to the old TCP for many seconds and any messages
+       * dispatched during the gap go to queued_no_session.
+       */
+      kind: 'shutdown';
+      reason: string;
     };
 
 /** Messages received from the outbound client. */

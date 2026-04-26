@@ -50,6 +50,40 @@ function isLaunchdLoaded(): boolean {
   }
 }
 
+/**
+ * Returns the pid of the launchd-managed daemon if it's currently
+ * running. `launchctl list <label>` prints a header line + a tab-
+ * separated row whose first column is the pid (or `-` when the job is
+ * loaded but not running). Used by `arpc host status` so the daemon
+ * shows as running when started via `arpc service install`, not just
+ * when started via `arpc host start`.
+ */
+function launchdPidIfRunning(): number | null {
+  if (process.platform !== 'darwin') return null;
+  let out: string;
+  try {
+    out = execFileSync('launchctl', ['list', 'com.kybernesis.arpc-host'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return null;
+  }
+  // Expected layout:
+  //   PID	Status	Label
+  //   12345	0	com.kybernesis.arpc-host
+  for (const line of out.split('\n')) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 3) continue;
+    const head = parts[0];
+    if (!head || head === 'PID') continue;
+    if (head === '-') return null;
+    const n = Number(head);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  return null;
+}
+
 function readPid(): number | null {
   const p = pidFilePath();
   if (!existsSync(p)) return null;
@@ -194,11 +228,28 @@ export async function stop(): Promise<void> {
 export function status(): void {
   const pid = readPid();
   const cfg = readHostConfig();
+  // Either path counts as running:
+  //   - foreground/manual: pid file written by `arpc host start`
+  //   - launchd-managed: process owned by `arpc service install`, no pid
+  //     file. Fall through to `launchctl list` so we don't say "stopped"
+  //     when the daemon is healthy under launchd.
+  let runningPid: number | null = null;
+  let source: 'pidfile' | 'launchd' | null = null;
   if (pid && isAlive(pid)) {
-    // eslint-disable-next-line no-console
-    console.log(`arpc host · running · pid ${pid}`);
+    runningPid = pid;
+    source = 'pidfile';
   } else {
     if (pid) clearPid();
+    const launchdPid = launchdPidIfRunning();
+    if (launchdPid) {
+      runningPid = launchdPid;
+      source = 'launchd';
+    }
+  }
+  if (runningPid) {
+    // eslint-disable-next-line no-console
+    console.log(`arpc host · running · pid ${runningPid}${source === 'launchd' ? ' (via launchd)' : ''}`);
+  } else {
     // eslint-disable-next-line no-console
     console.log(`arpc host · stopped`);
   }
