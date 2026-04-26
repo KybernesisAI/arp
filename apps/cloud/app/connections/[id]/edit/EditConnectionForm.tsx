@@ -20,11 +20,8 @@ import {
 } from '@/lib/pairing-client';
 import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
 import type { ScopeTemplate } from '@kybernesis/arp-spec';
-import {
-  ScopePicker,
-  type BundlePreset,
-  type ScopePickerState,
-} from '@/app/pair/ScopePicker';
+import type { BundlePreset, ScopePickerState } from '@/app/pair/ScopePicker';
+import { ScopePickerModal } from '@/app/pair/ScopePickerModal';
 
 interface AgentOption {
   did: string;
@@ -202,15 +199,13 @@ export function EditConnectionForm({
           />
         </div>
 
-        <div className="pt-2 border-t border-rule">
-          <ScopePicker
-            catalog={catalog}
-            bundles={bundles}
-            initialSelected={initialSelected}
-            initialParams={initialParams}
-            onChange={onPickerChange}
-          />
-        </div>
+        <ScopePickerModal
+          catalog={catalog}
+          bundles={bundles}
+          initialSelected={initialSelected}
+          initialParams={initialParams}
+          onChange={onPickerChange}
+        />
 
         <div>
           <Label htmlFor="edit-expires">Invitation expires in (days)</Label>
