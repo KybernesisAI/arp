@@ -384,6 +384,7 @@ export const pairingInvitations = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').notNull(),
     issuerAgentDid: text('issuer_agent_did').notNull(),
+    audienceDid: text('audience_did').notNull(),
     requestedScopes: jsonb('requested_scopes').notNull(),
     challenge: text('challenge').notNull(),
     payload: text('payload').notNull(),
@@ -395,6 +396,7 @@ export const pairingInvitations = pgTable(
   (t) => ({
     idxTenant: index('idx_pairing_invitations_tenant').on(t.tenantId),
     idxIssuerAgent: index('idx_pairing_invitations_issuer_agent').on(t.issuerAgentDid),
+    idxAudience: index('idx_pairing_invitations_audience').on(t.audienceDid),
   }),
 );
 

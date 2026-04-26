@@ -348,6 +348,7 @@ describe('POST /api/pairing/accept', () => {
     await currentDb!.db.insert(pairingInvitations).values({
       tenantId: issuerTenantId,
       issuerAgentDid: issuerAgent,
+      audienceDid: proposal.audience,
       requestedScopes: proposal.scope_selections as unknown as Record<string, unknown>,
       challenge: proposal.proposal_id,
       payload,

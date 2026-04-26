@@ -1,6 +1,6 @@
 import type * as React from 'react';
 import { redirect } from 'next/navigation';
-import { and, asc, eq, gt, isNull } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
 import { listCredentialsForTenant } from '@/lib/webauthn';
@@ -17,6 +17,7 @@ import {
 import { AppShell } from '@/components/app/AppShell';
 import { ProvisionAgentButton } from './ProvisionAgentButton';
 import { SelfTestConnectionButton } from './SelfTestConnectionButton';
+import { OutgoingActions, IncomingActions } from './PairingInboxActions';
 import { SKILL_TEMPLATES, listSkillNames } from '@kybernesis/arp/skill-templates';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 
@@ -40,14 +41,15 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     tenant,
     agents,
     hasPasskey,
-    pendingInvitations,
+    outgoingInvitations,
+    incomingInvitations,
     recentActivity,
     totalActiveConnections,
     domains,
   } = state;
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS];
-  const pendingCount = pendingInvitations.length;
-  const pendingTone: 'yellow' | 'muted' = pendingCount > 0 ? 'yellow' : 'muted';
+  const outgoingCount = outgoingInvitations.length;
+  const incomingCount = incomingInvitations.length;
 
   return (
     <AppShell>
@@ -59,12 +61,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
       {!hasPasskey && <MigrateToPasskeyBanner />}
 
-      {pendingCount > 0 && (
+      {incomingCount > 0 && (
         <section className="mb-10">
           <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
             <h2 className="font-display font-medium text-h3 flex items-center gap-3">
               Incoming pairing requests
-              <Badge tone={pendingTone}>Pending · {pendingCount}</Badge>
+              <Badge tone="yellow">Pending · {incomingCount}</Badge>
             </h2>
             <span className="font-mono text-kicker uppercase text-muted">
               // I · INBOX
@@ -72,20 +74,78 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </header>
           <Card tone="yellow" padded={false} className="border border-rule">
             <ul className="list-none p-0 m-0">
-              {pendingInvitations.map((inv, i) => (
+              {incomingInvitations.map((inv, i) => (
                 <li
                   key={inv.id}
-                  className={'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' + (i === pendingInvitations.length - 1 ? '' : 'border-b border-ink/15')}
+                  className={'px-5 py-4 ' + (i === incomingInvitations.length - 1 ? '' : 'border-b border-ink/15')}
                 >
-                  <div className="col-span-12 md:col-span-4 font-display font-medium text-h5 break-all">
-                    <Code>{inv.issuerAgentDid}</Code>
+                  <div className="grid grid-cols-12 gap-4 items-baseline mb-3">
+                    <div className="col-span-12 md:col-span-5">
+                      <span className="font-mono text-kicker uppercase text-muted block">
+                        FROM
+                      </span>
+                      <Code className="text-body-sm break-all">{inv.issuerAgentDid}</Code>
+                    </div>
+                    <div className="col-span-12 md:col-span-4">
+                      <span className="font-mono text-kicker uppercase text-muted block">
+                        TO YOUR AGENT
+                      </span>
+                      <Code className="text-body-sm break-all">{inv.audienceDid}</Code>
+                    </div>
+                    <div className="col-span-12 md:col-span-3 md:text-right font-mono text-kicker uppercase">
+                      EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
+                    </div>
                   </div>
-                  <div className="col-span-12 md:col-span-4 text-body-sm">
-                    PROPOSAL · <Code>{inv.proposalId}</Code>
+                  <IncomingActions
+                    invitationId={inv.id}
+                    acceptHref={inv.acceptHref}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
+
+      {outgoingCount > 0 && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3 flex items-center gap-3">
+              Outgoing pairing requests
+              <Badge tone="muted">Awaiting peer · {outgoingCount}</Badge>
+            </h2>
+            <span className="font-mono text-kicker uppercase text-muted">
+              // O · SENT
+            </span>
+          </header>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {outgoingInvitations.map((inv, i) => (
+                <li
+                  key={inv.id}
+                  className={'px-5 py-4 ' + (i === outgoingInvitations.length - 1 ? '' : 'border-b border-rule')}
+                >
+                  <div className="grid grid-cols-12 gap-4 items-baseline mb-3">
+                    <div className="col-span-12 md:col-span-5">
+                      <span className="font-mono text-kicker uppercase text-muted block">
+                        FROM YOUR AGENT
+                      </span>
+                      <Code className="text-body-sm break-all">{inv.issuerAgentDid}</Code>
+                    </div>
+                    <div className="col-span-12 md:col-span-4">
+                      <span className="font-mono text-kicker uppercase text-muted block">
+                        TO
+                      </span>
+                      <Code className="text-body-sm break-all">{inv.audienceDid}</Code>
+                    </div>
+                    <div className="col-span-12 md:col-span-3 md:text-right font-mono text-kicker uppercase">
+                      EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
+                    </div>
                   </div>
-                  <div className="col-span-12 md:col-span-4 md:text-right font-mono text-kicker uppercase">
-                    EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
-                  </div>
+                  <OutgoingActions
+                    invitationId={inv.id}
+                    invitationUrl={inv.invitationUrl}
+                  />
                 </li>
               ))}
             </ul>
@@ -449,11 +509,21 @@ async function loadState(): Promise<{
   tenant: { plan: string; status: string; principalDid: string };
   agents: DashboardAgent[];
   hasPasskey: boolean;
-  pendingInvitations: Array<{
+  outgoingInvitations: Array<{
     id: string;
     issuerAgentDid: string;
+    audienceDid: string;
     proposalId: string;
     expiresAt: string;
+    invitationUrl: string;
+  }>;
+  incomingInvitations: Array<{
+    id: string;
+    issuerAgentDid: string;
+    audienceDid: string;
+    proposalId: string;
+    expiresAt: string;
+    acceptHref: string;
   }>;
   recentActivity: ActivityEntry[];
   totalActiveConnections: number;
@@ -502,12 +572,14 @@ async function loadState(): Promise<{
     0,
   );
 
-  // Pending invitations issued by this tenant (same query as 10a widget).
-  const invitationRows = await tenantDb.raw
+  // Outgoing: pending invitations this tenant issued.
+  const outgoingRows = await tenantDb.raw
     .select({
       id: pairingInvitations.id,
       issuerAgentDid: pairingInvitations.issuerAgentDid,
+      audienceDid: pairingInvitations.audienceDid,
       challenge: pairingInvitations.challenge,
+      payload: pairingInvitations.payload,
       expiresAt: pairingInvitations.expiresAt,
     })
     .from(pairingInvitations)
@@ -520,6 +592,33 @@ async function loadState(): Promise<{
       ),
     )
     .orderBy(asc(pairingInvitations.expiresAt));
+
+  // Incoming: pending invitations another tenant issued where the audience
+  // DID is one of *our* agents. Cross-tenant query — explicitly excluded
+  // self-tenant rows so a self-test invitation only shows up in outgoing.
+  const myAgentDids = agentRows.map((a) => a.did);
+  const incomingRows = myAgentDids.length === 0
+    ? []
+    : await tenantDb.raw
+        .select({
+          id: pairingInvitations.id,
+          issuerAgentDid: pairingInvitations.issuerAgentDid,
+          audienceDid: pairingInvitations.audienceDid,
+          challenge: pairingInvitations.challenge,
+          payload: pairingInvitations.payload,
+          expiresAt: pairingInvitations.expiresAt,
+        })
+        .from(pairingInvitations)
+        .where(
+          and(
+            inArray(pairingInvitations.audienceDid, myAgentDids),
+            ne(pairingInvitations.tenantId, tenantDb.tenantId),
+            isNull(pairingInvitations.cancelledAt),
+            isNull(pairingInvitations.consumedAt),
+            gt(pairingInvitations.expiresAt, now),
+          ),
+        )
+        .orderBy(asc(pairingInvitations.expiresAt));
 
   const recentActivity: ActivityEntry[] = recent.map((r) => ({
     id: String(r.id),
@@ -552,6 +651,13 @@ async function loadState(): Promise<{
     };
   });
 
+  // Build the share URL the same shape POST /api/pairing/invitations
+  // returns. We don't have x-forwarded-host here so fall back to env;
+  // for local dev the relative `/pair/accept#…` form still works.
+  const baseUrl = process.env['CLOUD_BASE_URL'] ?? '';
+  const buildInvitationUrl = (payload: string) =>
+    `${baseUrl.replace(/\/+$/, '')}/pair/accept#${payload}`;
+
   return {
     tenant: {
       plan: tenant.plan,
@@ -560,11 +666,21 @@ async function loadState(): Promise<{
     },
     agents,
     hasPasskey: passkeys.length > 0,
-    pendingInvitations: invitationRows.map((r) => ({
+    outgoingInvitations: outgoingRows.map((r) => ({
       id: r.id,
       issuerAgentDid: r.issuerAgentDid,
+      audienceDid: r.audienceDid,
       proposalId: r.challenge,
       expiresAt: r.expiresAt.toISOString(),
+      invitationUrl: buildInvitationUrl(r.payload),
+    })),
+    incomingInvitations: incomingRows.map((r) => ({
+      id: r.id,
+      issuerAgentDid: r.issuerAgentDid,
+      audienceDid: r.audienceDid,
+      proposalId: r.challenge,
+      expiresAt: r.expiresAt.toISOString(),
+      acceptHref: `/pair/accept#${r.payload}`,
     })),
     recentActivity,
     totalActiveConnections,
