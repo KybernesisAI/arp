@@ -28,8 +28,9 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, isAbsolute, basename } from 'node:path';
+import { resolve, isAbsolute, basename, dirname } from 'node:path';
 import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import {
   startBridge,
@@ -49,7 +50,30 @@ import * as service from './service.js';
 import * as send from './send.js';
 import * as skill from './skill.js';
 
-const VERSION = '0.9.0';
+// Read version from the published package.json so `arpc version` always
+// matches `npm view @kybernesis/arp version`. Walks up from the dist
+// directory (cli.js → ../package.json) and falls back to a literal
+// when the file is unreachable so a misconfigured install never throws
+// just for printing the version.
+const VERSION: string = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    // dist/cli.js → ../package.json. Walk up at most 3 levels in case
+    // the bundle layout changes in the future.
+    for (let i = 0; i < 3; i++) {
+      const candidate = resolve(here, '../'.repeat(i + 1), 'package.json');
+      if (existsSync(candidate)) {
+        const json = JSON.parse(readFileSync(candidate, 'utf-8')) as { name?: string; version?: string };
+        if (json.name === '@kybernesis/arp' && typeof json.version === 'string') {
+          return json.version;
+        }
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+  return '0.0.0-unknown';
+})();
 
 interface ResolvedConfig {
   handoffPath: string;
