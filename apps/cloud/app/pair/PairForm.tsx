@@ -19,7 +19,8 @@ import {
 } from '@/lib/pairing-client';
 import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
 import type { ScopeTemplate } from '@kybernesis/arp-spec';
-import { ScopePicker, type BundlePreset, type ScopePickerState } from './ScopePicker';
+import type { BundlePreset, ScopePickerState } from './ScopePicker';
+import { ScopePickerModal } from './ScopePickerModal';
 
 export interface AgentOption {
   did: string;
@@ -240,13 +241,11 @@ export function PairForm({
           />
         </div>
 
-        <div className="pt-2 border-t border-rule">
-          <ScopePicker
-            catalog={catalog}
-            bundles={bundles}
-            onChange={onPickerChange}
-          />
-        </div>
+        <ScopePickerModal
+          catalog={catalog}
+          bundles={bundles}
+          onChange={onPickerChange}
+        />
 
         <div>
           <Label htmlFor="pair-expires">Invitation expires in (days)</Label>

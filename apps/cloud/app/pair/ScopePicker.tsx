@@ -2,7 +2,7 @@
 
 import type * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge, Button, FieldHint, Label } from '@/components/ui';
+import { Badge, Button } from '@/components/ui';
 import type { ScopeTemplate } from '@kybernesis/arp-spec';
 
 /**
@@ -207,39 +207,30 @@ export function ScopePicker({
 
   return (
     <div className="space-y-4">
-      {/* Bundle presets */}
-      <div className="border border-rule bg-paper-2 p-4">
-        <Label className="mb-2 block">Start from a preset (optional)</Label>
-        <FieldHint className="mb-3">
-          PRESETS LOAD A SCOPE SET — YOU CAN ADJUST EVERYTHING AFTERWARDS
-        </FieldHint>
-        <div className="flex flex-wrap gap-2">
-          {bundles.map((b) => (
-            <Button
-              key={b.id}
-              variant="default"
-              size="sm"
-              onClick={() => applyPreset(b)}
-              title={b.description}
-            >
-              {b.label}
-              {b.needsParams ? ' *' : ''}
-            </Button>
-          ))}
-        </div>
-        <FieldHint className="mt-2">
-          * = PRESET HAS USER-SPECIFIC INPUTS YOU&apos;LL NEED TO FILL IN BELOW
-        </FieldHint>
+      {/* Bundle presets — collapsed by default into a kicker + button row. */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+        <span className="font-mono text-kicker uppercase text-muted">
+          PRESETS
+        </span>
+        {bundles.map((b) => (
+          <Button
+            key={b.id}
+            variant="default"
+            size="sm"
+            onClick={() => applyPreset(b)}
+            title={b.description + (b.needsParams ? ' (needs user-specific inputs)' : '')}
+          >
+            {b.label}
+            {b.needsParams ? ' *' : ''}
+          </Button>
+        ))}
       </div>
 
       {/* Search + selected counter */}
-      <div className="flex items-baseline justify-between gap-4 pb-2 border-b border-rule">
-        <Label className="m-0 flex items-baseline gap-3">
-          Pick what to share
-          <span className="font-mono text-kicker uppercase text-muted">
-            {selectedIds.size} selected · {Object.keys(errors).length} errors
-          </span>
-        </Label>
+      <div className="flex items-baseline justify-between gap-4 pb-1 border-b border-rule">
+        <span className="font-mono text-kicker uppercase text-muted">
+          {selectedIds.size} SELECTED · {Object.keys(errors).length} ERRORS
+        </span>
         <input
           type="text"
           value={filter}
@@ -418,34 +409,15 @@ function ParameterInput({
   }
 
   if (isMulti) {
-    const arr = Array.isArray(value) ? (value as string[]) : [];
     return (
-      <div>
-        <label htmlFor={id} className="font-mono text-kicker uppercase text-muted block">
-          {labelText} · COMMA-SEPARATED
-        </label>
-        <input
-          id={id}
-          type="text"
-          className="mt-1 w-full border border-rule bg-paper px-2 py-1 font-mono text-sm"
-          value={arr.join(', ')}
-          onChange={(e) => {
-            const split = e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean);
-            onChange(split);
-          }}
-          placeholder={
-            type === 'AttributeList'
-              ? 'name, email, company'
-              : type === 'EmailList'
-                ? 'a@example.com, b@example.com'
-                : 'did:web:foo.agent, did:web:bar.agent'
-          }
-        />
-        {error && <span className="text-signal-red text-body-sm">{error}</span>}
-      </div>
+      <MultiStringInput
+        id={id}
+        labelText={labelText}
+        value={value}
+        type={type}
+        error={error}
+        onChange={onChange}
+      />
     );
   }
 
@@ -464,6 +436,79 @@ function ParameterInput({
         value={(value as string | undefined) ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholderFor(type)}
+      />
+      {error && <span className="text-signal-red text-body-sm">{error}</span>}
+    </div>
+  );
+}
+
+/**
+ * Comma-separated multi-string input. The parent stores the value as
+ * `string[]` (so the proposal carries the right shape), but if we
+ * naïvely render `arr.join(', ')` and re-split on every keystroke,
+ * trailing commas + spaces vanish mid-typing and the user can't enter
+ * more than one item. We keep a local `draft` string that mirrors what
+ * the user actually typed, only re-syncing it from the parent value
+ * when an external change (e.g., preset apply) lands.
+ */
+function MultiStringInput({
+  id,
+  labelText,
+  value,
+  type,
+  error,
+  onChange,
+}: {
+  id: string;
+  labelText: string;
+  value: unknown;
+  type: string;
+  error: string | undefined;
+  onChange: (value: unknown) => void;
+}): React.JSX.Element {
+  const arr = Array.isArray(value) ? (value as string[]) : [];
+  const [draft, setDraft] = useState(arr.join(', '));
+  const lastEmittedRef = useRef(draft);
+  // External value change (preset apply, initialParams) → reset draft.
+  useEffect(() => {
+    const formatted = arr.join(', ');
+    if (formatted !== lastEmittedRef.current) {
+      setDraft(formatted);
+      lastEmittedRef.current = formatted;
+    }
+    // intentionally only depend on the array contents
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arr.join('|')]);
+  return (
+    <div>
+      <label htmlFor={id} className="font-mono text-kicker uppercase text-muted block">
+        {labelText} · COMMA-SEPARATED
+      </label>
+      <input
+        id={id}
+        type="text"
+        className="mt-1 w-full border border-rule bg-paper px-2 py-1 font-mono text-sm"
+        value={draft}
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const split = raw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          lastEmittedRef.current = split.join(', ');
+          onChange(split);
+        }}
+        placeholder={
+          type === 'AttributeList'
+            ? 'name, email, company'
+            : type === 'EmailList'
+              ? 'a@example.com, b@example.com'
+              : 'did:web:foo.agent, did:web:bar.agent'
+        }
       />
       {error && <span className="text-signal-red text-body-sm">{error}</span>}
     </div>
