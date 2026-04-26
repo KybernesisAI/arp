@@ -130,43 +130,61 @@ export async function dispatchInbound(
   }
 
   // ---- PDP ---------------------------------------------------------
-  const t0 = ctx.now();
+  // Responses to a previous request bypass PDP: the original request
+  // already passed PDP for the audience-side principal, and a reply is
+  // inherent to that conversation. Without this, paired agents can
+  // never respond to each other unless both directions of the cedar
+  // template were minted explicitly — which is not the natural model
+  // (a single connection grants the audience rights; replies travel
+  // back the other way and would otherwise be denied because the
+  // sender isn't the named principal).
+  const isResponse = msg.type.endsWith('/response') || msg.type.endsWith('.response');
   const token = conn.tokenJson as ConnectionToken;
-  const mapped = mapRequest(msg);
-  const decision = ctx.pdp.evaluate({
-    cedarPolicies: conn.cedarPolicies as string[],
-    principal: {
-      type: 'Agent',
-      id: peerDid,
-      attrs: {
-        connection_id: connectionId,
-        owner_did: token.issuer,
-      },
-    },
-    action: mapped.action,
-    resource: mapped.resource,
-    context: mapped.context ?? {},
-  });
-  ctx.metrics.pdpLatency(ctx.tenantId, ctx.now() - t0);
-
   const effectiveObligations: Obligation[] = [
     ...(conn.obligations as Obligation[] | null ?? []),
-    ...decision.obligations,
   ];
+  let decisionVerdict: 'allow' | 'deny' = 'allow';
+  let policiesFired: string[] = [];
+  let reasons: string[] = [];
+  if (!isResponse) {
+    const t0 = ctx.now();
+    const mapped = mapRequest(msg);
+    const decision = ctx.pdp.evaluate({
+      cedarPolicies: conn.cedarPolicies as string[],
+      principal: {
+        type: 'Agent',
+        id: peerDid,
+        attrs: {
+          connection_id: connectionId,
+          owner_did: token.issuer,
+        },
+      },
+      action: mapped.action,
+      resource: mapped.resource,
+      context: mapped.context ?? {},
+    });
+    ctx.metrics.pdpLatency(ctx.tenantId, ctx.now() - t0);
+    effectiveObligations.push(...decision.obligations);
+    decisionVerdict = decision.decision;
+    policiesFired = decision.policies_fired;
+    reasons = decision.reasons;
+  } else {
+    reasons = ['auto_allow_response'];
+  }
 
   await ctx.audit.append({
     agentDid: ctx.agentDid,
     connectionId,
     msgId: msg.id,
-    decision: decision.decision,
+    decision: decisionVerdict,
     obligations: effectiveObligations,
-    policiesFired: decision.policies_fired,
-    ...(decision.reasons.length > 0 ? { reason: decision.reasons.join('; ') } : {}),
+    policiesFired,
+    ...(reasons.length > 0 ? { reason: reasons.join('; ') } : {}),
   });
   await ctx.tenantDb.touchConnection(connectionId);
 
-  if (decision.decision === 'deny') {
-    log.info({ msgId: msg.id, connectionId, policies: decision.policies_fired }, 'pdp_deny');
+  if (decisionVerdict === 'deny') {
+    log.info({ msgId: msg.id, connectionId, policies: policiesFired }, 'pdp_deny');
     return { ok: true, decision: 'deny', reason: 'policy_denied' };
   }
 
@@ -199,7 +217,7 @@ export async function dispatchInbound(
       peerDid,
       decision: 'allow',
       obligations: effectiveObligations,
-      policiesFired: decision.policies_fired,
+      policiesFired,
     };
     try {
       await session.send(event);

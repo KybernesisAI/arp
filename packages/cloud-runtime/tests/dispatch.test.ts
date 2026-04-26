@@ -275,6 +275,48 @@ describe('dispatchInbound', () => {
     expect(entries[0]?.decision).toBe('allow');
   });
 
+  it('responses (msg.type ending in /response) bypass PDP and audit auto_allow_response', async () => {
+    // Cedar policies on a normal connection grant only one direction —
+    // the audience as principal. Replies sent back from the issuer side
+    // would otherwise always deny because the sender (issuer) isn't the
+    // named principal. Replies are inherent to the conversation: the
+    // original request was already permitted, so the response carries
+    // through without per-action PDP gating.
+    const onlyAtlasPolicy = `permit (
+  principal == Agent::"did:web:atlas.agent",
+  action == Action::"relay_to_principal",
+  resource == Principal::"self"
+);`;
+    await h.createActiveConnection('conn_resp_1', [onlyAtlasPolicy]);
+    const envelope = await h.signFromPeer({
+      id: 'msg-resp',
+      type: 'https://didcomm.org/arp/1.0/response',
+      from: h.peerDid,
+      to: [h.agentDid],
+      body: { connection_id: 'conn_resp_1', text: 'hi back' },
+    });
+    const result = await dispatchInbound(
+      {
+        tenantDb: h.tenantDb,
+        tenantId: h.tenantId,
+        agentDid: h.agentDid,
+        audit: h.audit,
+        pdp: h.pdp,
+        resolver: h.resolver,
+        sessions: h.sessions,
+        logger: h.logger,
+        metrics: h.metrics,
+        now: () => Date.now(),
+      },
+      envelope,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.decision).toBe('allow');
+    const entries = await h.audit.list(h.agentDid, 'conn_resp_1');
+    expect(entries[0]?.decision).toBe('allow');
+    expect(entries[0]?.reason).toBe('auto_allow_response');
+  });
+
   it('denies when connection revoked', async () => {
     await h.createActiveConnection('conn_rev01');
     await h.tenantDb.updateConnectionStatus('conn_rev01', 'revoked', 'owner');
