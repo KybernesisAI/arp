@@ -5,9 +5,9 @@ import { loadScopesFromDirectory } from '../src/index.js';
 const SCOPES_DIR = resolve(__dirname, '..', 'scopes');
 
 describe('loadScopesFromDirectory', () => {
-  it('loads all 50 scope YAMLs', () => {
+  it('loads all 51 scope YAMLs', () => {
     const scopes = loadScopesFromDirectory(SCOPES_DIR);
-    expect(scopes).toHaveLength(50);
+    expect(scopes).toHaveLength(51);
   });
 
   it('returns scopes sorted by id', () => {

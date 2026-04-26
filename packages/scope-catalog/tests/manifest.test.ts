@@ -16,9 +16,9 @@ describe('buildCatalogManifest', () => {
       updatedAt: '2026-04-22T00:00:00Z',
     });
     expect(manifest.version).toBe('v1');
-    expect(manifest.scope_count).toBe(50);
+    expect(manifest.scope_count).toBe(51);
     expect(manifest.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(manifest.scopes).toHaveLength(50);
+    expect(manifest.scopes).toHaveLength(51);
   });
 
   it('checksum is deterministic across two runs with the same input', () => {
