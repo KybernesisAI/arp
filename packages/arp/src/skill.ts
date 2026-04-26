@@ -67,6 +67,14 @@ export function cmdSkill(sub: string | null, positional: string[], targetFlag?: 
     console.error(`unknown skill: ${name}. Available: ${listSkillNames().join(', ')}`);
     process.exit(1);
   }
+  if (template.status === 'preview') {
+    console.error(
+      `arpc skill install: "${name}" is a preview — the ${template.framework} adapter ` +
+        `for arpc isn't shipped yet. Watch cloud.arp.run for the release, or grab the ` +
+        `placeholder content directly: curl https://cloud.arp.run/api/skills/${name}`,
+    );
+    process.exit(1);
+  }
 
   const target = parseTarget(targetFlag);
   const cwd = process.cwd();

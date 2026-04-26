@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Code, Link } from '@/components/ui';
+import { Badge, Button, Card, Code, Link } from '@/components/ui';
 
 export interface AuditEntry {
   id: string;
@@ -171,8 +171,8 @@ export function AuditViewer({
       )}
 
       {entries.length === 0 ? (
-        <div className="border border-rule bg-paper p-7">
-          <Badge tone="muted" className="mb-3">NO ENTRIES</Badge>
+        <Card tone="paper-2" padded className="border border-rule">
+          <Badge tone="muted" className="mb-3 text-[9px] px-2 py-0.5">NO ENTRIES</Badge>
           <p className="text-body">
             No audit entries match these filters. Entries are appended whenever
             your agent receives, emits, or is told to revoke something against
@@ -180,24 +180,25 @@ export function AuditViewer({
           </p>
           <p className="mt-4 text-body-sm">
             Connection status:{' '}
-            <Badge tone={connectionStatus === 'active' ? 'blue' : 'red'}>
+            <Badge tone={connectionStatus === 'active' ? 'blue' : 'red'} className="text-[9px] px-2 py-0.5">
               {connectionStatus.toUpperCase()}
             </Badge>
           </p>
-        </div>
+        </Card>
       ) : (
-        <ul className="list-none p-0 m-0 border-t border-rule" data-testid="audit-list">
-          {entries.map((e) => {
+        <Card tone="paper-2" padded={false} className="border border-rule">
+        <ul className="list-none p-0 m-0" data-testid="audit-list">
+          {entries.map((e, i) => {
             const open = openEntry === e.id;
             return (
               <li
                 key={e.id}
-                className="border-b border-rule"
+                className={i === entries.length - 1 ? '' : 'border-b border-rule'}
               >
                 <button
                   type="button"
                   onClick={() => setOpenEntry(open ? null : e.id)}
-                  className="w-full text-left py-3 grid grid-cols-12 gap-4 items-baseline hover:bg-paper-2"
+                  className="w-full text-left px-5 py-3 grid grid-cols-12 gap-4 items-baseline hover:bg-paper"
                   aria-expanded={open}
                   data-testid={`audit-row-${e.seq}`}
                 >
@@ -208,7 +209,7 @@ export function AuditViewer({
                     {directionArrow(e.direction)} {e.direction.toUpperCase()}
                   </div>
                   <div className="col-span-6 md:col-span-2">
-                    <Badge tone={decisionTone(e.decision)}>
+                    <Badge tone={decisionTone(e.decision)} className="text-[9px] px-2 py-0.5">
                       {e.decision.toUpperCase()}
                     </Badge>
                   </div>
@@ -220,7 +221,7 @@ export function AuditViewer({
                   </div>
                 </button>
                 {open && (
-                  <div className="px-2 pb-4 pt-1 grid grid-cols-12 gap-4">
+                  <div className="px-5 pb-4 pt-1 grid grid-cols-12 gap-4">
                     <div className="col-span-12 md:col-span-6">
                       <div className="font-mono text-kicker uppercase text-muted">
                         MSG ID
@@ -265,6 +266,7 @@ export function AuditViewer({
             );
           })}
         </ul>
+        </Card>
       )}
 
       {cursor && (

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/app/AppShell';
 import {
   Badge,
+  Card,
   Code,
   Dot,
   Link,
@@ -58,18 +59,18 @@ export default async function ConnectionsPage(props: {
       </div>
 
       {agents.length === 0 ? (
-        <div className="border border-rule bg-paper p-7 max-w-2xl">
-          <Badge tone="yellow" className="mb-3">NO AGENTS</Badge>
+        <Card tone="yellow" padded className="border border-rule max-w-2xl">
+          <Badge tone="yellow" className="mb-3 text-[9px] px-2 py-0.5">NO AGENTS</Badge>
           <p className="text-body">
             Provision an agent first, then come back to pair with a peer.
           </p>
           <p className="mt-4 text-body-sm">
             <Link href="/onboarding" variant="accent">Go to onboarding →</Link>
           </p>
-        </div>
+        </Card>
       ) : initialRows.length === 0 && selectedStatus === 'active' && !selectedAgent ? (
-        <div className="border border-rule bg-paper p-7 max-w-2xl">
-          <Badge tone="muted" className="mb-3">NO CONNECTIONS YET</Badge>
+        <Card tone="paper-2" padded className="border border-rule max-w-2xl">
+          <Badge tone="muted" className="mb-3 text-[9px] px-2 py-0.5">NO CONNECTIONS YET</Badge>
           <p className="text-body">
             Nothing paired yet. Generate an invitation and share it with the
             peer you want to connect to.
@@ -86,7 +87,7 @@ export default async function ConnectionsPage(props: {
             never sees your principal key, only the scopes + obligations you
             granted.
           </div>
-        </div>
+        </Card>
       ) : (
         <ConnectionsList
           agents={agents}

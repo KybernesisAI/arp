@@ -2,7 +2,7 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
-import { Button, ButtonLink, FieldError, Label, Pre, Textarea } from '@/components/ui';
+import { Button, FieldError, Label, Pre, Textarea } from '@/components/ui';
 
 /**
  * "Provision agent" inline UX on a .agent domain row.
@@ -43,9 +43,17 @@ interface ProvisionResponse {
 export function ProvisionAgentButton({
   domain,
   defaultName,
+  alreadyProvisioned,
 }: {
   domain: string;
   defaultName?: string;
+  /**
+   * When true, the trigger button reads "Re-provision agent" and clicking
+   * it lands on the already_provisioned panel directly (with the
+   * "this destroys the existing key" warning). Source-of-truth comes
+   * from the agents table at page-load time.
+   */
+  alreadyProvisioned?: boolean;
 }): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('idle');
   const [agentName, setAgentName] = useState(defaultName ?? '');
@@ -112,8 +120,24 @@ export function ProvisionAgentButton({
   // ---- Trigger cell content (always rendered) ----------------------------
   const trigger = ((): React.JSX.Element => {
     if (stage === 'idle') {
+      if (alreadyProvisioned) {
+        return (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => {
+              setError(
+                `An agent already exists for did:web:${domain}. Re-provisioning will mint a fresh keypair under the same DID.`,
+              );
+              setStage('already_provisioned');
+            }}
+          >
+            Re-provision agent
+          </Button>
+        );
+      }
       return (
-        <Button variant="default" size="sm" onClick={() => setStage('form')}>
+        <Button variant="primary" size="sm" arrow onClick={() => setStage('form')}>
           Provision agent
         </Button>
       );
@@ -163,17 +187,14 @@ export function ProvisionAgentButton({
             >
               {stage === 'submitting' ? 'Provisioning…' : 'Provision'}
             </Button>
-            <ButtonLink
-              href="#"
+            <Button
               variant="default"
               size="md"
-              onClick={(e) => {
-                e.preventDefault();
-                setStage('idle');
-              }}
+              onClick={() => setStage('idle')}
+              disabled={stage === 'submitting'}
             >
               Cancel
-            </ButtonLink>
+            </Button>
           </div>
         </div>
       );

@@ -4,6 +4,7 @@ import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { AppShell } from '@/components/app/AppShell';
 import {
   Badge,
+  Card,
   Code,
   Dot,
   Link,
@@ -65,42 +66,55 @@ export default async function AgentPage(props: {
             </span>
           </h2>
           <div className="flex items-center gap-4">
+            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
+              // C · CONNECTIONS
+            </span>
             <Link
               href={`/connections?agentDid=${encodeURIComponent(agent.did)}`}
               variant="mono"
             >
               See all →
             </Link>
-            <Badge tone={connections.length > 0 ? 'blue' : 'muted'}>
+            <Badge
+              tone={connections.length > 0 ? 'blue' : 'muted'}
+              className="text-[9px] px-2 py-0.5"
+            >
               {connections.length > 0 ? 'ACTIVE' : 'IDLE'}
             </Badge>
           </div>
         </header>
         {connections.length === 0 ? (
-          <p className="text-body text-ink-2">No active connections.</p>
+          <Card tone="paper-2" padded>
+            <p className="text-body text-ink-2">No active connections.</p>
+          </Card>
         ) : (
-          <ul className="list-none p-0 m-0 border-t border-rule">
-            {connections.map((c) => (
-              <li
-                key={c.connectionId}
-                className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline"
-              >
-                <div className="col-span-12 md:col-span-3 font-mono text-kicker uppercase text-ink">
-                  {c.connectionId}
-                </div>
-                <div className="col-span-12 md:col-span-5 text-body-sm text-ink-2 break-all">
-                  → <Code>{c.peerDid}</Code>
-                </div>
-                <div className="col-span-6 md:col-span-2 font-mono text-kicker uppercase inline-flex items-center gap-2">
-                  <Dot tone={c.status === 'active' ? 'green' : 'yellow'} />
-                  {c.status.toUpperCase()}
-                </div>
-                <div className="col-span-6 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
-                  {new Date(c.createdAt).toLocaleDateString()}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {connections.map((c, i) => (
+                <li
+                  key={c.connectionId}
+                  className={
+                    'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' +
+                    (i === connections.length - 1 ? '' : 'border-b border-rule')
+                  }
+                >
+                  <div className="col-span-12 md:col-span-3 font-mono text-kicker uppercase text-ink">
+                    {c.connectionId}
+                  </div>
+                  <div className="col-span-12 md:col-span-5 text-body-sm text-ink-2 break-all">
+                    → <Code>{c.peerDid}</Code>
+                  </div>
+                  <div className="col-span-6 md:col-span-2 font-mono text-kicker uppercase inline-flex items-center gap-2">
+                    <Dot tone={c.status === 'active' ? 'green' : 'yellow'} />
+                    {c.status.toUpperCase()}
+                  </div>
+                  <div className="col-span-6 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
+                    {new Date(c.createdAt).toLocaleDateString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
     </AppShell>

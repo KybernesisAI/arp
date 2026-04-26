@@ -4,7 +4,7 @@ import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS } from '@kybernesis/arp-cloud-db';
 import BillingButtons from './BillingButtons';
 import { AppShell } from '@/components/app/AppShell';
-import { Badge, PlateHead } from '@/components/ui';
+import { Badge, Card, CardMatrix, PlateHead } from '@/components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,14 +25,14 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
         title="Billing"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-rule border border-rule">
+      <CardMatrix className="grid-cols-1 md:grid-cols-3">
         {(['free', 'pro', 'team'] as const).map((plan) => {
           const limits = PLAN_LIMITS[plan];
           const isCurrent = tenant.plan === plan;
-          const bgCls = isCurrent ? 'bg-signal-blue text-white' : 'bg-paper text-ink';
+          const tone = isCurrent ? 'blue' : 'paper';
           const mutedCls = isCurrent ? 'text-white/85' : 'text-muted';
           return (
-            <div key={plan} className={`${bgCls} p-7 min-h-[260px] flex flex-col gap-3`}>
+            <Card key={plan} tone={tone} className="min-h-[260px] gap-3">
               <div className={`font-mono text-kicker uppercase ${mutedCls}`}>
                 TIER · {plan.toUpperCase()}
               </div>
@@ -42,11 +42,7 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
               <div className="font-display font-medium text-[2.5rem] leading-none tracking-[-0.02em]">
                 {limits.monthlyPriceCents === 0 ? 'Free' : `$${limits.monthlyPriceCents / 100}`}
                 {limits.monthlyPriceCents > 0 && (
-                  <span
-                    className={`ml-2 font-mono text-body-sm ${mutedCls}`}
-                  >
-                    / mo
-                  </span>
+                  <span className={`ml-2 font-mono text-body-sm ${mutedCls}`}>/ mo</span>
                 )}
               </div>
               <ul
@@ -65,13 +61,15 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
               </ul>
               {isCurrent && (
                 <div className="mt-auto">
-                  <Badge tone="yellow">Current plan</Badge>
+                  <Badge tone="yellow" className="text-[9px] px-2 py-0.5">
+                    CURRENT PLAN
+                  </Badge>
                 </div>
               )}
-            </div>
+            </Card>
           );
         })}
-      </div>
+      </CardMatrix>
       <BillingButtons
         currentPlan={tenant.plan}
         canManage={tenant.canManage}

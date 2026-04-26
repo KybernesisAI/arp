@@ -305,23 +305,39 @@ function DomainRow({
     <li className={'p-5 ' + (isLast ? '' : 'border-b border-rule')}>
       <div className="grid grid-cols-12 gap-4 items-baseline">
         <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-          <Dot tone="green" />
-          <span className="font-display font-medium text-h5">{domain.domain}</span>
+          <Dot tone={domain.provisioned ? 'green' : 'yellow'} />
+          <div>
+            <span className="font-display font-medium text-h5 block">
+              {domain.domain}
+            </span>
+            {domain.provisioned && domain.provisionedAgentName && (
+              <span className="font-mono text-kicker uppercase text-muted">
+                AGENT · {domain.provisionedAgentName}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="col-span-6 md:col-span-4 text-body-sm text-ink-2 break-all">
+        <div className="col-span-6 md:col-span-3 text-body-sm text-ink-2 break-all">
           <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
           <Code>{ownerHost}</Code>
         </div>
         <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
           VIA {domain.registrar.toUpperCase()}
         </div>
-        <div className="col-span-3 md:col-span-1 md:text-right font-mono text-kicker uppercase text-muted">
-          {domain.createdAgo}
+        <div className="col-span-3 md:col-span-2 md:text-center">
+          {domain.provisioned ? (
+            <Badge tone="blue" className="text-[9px] px-2 py-0.5">PROVISIONED</Badge>
+          ) : (
+            <Badge tone="yellow" className="text-[9px] px-2 py-0.5">PENDING</Badge>
+          )}
         </div>
         {/* ProvisionAgentButton is a Fragment that contributes the
             small md:col-span-2 trigger cell + (when expanded) a
             full-width col-span-12 panel cell below. */}
-        <ProvisionAgentButton domain={domain.domain} />
+        <ProvisionAgentButton
+          domain={domain.domain}
+          alreadyProvisioned={domain.provisioned}
+        />
       </div>
     </li>
   );
@@ -353,7 +369,9 @@ function ActivityRow({
         {entry.ago}
       </div>
       <div className="col-span-4 md:col-span-2">
-        <Badge tone={toneMap[entry.decision]}>{labelMap[entry.decision]}</Badge>
+        <Badge tone={toneMap[entry.decision]} className="text-[9px] px-2 py-0.5">
+          {labelMap[entry.decision]}
+        </Badge>
       </div>
       <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2 break-all">
         <Code>{entry.peerDid ?? entry.agentDid}</Code>
@@ -409,6 +427,10 @@ interface DashboardDomain {
   registrar: string;
   principalDid: string;
   createdAgo: string;
+  /** True when an agent row exists for `did:web:<domain>` under this tenant. */
+  provisioned: boolean;
+  /** Friendly name from the provisioned agent (when present) — shown as a sub-label. */
+  provisionedAgentName: string | null;
 }
 
 interface ActivityEntry {
@@ -511,13 +533,24 @@ async function loadState(): Promise<{
     ago: formatAgo(now, r.timestamp),
   }));
 
-  const domains: DashboardDomain[] = bindingRows.map((r) => ({
-    domain: r.domain,
-    ownerLabel: r.ownerLabel,
-    registrar: r.registrar,
-    principalDid: r.principalDid,
-    createdAgo: formatAgo(now, r.createdAt),
-  }));
+  // Map did:web:<domain> → agent row so each .agent domain knows whether
+  // it's already been provisioned. Cloud-managed agents always live at
+  // the domain's apex DID — registrar bindings without a matching agent
+  // row are still in the "registered, not provisioned" state.
+  const agentByDid = new Map(agentRows.map((a) => [a.did, a]));
+  const domains: DashboardDomain[] = bindingRows.map((r) => {
+    const agentDid = `did:web:${r.domain.toLowerCase()}`;
+    const agent = agentByDid.get(agentDid) ?? null;
+    return {
+      domain: r.domain,
+      ownerLabel: r.ownerLabel,
+      registrar: r.registrar,
+      principalDid: r.principalDid,
+      createdAgo: formatAgo(now, r.createdAt),
+      provisioned: agent !== null,
+      provisionedAgentName: agent?.agentName ?? null,
+    };
+  });
 
   return {
     tenant: {
@@ -609,12 +642,35 @@ function SkillsSection(): React.JSX.Element {
         <Code>.claude/skills/&lt;name&gt;/SKILL.md</Code>) — only the
         install path differs.
       </p>
-      <CardMatrix className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      <CardMatrix
+        className={
+          names.length <= 1
+            ? 'grid-cols-1'
+            : names.length === 2
+              ? 'grid-cols-1 md:grid-cols-2'
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        }
+      >
         {names.map((n, i) => {
           const tpl = SKILL_TEMPLATES[n]!;
-          const desc = extractSkillDescription(tpl.content);
-          const tone = toneCycle[i % toneCycle.length]!;
-          return <SkillCard key={n} idx={`S.${String(i + 1).padStart(2, '0')}`} name={n} description={desc} tone={tone} />;
+          const desc =
+            tpl.status === 'preview'
+              ? extractPreviewBlurb(tpl.content)
+              : extractSkillDescription(tpl.content);
+          const tone = tpl.brandTone ?? toneCycle[i % toneCycle.length]!;
+          return (
+            <SkillCard
+              key={n}
+              idx={`S.${String(i + 1).padStart(2, '0')}`}
+              name={n}
+              description={desc}
+              tone={tone}
+              category={tpl.category}
+              framework={tpl.framework}
+              status={tpl.status}
+              filename={tpl.filename}
+            />
+          );
         })}
       </CardMatrix>
     </section>
@@ -626,15 +682,31 @@ function SkillCard({
   name,
   description,
   tone,
+  category,
+  framework,
+  status,
+  filename,
 }: {
   idx: string;
   name: string;
   description: string;
-  tone: 'paper' | 'paper-2' | 'blue' | 'yellow';
+  tone: 'paper' | 'paper-2' | 'blue' | 'yellow' | 'red';
+  category: string;
+  framework: 'kyberbot-claude' | 'openclaw' | 'hermes';
+  status: 'available' | 'preview';
+  filename: string;
 }): React.JSX.Element {
-  const onAccent = tone === 'blue';
+  // blue + red use white-on-color; yellow + paper use ink-on-paper.
+  const onAccent = tone === 'blue' || tone === 'red';
+  const isPreview = status === 'preview';
   return (
-    <Card tone={tone} className="min-h-[320px] gap-3 justify-between">
+    <Card
+      tone={tone}
+      className={
+        'min-h-[320px] gap-3 justify-between ' +
+        (isPreview ? 'opacity-70' : '')
+      }
+    >
       <div className="flex items-start justify-between gap-3">
         <span
           className={
@@ -646,16 +718,21 @@ function SkillCard({
         </span>
         <span
           className={
-            'font-mono text-kicker uppercase ' +
+            'font-mono text-kicker uppercase text-right ' +
             (onAccent ? 'text-white' : 'text-ink')
           }
         >
-          MESSAGING
+          {category}
         </span>
       </div>
-      <h3 className="text-h3 font-display font-medium max-w-[18ch] mt-2">
-        {name}
-      </h3>
+      <div className="flex items-center gap-2 mt-2">
+        <h3 className="text-h3 font-display font-medium max-w-[18ch]">{name}</h3>
+        {isPreview && (
+          <Badge tone={onAccent ? 'paper' : 'yellow'} className="text-[9px] px-2 py-0.5">
+            PREVIEW
+          </Badge>
+        )}
+      </div>
       <p
         className={
           'text-body-sm flex-1 max-w-[44ch] ' +
@@ -665,14 +742,25 @@ function SkillCard({
         {description}
       </p>
       <div className="flex flex-col gap-2 mt-3">
-        <ButtonLink
-          href={`/api/skills/${encodeURIComponent(name)}`}
-          variant={onAccent ? 'default' : 'primary'}
-          size="sm"
-          arrow
-        >
-          Download SKILL.md
-        </ButtonLink>
+        {isPreview ? (
+          <span
+            className={
+              'inline-flex items-center gap-2 font-mono text-kicker uppercase border border-current/30 px-3 py-2 ' +
+              (onAccent ? 'text-white/80' : 'text-muted')
+            }
+          >
+            ▢ ADAPTER COMING SOON
+          </span>
+        ) : (
+          <ButtonLink
+            href={`/api/skills/${encodeURIComponent(name)}`}
+            variant={onAccent ? 'default' : 'primary'}
+            size="sm"
+            arrow
+          >
+            Download {filename}
+          </ButtonLink>
+        )}
         <details
           className={
             'text-body-sm ' + (onAccent ? 'text-white/90' : 'text-ink-2')
@@ -684,22 +772,58 @@ function SkillCard({
               (onAccent ? 'text-white/80' : 'text-muted')
             }
           >
-            ▸ INSTALL VIA CLI
+            ▸ {framework === 'kyberbot-claude' ? 'INSTALL VIA CLI' : 'PREVIEW THE FORMAT'}
           </summary>
           <pre className="mt-2 text-xs leading-snug whitespace-pre-wrap">
-{`# kyberbot (default)
+{framework === 'kyberbot-claude'
+  ? `# kyberbot (default)
 arpc skill install ${name}
 
 # claude-code (project-scoped)
 arpc skill install ${name} --target claude-code
 
 # claude-code (user-wide)
-arpc skill install ${name} --target claude-code-global`}
+arpc skill install ${name} --target claude-code-global`
+  : framework === 'openclaw'
+    ? `# Once the OpenClaw adapter ships, you'll drop this file at:
+#   <openclaw-project>/skills/contact.py
+# OpenClaw uses Python decorator + Skill subclass — not SKILL.md.
+# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`
+    : `# Once the Hermes adapter ships, you'll drop this file at:
+#   <hermes-agent>/src/skills/contact.ts
+# Hermes uses a @tool decorator on Agent methods — not SKILL.md.
+# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`}
           </pre>
         </details>
       </div>
     </Card>
   );
+}
+
+/** Strip the leading line(s) of placeholder Python/TS to summarise it for the card. */
+function extractPreviewBlurb(content: string): string {
+  // First useful comment paragraph from a # or // header.
+  const lines = content.split('\n');
+  const para: string[] = [];
+  let started = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!started && (t.startsWith('# ') || t.startsWith('// '))) {
+      started = true;
+      para.push(t.replace(/^(#|\/\/) ?/, ''));
+      continue;
+    }
+    if (started) {
+      if (t.startsWith('#') || t.startsWith('//')) {
+        const stripped = t.replace(/^(#|\/\/) ?/, '');
+        if (stripped === '') break;
+        para.push(stripped);
+      } else {
+        break;
+      }
+    }
+  }
+  return para.join(' ').trim() || 'Preview — adapter pending.';
 }
 
 /** Pull the `description: "…"` line from a skill's frontmatter for display. */
