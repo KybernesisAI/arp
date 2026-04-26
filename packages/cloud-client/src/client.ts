@@ -68,6 +68,17 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
   let reconnectAttempts = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let tokenTimer: ReturnType<typeof setTimeout> | null = null;
+  // Outbound envelopes the caller asked us to send while the WS was not
+  // 'connected'. Drained on the next 'connected' transition. Without
+  // this, a reply produced by a long-running adapter loses its only
+  // delivery path if the WS reconnects mid-adapter.
+  const pendingOutbound: Array<{
+    msgId: string;
+    msgType: string;
+    peerDid: string;
+    envelope: string;
+    connectionId: string | null;
+  }> = [];
 
   function setState(s: CloudClientState) {
     if (state === s) return;
@@ -76,6 +87,32 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
       config.onStateChange?.(s);
     } catch {
       /* ignore */
+    }
+    if (s === 'connected') void flushPendingOutbound();
+  }
+
+  async function flushPendingOutbound(): Promise<void> {
+    const sock = ws;
+    if (!sock || state !== 'connected') return;
+    while (pendingOutbound.length > 0 && state === 'connected') {
+      const next = pendingOutbound.shift()!;
+      try {
+        sock.send(
+          JSON.stringify({
+            kind: 'outbound_envelope',
+            msgId: next.msgId,
+            msgType: next.msgType,
+            peerDid: next.peerDid,
+            envelope: next.envelope,
+            connectionId: next.connectionId,
+          }),
+        );
+      } catch (err) {
+        // Re-queue + bail; reconnect will redrain.
+        pendingOutbound.unshift(next);
+        handleError(err as Error);
+        return;
+      }
     }
   }
 
@@ -278,20 +315,34 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
       }
     },
     async sendOutboundEnvelope(params) {
+      const queueable = {
+        msgId: params.msgId,
+        msgType: params.msgType,
+        peerDid: params.peerDid,
+        envelope: params.envelope,
+        connectionId: params.connectionId ?? null,
+      };
       const sock = ws;
       if (!sock || state !== 'connected') {
-        throw new Error('not_connected');
+        // Stash for the next 'connected' transition. Without this, a
+        // reply produced while the WS is mid-reconnect (or never opened
+        // because the bridge just started) is silently dropped.
+        pendingOutbound.push(queueable);
+        return;
       }
-      sock.send(
-        JSON.stringify({
-          kind: 'outbound_envelope',
-          msgId: params.msgId,
-          msgType: params.msgType,
-          peerDid: params.peerDid,
-          envelope: params.envelope,
-          connectionId: params.connectionId ?? null,
-        }),
-      );
+      try {
+        sock.send(
+          JSON.stringify({
+            kind: 'outbound_envelope',
+            ...queueable,
+          }),
+        );
+      } catch (err) {
+        // Likely a transient socket error mid-send. Queue + let the
+        // reconnect path redrain.
+        pendingOutbound.push(queueable);
+        handleError(err as Error);
+      }
     },
   };
 }

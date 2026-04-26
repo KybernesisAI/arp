@@ -16,6 +16,7 @@ import {
   createLogger,
   createInMemoryMetrics,
   createCloudAwareResolver,
+  createForwardOutboundEnvelope,
   type CloudRuntimeLogger,
   type TenantMetrics,
   type PeerResolver,
@@ -78,7 +79,22 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     hostname,
   }) as unknown as HttpServer;
 
-  const ws = createCloudWsServer({ db: opts.db, sessions, logger });
+  const onOutboundEnvelope = createForwardOutboundEnvelope({
+    db: opts.db,
+    sessions,
+    pdp,
+    resolver: peerResolver,
+    logger,
+    metrics,
+    auditFactory,
+    ...(opts.now ? { now: opts.now } : {}),
+  });
+  const ws = createCloudWsServer({
+    db: opts.db,
+    sessions,
+    logger,
+    onOutboundEnvelope,
+  });
   ws.attach(server);
 
   const actualPort = await new Promise<number>((resolve) => {
