@@ -81,6 +81,16 @@ async function loadState() {
     label: b.label,
     description: b.description,
     scopes: b.scopes.map((s) => ({ id: s.id })),
+    // A bundle that has any `<user-picks>` placeholder needs user input
+    // (project_id, collection_id, kb_id, …) the current PairForm doesn't
+    // yet collect. Flag it so the dropdown disables it with a clear note
+    // rather than failing scope-catalog compile when the user clicks
+    // Generate. Removes the "scope-catalog compile failed: 500" cliff.
+    needsParams: b.scopes.some(
+      (s) =>
+        s.params != null &&
+        Object.values(s.params).some((v) => v === '<user-picks>'),
+    ),
   }));
   return {
     agents: agents.map((a) => ({ did: a.did, name: a.agentName })),

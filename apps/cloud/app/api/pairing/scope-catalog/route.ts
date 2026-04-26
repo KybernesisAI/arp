@@ -32,12 +32,25 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     }
     const catalog = getScopeCatalog();
-    const compiled = compileBundle({
-      scopeIds: parsed.data.ids,
-      paramsMap: parsed.data.paramsMap ?? {},
-      audienceDid: parsed.data.audienceDid,
-      catalog,
-    });
+    let compiled;
+    try {
+      compiled = compileBundle({
+        scopeIds: parsed.data.ids,
+        paramsMap: parsed.data.paramsMap ?? {},
+        audienceDid: parsed.data.audienceDid,
+        catalog,
+      });
+    } catch (err) {
+      // ScopeCompileError / BundleCompileError are user-input failures
+      // (missing required parameters, unknown scope ids, invalid audience
+      // DID, etc.) — surface as 400 with the message so the UI can show
+      // it inline instead of an uninformative 500.
+      const message = err instanceof Error ? err.message : 'compile_failed';
+      return NextResponse.json(
+        { error: 'compile_failed', detail: message, ids: parsed.data.ids },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({
       compiled: {
         policies: compiled.policies,

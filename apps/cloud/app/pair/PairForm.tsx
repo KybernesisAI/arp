@@ -29,6 +29,8 @@ export interface BundleOption {
   label: string;
   description: string;
   scopes: Array<{ id: string }>;
+  /** True when the bundle has scopes whose params are `<user-picks>` (project_id, collection_id, …). */
+  needsParams?: boolean;
 }
 
 export interface ScopeOption {
@@ -99,7 +101,14 @@ export function PairForm({
   }, [fromQuery]);
   const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
   const [purpose, setPurpose] = useState('Test connection');
-  const [bundleId, setBundleId] = useState(bundles[0]?.id ?? '');
+  // Default to the first bundle that doesn't need user-supplied parameters.
+  // Bundles with `<user-picks>` placeholders (project_id, collection_id…)
+  // would 400 from /api/pairing/scope-catalog because the form doesn't
+  // collect those values yet. The dropdown still lists them, just disabled
+  // with a "needs project_id — coming soon" note.
+  const initialBundleId =
+    bundles.find((b) => !b.needsParams)?.id ?? bundles[0]?.id ?? '';
+  const [bundleId, setBundleId] = useState(initialBundleId);
   const [expiresDays, setExpiresDays] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,13 +258,19 @@ export function PairForm({
             data-testid="pair-bundle-select"
           >
             {bundles.map((b) => (
-              <option key={b.id} value={b.id}>
+              <option key={b.id} value={b.id} disabled={b.needsParams ?? false}>
                 {b.label}
+                {b.needsParams ? ' (needs project_id — UI coming soon)' : ''}
               </option>
             ))}
           </select>
           {selectedBundle && (
             <FieldHint>{selectedBundle.description.toUpperCase()}</FieldHint>
+          )}
+          {selectedBundle?.needsParams && (
+            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
+              THIS BUNDLE NEEDS PER-SCOPE INPUTS WE DON&apos;T COLLECT YET · PICK A DIFFERENT ONE
+            </p>
           )}
         </div>
 
@@ -371,8 +386,9 @@ async function compileBundleRemotely(
     body: JSON.stringify({ ids, audienceDid }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `scope-catalog compile failed: ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+    const detail = body.detail ?? body.error ?? `status ${res.status}`;
+    throw new Error(`scope-catalog compile failed: ${detail}`);
   }
   const body = (await res.json()) as { compiled: CompiledBundle };
   return body.compiled;

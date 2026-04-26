@@ -25,6 +25,7 @@ interface BundleOption {
   label: string;
   description: string;
   scopes: Array<{ id: string }>;
+  needsParams?: boolean;
 }
 
 interface ScopeOption {
@@ -85,7 +86,13 @@ export function EditConnectionForm({
   void agents;
 
   const [purpose, setPurpose] = useState(currentPurpose);
-  const [bundleId, setBundleId] = useState(currentBundleId ?? bundles[0]?.id ?? '');
+  // Default to a bundle that compiles without user-supplied params; if
+  // the connection's previous bundle is one of those, prefer it.
+  const initialBundleId =
+    currentBundleId && bundles.find((b) => b.id === currentBundleId && !b.needsParams)
+      ? currentBundleId
+      : bundles.find((b) => !b.needsParams)?.id ?? bundles[0]?.id ?? '';
+  const [bundleId, setBundleId] = useState(initialBundleId);
   const [expiresDays, setExpiresDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,13 +220,19 @@ export function EditConnectionForm({
             onChange={(e) => setBundleId(e.target.value)}
           >
             {bundles.map((b) => (
-              <option key={b.id} value={b.id}>
+              <option key={b.id} value={b.id} disabled={b.needsParams ?? false}>
                 {b.label}
+                {b.needsParams ? ' (needs project_id — UI coming soon)' : ''}
               </option>
             ))}
           </select>
           {selectedBundle && (
             <FieldHint>{selectedBundle.description.toUpperCase()}</FieldHint>
+          )}
+          {selectedBundle?.needsParams && (
+            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
+              THIS BUNDLE NEEDS PER-SCOPE INPUTS WE DON&apos;T COLLECT YET
+            </p>
           )}
         </div>
 
@@ -325,8 +338,9 @@ async function compileBundleRemotely(
     body: JSON.stringify({ ids, audienceDid }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `scope-catalog status ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+    const detail = body.detail ?? body.error ?? `status ${res.status}`;
+    throw new Error(`scope-catalog compile failed: ${detail}`);
   }
   const body = (await res.json()) as { compiled: CompiledBundle };
   return body.compiled;
