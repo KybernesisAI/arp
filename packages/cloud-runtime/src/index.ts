@@ -21,6 +21,7 @@ export * from './sessions.js';
 export * from './dispatch.js';
 export * from './ws-server.js';
 export * from './http.js';
+export * from './forward.js';
 export * from './logger.js';
 export * from './metrics.js';
 export * from './resolver.js';
