@@ -159,22 +159,30 @@ export async function POST(req: Request): Promise<Response> {
           { status: 400 },
         );
       }
-      // The amendment is signed by the audience's PRINCIPAL. Match by
-      // looking at the proposal's `sigs` map — the non-issuer entry is
-      // the audience principal that countersigned. We use the same
-      // resolver that just verified the proposal, so this principal is
-      // already known to be valid + key-extractable.
-      const audienceSigEntry = Object.entries(proposal.sigs).find(
-        ([k]) => k !== proposal.issuer,
-      );
-      if (!audienceSigEntry) {
+      // The amendment is signed by the audience's PRINCIPAL (same key
+      // that countersigned the proposal). Resolve the audience agent
+      // → principal binding the same way verifyPairingProposal does.
+      const audienceAgentDocResult = await resolver.resolve(proposal.audience);
+      if (!audienceAgentDocResult.ok) {
         return NextResponse.json(
-          { error: 'amendment_audience_unknown', reason: 'no audience signer on proposal' },
+          {
+            error: 'amendment_resolver_failed',
+            reason: `cannot resolve audience agent: ${audienceAgentDocResult.reason}`,
+          },
           { status: 400 },
         );
       }
-      const audiencePrincipalDid = audienceSigEntry[0];
-      const amendmentSignerResult = await resolver.resolve(audiencePrincipalDid);
+      const audiencePrincipalBinding = audienceAgentDocResult.value.principal;
+      if (!audiencePrincipalBinding) {
+        return NextResponse.json(
+          {
+            error: 'amendment_audience_unknown',
+            reason: `audience agent ${proposal.audience} has no principal binding`,
+          },
+          { status: 400 },
+        );
+      }
+      const amendmentSignerResult = await resolver.resolve(audiencePrincipalBinding.did);
       if (!amendmentSignerResult.ok) {
         return NextResponse.json(
           {
