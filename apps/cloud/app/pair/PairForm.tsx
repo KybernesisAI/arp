@@ -230,12 +230,23 @@ export function PairForm({
           <Input
             id="pair-audience"
             value={audienceDid}
-            onChange={(e) => setAudienceDid(e.target.value)}
-            placeholder="did:web:peer.agent"
+            onChange={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
+            onBlur={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
+            placeholder="did:web:samantha.agent"
             data-testid="pair-audience-input"
             className="font-mono"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
           />
-          <FieldHint>WHAT AGENT ARE YOU PAIRING WITH?</FieldHint>
+          <FieldHint>
+            FORMAT: <Code>did:web:&lt;their-domain&gt;.agent</Code> — colons after &quot;did&quot; and &quot;web&quot;
+          </FieldHint>
+          {audienceDid && !isValidDidUri(audienceDid) && (
+            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
+              NOT A VALID DID URI · CHECK THE FORMAT
+            </p>
+          )}
         </div>
 
         <div>
@@ -292,7 +303,13 @@ export function PairForm({
             variant="primary"
             arrow
             onClick={() => void generate()}
-            disabled={busy || !issuerAgent || !selectedBundle}
+            disabled={
+              busy ||
+              !issuerAgent ||
+              !selectedBundle ||
+              selectedBundle.needsParams ||
+              !isValidDidUri(audienceDid)
+            }
             data-testid="pair-generate-btn"
           >
             {busy ? 'Generating…' : 'Generate invitation'}
@@ -406,4 +423,26 @@ async function extractPrivateKey(): Promise<Uint8Array> {
     out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
   return out;
+}
+
+/**
+ * Lenient input normaliser for the peer-DID field. Catches the common
+ * autocorrect-on-mobile-keyboard mistake of `did.web.foo.agent` →
+ * `did:web:foo.agent`. Doesn't try to be clever beyond that — anything
+ * else gets a "not a valid DID URI" inline error and round-trips
+ * unchanged so the user can see what they typed.
+ */
+function normaliseDidInput(raw: string): string {
+  const v = raw.trim();
+  // Common autocorrect: `did.web.X` (periods instead of colons)
+  const m = v.match(/^did\.web\.(.+)$/);
+  if (m && m[1]) return `did:web:${m[1]}`;
+  // Common: missing `did:` prefix entirely (`web:foo.agent`)
+  if (/^web:.+/.test(v)) return `did:${v}`;
+  return v;
+}
+
+function isValidDidUri(v: string): boolean {
+  // Same shape as packages/pairing/src/types.ts::DID_URI_REGEX
+  return /^did:[a-z0-9]+:[A-Za-z0-9._%-]+(?::[A-Za-z0-9._%-]+)*$/.test(v.trim());
 }
