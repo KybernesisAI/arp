@@ -101,6 +101,7 @@ export async function POST(req: Request): Promise<Response> {
       .values({
         tenantId: tenantDb.tenantId,
         issuerAgentDid: proposal.subject,
+        audienceDid: proposal.audience,
         requestedScopes: proposal.scope_selections as unknown as Record<string, unknown>,
         challenge: proposal.proposal_id,
         payload,
