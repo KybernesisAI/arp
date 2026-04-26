@@ -234,6 +234,47 @@ describe('dispatchInbound', () => {
     expect(entries[0]?.decision).toBe('allow');
   });
 
+  it('plain text body without action is mapped to relay_to_principal on Principal::self', async () => {
+    // Pairings minted from the scope picker include `messaging.relay.
+    // to_principal` which permits Action::"relay_to_principal" on
+    // Principal::"self". Plain `arpc send` ships {text: "..."} with no
+    // explicit action — dispatch must map this to the same primitive
+    // so general agent-to-agent chat works without callers having to
+    // know the cedar action name.
+    const relayPolicy = `permit (
+  principal == Agent::"${h.peerDid}",
+  action == Action::"relay_to_principal",
+  resource == Principal::"self"
+);`;
+    await h.createActiveConnection('conn_relay_1', [relayPolicy]);
+    const envelope = await h.signFromPeer({
+      id: 'msg-relay',
+      type: 'https://didcomm.org/arp/1.0/request',
+      from: h.peerDid,
+      to: [h.agentDid],
+      body: { connection_id: 'conn_relay_1', text: 'hi from peer' },
+    });
+    const result = await dispatchInbound(
+      {
+        tenantDb: h.tenantDb,
+        tenantId: h.tenantId,
+        agentDid: h.agentDid,
+        audit: h.audit,
+        pdp: h.pdp,
+        resolver: h.resolver,
+        sessions: h.sessions,
+        logger: h.logger,
+        metrics: h.metrics,
+        now: () => Date.now(),
+      },
+      envelope,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.decision).toBe('allow');
+    const entries = await h.audit.list(h.agentDid, 'conn_relay_1');
+    expect(entries[0]?.decision).toBe('allow');
+  });
+
   it('denies when connection revoked', async () => {
     await h.createActiveConnection('conn_rev01');
     await h.tenantDb.updateConnectionStatus('conn_rev01', 'revoked', 'owner');

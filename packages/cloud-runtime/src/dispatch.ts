@@ -324,11 +324,22 @@ async function resolveConnection(
 
 function mapRequest(msg: DidCommMessage): { action: string; resource: Entity; context?: Record<string, unknown> } {
   const body = (msg.body ?? {}) as Record<string, unknown>;
-  const action =
-    typeof body['action'] === 'string'
-      ? (body['action'] as string)
-      : inferActionFromType(msg.type);
-  const resource = coerceResource(body['resource']);
+  // Plain agent-to-agent text (no specific action requested) maps to
+  // `relay_to_principal` on `Principal::self` — that's the cedar
+  // primitive `messaging.relay.to_principal` grants. Conversational
+  // chat between paired agents is the baseline; specific tool/data
+  // actions are additive. Callers that DO want a specific action
+  // (e.g. check_availability, search_contacts) keep passing it
+  // explicitly in body.action.
+  const explicitAction = typeof body['action'] === 'string' ? (body['action'] as string) : null;
+  const isPlainText =
+    !explicitAction &&
+    typeof body['text'] === 'string' &&
+    body['resource'] === undefined;
+  const action = explicitAction ?? (isPlainText ? 'relay_to_principal' : inferActionFromType(msg.type));
+  const resource = isPlainText
+    ? ({ type: 'Principal', id: 'self' } as Entity)
+    : coerceResource(body['resource']);
   const context =
     typeof body['context'] === 'object' && body['context'] !== null
       ? (body['context'] as Record<string, unknown>)
