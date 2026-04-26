@@ -179,6 +179,21 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
   }
 
   async function handleInbound(sock: WebSocketInstance, ev: InboundEvent): Promise<void> {
+    // Ack immediately on receipt so the gateway marks the message
+    // delivered and stops its 30s ack-timeout. Adapter processing
+    // (e.g. spawning a Claude subprocess) can take much longer than
+    // that — it must run *after* the ack, not before, or the gateway
+    // will queue every message that takes more than 30s to handle.
+    // Reply, if any, flows back via the bridge's own outbound path.
+    try {
+      sock.send(JSON.stringify({ kind: 'ack', messageId: ev.messageId }));
+    } catch (err) {
+      // Ack failure typically means the WS was already closed mid-event.
+      // Surface but continue — adapter may still complete its side work,
+      // and on reconnect the cloud will redeliver if it didn't receive
+      // the ack.
+      handleError(err as Error);
+    }
     try {
       if (config.onIncoming) {
         await config.onIncoming({
@@ -209,14 +224,9 @@ export function createCloudClient(config: CloudClientConfig): CloudClientHandle 
           throw new Error(`local agent responded ${res.status}`);
         }
       }
-      // Successful local delivery → ack the cloud so it can mark the
-      // message delivered.
-      sock.send(JSON.stringify({ kind: 'ack', messageId: ev.messageId }));
       config.onInboundDelivered?.(ev.messageId, ev.msgId);
     } catch (err) {
       handleError(err as Error);
-      // Deliberately no ack; the cloud times out after 30s and keeps the
-      // message queued for redelivery.
     }
   }
 
