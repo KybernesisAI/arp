@@ -245,6 +245,8 @@ async function handleInbound(
     typeof decoded.body?.['text'] === 'string'
       ? (decoded.body['text'] as string)
       : JSON.stringify(decoded.body ?? {});
+  const msgType = decoded.type ?? input.msgType ?? '';
+  const isResponse = msgType.endsWith('/response') || msgType.endsWith('.response');
 
   // ---- intercept replies to outbound sends -------------------------------
   if (thid && pending.has(thid)) {
@@ -254,6 +256,18 @@ async function handleInbound(
     p.resolve({ thid, peerDid, text, body: decoded.body ?? {} });
     // eslint-disable-next-line no-console
     console.log(`[bridge] ← ${peerDid}: ${truncate(text, 80)}  (matched awaitReply)`);
+    return;
+  }
+
+  // ---- responses are NOT requests --------------------------------------
+  // A message of type `/response` is an answer to a previous request the
+  // adapter generated. Do NOT feed it back through adapter.ask() — that
+  // would generate ANOTHER reply, the peer would generate ANOTHER reply,
+  // and the two agents would ping-pong forever. The conversation needs
+  // a human/CLI on at least one end to terminate naturally.
+  if (isResponse) {
+    // eslint-disable-next-line no-console
+    console.log(`[bridge] ← ${peerDid}: ${truncate(text, 80)}  (response, no auto-reply)`);
     return;
   }
 
