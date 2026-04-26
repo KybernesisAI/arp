@@ -99,10 +99,11 @@ export async function dispatchInbound(
   if (!resolved.ok) return resolved.deny;
   const conn = resolved.conn;
   const connectionId = conn.connectionId;
-  if (conn.agentDid !== ctx.agentDid) {
-    // Connection is for another agent under the same tenant — route elsewhere
-    // via the tenant context in theory, but for an inbound we identify the
-    // target from the envelope `to` field. Reject mismatched routing.
+  // Routing sanity: the connection must involve ctx.agentDid in one
+  // role or the other. Same-tenant pairings store only one row per pair
+  // (PK is (tenant_id, connection_id)), so a row may legitimately have
+  // agent=peer / peer=us when ctx.agentDid is the audience side.
+  if (conn.agentDid !== ctx.agentDid && conn.peerDid !== ctx.agentDid) {
     return { ok: false, decision: 'deny', reason: 'wrong_agent' };
   }
   if (conn.status !== 'active') {
@@ -293,11 +294,16 @@ async function resolveConnection(
     if (conn) return { ok: true, conn };
   }
   // Fallback: unique active connection for (this agent, this peer).
-  const candidates = await ctx.tenantDb.listConnections({
-    agentDid: ctx.agentDid,
-    status: 'active',
-  });
-  const matches = candidates.filter((c) => c.peerDid === peerDid);
+  // Match either orientation — when both agents live in the same tenant
+  // the schema's (tenant_id, connection_id) PK only permits a single row
+  // per pair, so the row may be stored from the OTHER side's perspective
+  // (agent=peer, peer=ctx.agent). The pairing is logically the same row.
+  const allActive = await ctx.tenantDb.listConnections({ status: 'active' });
+  const matches = allActive.filter(
+    (c) =>
+      (c.agentDid === ctx.agentDid && c.peerDid === peerDid) ||
+      (c.peerDid === ctx.agentDid && c.agentDid === peerDid),
+  );
   if (matches.length === 1) {
     return { ok: true, conn: matches[0]! };
   }
