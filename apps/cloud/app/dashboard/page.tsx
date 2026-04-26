@@ -573,33 +573,44 @@ async function loadState(): Promise<{
   );
 
   // Outgoing: pending invitations this tenant issued.
-  const outgoingRows = await tenantDb.raw
-    .select({
-      id: pairingInvitations.id,
-      issuerAgentDid: pairingInvitations.issuerAgentDid,
-      audienceDid: pairingInvitations.audienceDid,
-      challenge: pairingInvitations.challenge,
-      payload: pairingInvitations.payload,
-      expiresAt: pairingInvitations.expiresAt,
-    })
-    .from(pairingInvitations)
-    .where(
-      and(
-        eq(pairingInvitations.tenantId, tenantDb.tenantId),
-        isNull(pairingInvitations.cancelledAt),
-        isNull(pairingInvitations.consumedAt),
-        gt(pairingInvitations.expiresAt, now),
-      ),
-    )
-    .orderBy(asc(pairingInvitations.expiresAt));
-
-  // Incoming: pending invitations another tenant issued where the audience
-  // DID is one of *our* agents. Cross-tenant query — explicitly excluded
-  // self-tenant rows so a self-test invitation only shows up in outgoing.
+  // Incoming: cross-tenant invitations where the audience DID is one of
+  // *our* agents. Both depend on the `audience_did` column added in
+  // migration 0007. If the migration hasn't run yet (deploy-then-migrate
+  // ordering), we fall back to empty lists so the dashboard still
+  // renders. Logged so the operator notices and runs the migration.
   const myAgentDids = agentRows.map((a) => a.did);
-  const incomingRows = myAgentDids.length === 0
-    ? []
-    : await tenantDb.raw
+  let outgoingRows: Array<{
+    id: string;
+    issuerAgentDid: string;
+    audienceDid: string;
+    challenge: string;
+    payload: string;
+    expiresAt: Date;
+  }> = [];
+  let incomingRows: typeof outgoingRows = [];
+  try {
+    outgoingRows = await tenantDb.raw
+      .select({
+        id: pairingInvitations.id,
+        issuerAgentDid: pairingInvitations.issuerAgentDid,
+        audienceDid: pairingInvitations.audienceDid,
+        challenge: pairingInvitations.challenge,
+        payload: pairingInvitations.payload,
+        expiresAt: pairingInvitations.expiresAt,
+      })
+      .from(pairingInvitations)
+      .where(
+        and(
+          eq(pairingInvitations.tenantId, tenantDb.tenantId),
+          isNull(pairingInvitations.cancelledAt),
+          isNull(pairingInvitations.consumedAt),
+          gt(pairingInvitations.expiresAt, now),
+        ),
+      )
+      .orderBy(asc(pairingInvitations.expiresAt));
+
+    if (myAgentDids.length > 0) {
+      incomingRows = await tenantDb.raw
         .select({
           id: pairingInvitations.id,
           issuerAgentDid: pairingInvitations.issuerAgentDid,
@@ -619,6 +630,11 @@ async function loadState(): Promise<{
           ),
         )
         .orderBy(asc(pairingInvitations.expiresAt));
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[dashboard] pairing-inbox query failed — has migration 0007 run?', err);
+  }
 
   const recentActivity: ActivityEntry[] = recent.map((r) => ({
     id: String(r.id),
