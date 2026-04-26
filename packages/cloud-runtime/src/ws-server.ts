@@ -301,7 +301,24 @@ export function createCloudWsServer(opts: CloudWsServerOptions): CloudWsServer {
     },
     authenticate,
     async close() {
+      // Broadcast a graceful shutdown event to every active client so
+      // bridges close + reconnect immediately on the next container,
+      // skipping their exponential backoff. Without this, Railway's
+      // blue-green deploy leaves bridges pinned to the old TCP for
+      // many seconds and dispatches during the gap go to
+      // queued_no_session. Brief 200ms grace for the event to flush
+      // before we force-close the server.
       if (wss) {
+        const event: WsServerEvent = { kind: 'shutdown', reason: 'server_shutdown' };
+        const payload = JSON.stringify(event);
+        for (const client of wss.clients) {
+          try {
+            client.send(payload);
+          } catch {
+            /* socket already closing; ignore */
+          }
+        }
+        await new Promise((r) => setTimeout(r, 200));
         await new Promise<void>((resolve) => wss!.close(() => resolve()));
         wss = null;
       }
