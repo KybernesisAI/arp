@@ -8,6 +8,7 @@ import {
   Badge,
   ButtonLink,
   Card,
+  CardMatrix,
   Code,
   Dot,
   Link,
@@ -58,44 +59,39 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
       {!hasPasskey && <MigrateToPasskeyBanner />}
 
-      <section className="mb-10">
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3 flex items-center gap-3">
-            Incoming pairing requests
-            <Badge tone={pendingTone}>Pending · {pendingCount}</Badge>
-          </h2>
-          <Link href="/pair" variant="mono">
-            New connection →
-          </Link>
-        </header>
-        {pendingCount === 0 ? (
-          <Card tone="paper-2" padded>
-            <p className="text-body text-ink-2">
-              No pending invitations. Start a new pairing from{' '}
-              <Link href="/pair">/pair</Link>.
-            </p>
+      {pendingCount > 0 && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3 flex items-center gap-3">
+              Incoming pairing requests
+              <Badge tone={pendingTone}>Pending · {pendingCount}</Badge>
+            </h2>
+            <span className="font-mono text-kicker uppercase text-muted">
+              // I · INBOX
+            </span>
+          </header>
+          <Card tone="yellow" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {pendingInvitations.map((inv, i) => (
+                <li
+                  key={inv.id}
+                  className={'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' + (i === pendingInvitations.length - 1 ? '' : 'border-b border-ink/15')}
+                >
+                  <div className="col-span-12 md:col-span-4 font-display font-medium text-h5 break-all">
+                    <Code>{inv.issuerAgentDid}</Code>
+                  </div>
+                  <div className="col-span-12 md:col-span-4 text-body-sm">
+                    PROPOSAL · <Code>{inv.proposalId}</Code>
+                  </div>
+                  <div className="col-span-12 md:col-span-4 md:text-right font-mono text-kicker uppercase">
+                    EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </Card>
-        ) : (
-          <ul className="list-none p-0 m-0 border-t border-rule">
-            {pendingInvitations.map((inv) => (
-              <li
-                key={inv.id}
-                className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline"
-              >
-                <div className="col-span-12 md:col-span-4 font-display font-medium text-h5 break-all">
-                  <Code>{inv.issuerAgentDid}</Code>
-                </div>
-                <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2">
-                  PROPOSAL · <Code>{inv.proposalId}</Code>
-                </div>
-                <div className="col-span-12 md:col-span-4 md:text-right font-mono text-kicker uppercase text-muted">
-                  EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        </section>
+      )}
 
       <div className="grid grid-cols-12 gap-4 mb-10">
         <div className="col-span-12 md:col-span-8">
@@ -115,11 +111,14 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             Agents <span className="text-muted font-mono text-body-sm ml-2">{agents.length}</span>
           </h2>
           <div className="flex items-center gap-4">
+            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
+              // A · LIVE
+            </span>
             <Link href="/connections" variant="mono">
-              See all connections ({totalActiveConnections}) →
+              All connections ({totalActiveConnections}) →
             </Link>
             <Link href="/onboarding" variant="mono">
-              Provision agent →
+              Provision →
             </Link>
           </div>
         </header>
@@ -130,11 +129,13 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </p>
           </Card>
         ) : (
-          <ul className="list-none p-0 m-0 border-t border-rule">
-            {agents.map((a) => (
-              <AgentRow key={a.did} agent={a} />
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {agents.map((a, i) => (
+                <AgentRow key={a.did} agent={a} isLast={i === agents.length - 1} />
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
@@ -146,14 +147,20 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
               <span className="text-muted font-mono text-body-sm ml-2">{domains.length}</span>
             </h2>
             <span className="font-mono text-kicker uppercase text-muted">
-              REGISTRAR-BOUND
+              // D · REGISTRAR-BOUND
             </span>
           </header>
-          <ul className="list-none p-0 m-0 border-t border-rule">
-            {domains.map((d) => (
-              <DomainRow key={`${d.domain}-${d.ownerLabel}`} domain={d} />
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {domains.map((d, i) => (
+                <DomainRow
+                  key={`${d.domain}-${d.ownerLabel}`}
+                  domain={d}
+                  isLast={i === domains.length - 1}
+                />
+              ))}
+            </ul>
+          </Card>
         </section>
       )}
 
@@ -165,9 +172,14 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
               last {recentActivity.length}
             </span>
           </h2>
-          <Link href="/connections" variant="mono">
-            Browse connections →
-          </Link>
+          <div className="flex items-center gap-4">
+            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
+              // R · LEDGER
+            </span>
+            <Link href="/connections" variant="mono">
+              Browse connections →
+            </Link>
+          </div>
         </header>
         {recentActivity.length === 0 ? (
           <Card tone="paper-2" padded>
@@ -176,11 +188,13 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </p>
           </Card>
         ) : (
-          <ul className="list-none p-0 m-0 border-t border-rule">
-            {recentActivity.map((entry) => (
-              <ActivityRow key={entry.id} entry={entry} />
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {recentActivity.map((entry, i) => (
+                <ActivityRow key={entry.id} entry={entry} isLast={i === recentActivity.length - 1} />
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
@@ -189,18 +203,26 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       <section>
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
           <h2 className="font-display font-medium text-h3">Plan quotas</h2>
-          <Badge tone="blue">{tenant.plan.toUpperCase()}</Badge>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-kicker uppercase text-muted">
+              // Q · {tenant.plan.toUpperCase()}
+            </span>
+            <Badge tone="blue">{tenant.plan.toUpperCase()}</Badge>
+          </div>
         </header>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-rule border border-rule">
+        <CardMatrix className="grid-cols-1 md:grid-cols-3">
           <QuotaCell
+            tone="paper"
             label="AGENTS"
             value={`${agents.length} / ${limits.maxAgents ?? '∞'}`}
           />
           <QuotaCell
+            tone="paper-2"
             label="INBOUND MSGS / MONTH"
             value={limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'}
           />
           <QuotaCell
+            tone={tenant.status === 'active' ? 'blue' : 'yellow'}
             label="STATUS"
             value={
               <span className="inline-flex items-center gap-2">
@@ -209,7 +231,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
               </span>
             }
           />
-        </div>
+        </CardMatrix>
       </section>
     </AppShell>
   );
@@ -217,8 +239,10 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
 function AgentRow({
   agent,
+  isLast,
 }: {
   agent: DashboardAgent;
+  isLast?: boolean;
 }): React.JSX.Element {
   const bucket = agent.healthBucket;
   const toneMap: Record<HealthBucket, 'green' | 'yellow' | 'ink'> = {
@@ -232,7 +256,7 @@ function AgentRow({
     inactive: 'INACTIVE',
   };
   return (
-    <li className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline">
+    <li className={'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' + (isLast ? '' : 'border-b border-rule')}>
       <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
         <Dot tone={toneMap[bucket]} />
         <Link href={`/agent/${encodeURIComponent(agent.did)}`} variant="plain">
@@ -256,40 +280,64 @@ function AgentRow({
       </div>
       <div className="col-span-12 mt-2 flex flex-wrap gap-2">
         <SelfTestConnectionButton agentDid={agent.did} />
-        <Link
+        <ButtonLink
           href={`/pair?from=${encodeURIComponent(agent.did)}`}
-          className="font-mono text-kicker uppercase text-ink border border-rule px-3 py-1.5 hover:bg-paper-2"
+          variant="default"
+          size="sm"
+          arrow
         >
-          Pair with another agent →
-        </Link>
+          Pair with another agent
+        </ButtonLink>
       </div>
     </li>
   );
 }
 
-function DomainRow({ domain }: { domain: DashboardDomain }): React.JSX.Element {
+function DomainRow({
+  domain,
+  isLast,
+}: {
+  domain: DashboardDomain;
+  isLast?: boolean;
+}): React.JSX.Element {
   const ownerHost = `${domain.ownerLabel}.${domain.domain}`;
   return (
-    <li className="py-4 border-b border-rule">
+    <li className={'p-5 ' + (isLast ? '' : 'border-b border-rule')}>
       <div className="grid grid-cols-12 gap-4 items-baseline">
         <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-          <Dot tone="green" />
-          <span className="font-display font-medium text-h5">{domain.domain}</span>
+          <Dot tone={domain.provisioned ? 'green' : 'yellow'} />
+          <div>
+            <span className="font-display font-medium text-h5 block">
+              {domain.domain}
+            </span>
+            {domain.provisioned && domain.provisionedAgentName && (
+              <span className="font-mono text-kicker uppercase text-muted">
+                AGENT · {domain.provisionedAgentName}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="col-span-6 md:col-span-4 text-body-sm text-ink-2 break-all">
+        <div className="col-span-6 md:col-span-3 text-body-sm text-ink-2 break-all">
           <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
           <Code>{ownerHost}</Code>
         </div>
         <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
           VIA {domain.registrar.toUpperCase()}
         </div>
-        <div className="col-span-3 md:col-span-1 md:text-right font-mono text-kicker uppercase text-muted">
-          {domain.createdAgo}
+        <div className="col-span-3 md:col-span-2 md:text-center">
+          {domain.provisioned ? (
+            <Badge tone="blue" className="text-[9px] px-2 py-0.5">PROVISIONED</Badge>
+          ) : (
+            <Badge tone="yellow" className="text-[9px] px-2 py-0.5">PENDING</Badge>
+          )}
         </div>
         {/* ProvisionAgentButton is a Fragment that contributes the
             small md:col-span-2 trigger cell + (when expanded) a
             full-width col-span-12 panel cell below. */}
-        <ProvisionAgentButton domain={domain.domain} />
+        <ProvisionAgentButton
+          domain={domain.domain}
+          alreadyProvisioned={domain.provisioned}
+        />
       </div>
     </li>
   );
@@ -297,8 +345,10 @@ function DomainRow({ domain }: { domain: DashboardDomain }): React.JSX.Element {
 
 function ActivityRow({
   entry,
+  isLast,
 }: {
   entry: ActivityEntry;
+  isLast?: boolean;
 }): React.JSX.Element {
   const toneMap: Record<ActivityEntry['decision'], 'ink' | 'red' | 'yellow' | 'muted'> = {
     allow: 'ink',
@@ -314,12 +364,14 @@ function ActivityRow({
   };
   const auditHref = `/connections/${encodeURIComponent(entry.connectionId)}/audit?highlight=${encodeURIComponent(entry.msgId)}`;
   return (
-    <li className="grid grid-cols-12 gap-4 py-3 border-b border-rule items-baseline">
+    <li className={'grid grid-cols-12 gap-4 px-5 py-3 items-baseline ' + (isLast ? '' : 'border-b border-rule')}>
       <div className="col-span-4 md:col-span-2 font-mono text-kicker uppercase text-muted">
         {entry.ago}
       </div>
       <div className="col-span-4 md:col-span-2">
-        <Badge tone={toneMap[entry.decision]}>{labelMap[entry.decision]}</Badge>
+        <Badge tone={toneMap[entry.decision]} className="text-[9px] px-2 py-0.5">
+          {labelMap[entry.decision]}
+        </Badge>
       </div>
       <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2 break-all">
         <Code>{entry.peerDid ?? entry.agentDid}</Code>
@@ -339,15 +391,25 @@ function ActivityRow({
 function QuotaCell({
   label,
   value,
+  tone = 'paper',
 }: {
   label: string;
   value: React.ReactNode;
+  tone?: 'paper' | 'paper-2' | 'blue' | 'yellow';
 }): React.JSX.Element {
+  const onAccent = tone === 'blue';
   return (
-    <div className="bg-paper p-6">
-      <div className="font-mono text-kicker uppercase text-muted">{label}</div>
+    <Card tone={tone}>
+      <div
+        className={
+          'font-mono text-kicker uppercase ' +
+          (onAccent ? 'text-white/80' : 'text-muted')
+        }
+      >
+        {label}
+      </div>
       <div className="mt-2 font-display font-medium text-h3">{value}</div>
-    </div>
+    </Card>
   );
 }
 
@@ -365,6 +427,10 @@ interface DashboardDomain {
   registrar: string;
   principalDid: string;
   createdAgo: string;
+  /** True when an agent row exists for `did:web:<domain>` under this tenant. */
+  provisioned: boolean;
+  /** Friendly name from the provisioned agent (when present) — shown as a sub-label. */
+  provisionedAgentName: string | null;
 }
 
 interface ActivityEntry {
@@ -467,13 +533,24 @@ async function loadState(): Promise<{
     ago: formatAgo(now, r.timestamp),
   }));
 
-  const domains: DashboardDomain[] = bindingRows.map((r) => ({
-    domain: r.domain,
-    ownerLabel: r.ownerLabel,
-    registrar: r.registrar,
-    principalDid: r.principalDid,
-    createdAgo: formatAgo(now, r.createdAt),
-  }));
+  // Map did:web:<domain> → agent row so each .agent domain knows whether
+  // it's already been provisioned. Cloud-managed agents always live at
+  // the domain's apex DID — registrar bindings without a matching agent
+  // row are still in the "registered, not provisioned" state.
+  const agentByDid = new Map(agentRows.map((a) => [a.did, a]));
+  const domains: DashboardDomain[] = bindingRows.map((r) => {
+    const agentDid = `did:web:${r.domain.toLowerCase()}`;
+    const agent = agentByDid.get(agentDid) ?? null;
+    return {
+      domain: r.domain,
+      ownerLabel: r.ownerLabel,
+      registrar: r.registrar,
+      principalDid: r.principalDid,
+      createdAgo: formatAgo(now, r.createdAt),
+      provisioned: agent !== null,
+      provisionedAgentName: agent?.agentName ?? null,
+    };
+  });
 
   return {
     tenant: {
@@ -531,13 +608,20 @@ function inferMsgType(decision: string): string {
 }
 
 /**
- * Skills section — lists the skill templates available for download, so
- * users without `arpc` installed can still grab SKILL.md from a browser.
- * Each row shows: name, what triggers it, install paths for both
- * KyberBot and Claude Code, plus a download link to /api/skills/<name>.
+ * Skills section — editorial card matrix matching the landing page's
+ * FeatureCard treatment. Each available skill becomes a tone'd card
+ * with idx + category + title + body + a Download SKILL.md button +
+ * the CLI alternative. Tones cycle (paper → blue → yellow → paper)
+ * for visual rhythm.
  */
 function SkillsSection(): React.JSX.Element {
   const names = listSkillNames();
+  const toneCycle: Array<'paper' | 'blue' | 'yellow' | 'paper-2'> = [
+    'paper',
+    'blue',
+    'yellow',
+    'paper-2',
+  ];
   return (
     <section className="mb-10">
       <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
@@ -547,6 +631,9 @@ function SkillsSection(): React.JSX.Element {
             {names.length} available
           </span>
         </h2>
+        <span className="font-mono text-kicker uppercase text-muted">
+          // S · CAPABILITIES
+        </span>
       </header>
       <p className="text-body text-ink-2 mb-4 max-w-3xl">
         Drop these into your agent folder so its LLM picks up new
@@ -555,43 +642,188 @@ function SkillsSection(): React.JSX.Element {
         <Code>.claude/skills/&lt;name&gt;/SKILL.md</Code>) — only the
         install path differs.
       </p>
-      <ul className="list-none p-0 m-0 border-t border-rule">
-        {names.map((n) => {
+      <CardMatrix
+        className={
+          names.length <= 1
+            ? 'grid-cols-1'
+            : names.length === 2
+              ? 'grid-cols-1 md:grid-cols-2'
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        }
+      >
+        {names.map((n, i) => {
           const tpl = SKILL_TEMPLATES[n]!;
-          const desc = extractSkillDescription(tpl.content);
+          const desc =
+            tpl.status === 'preview'
+              ? extractPreviewBlurb(tpl.content)
+              : extractSkillDescription(tpl.content);
+          const tone = tpl.brandTone ?? toneCycle[i % toneCycle.length]!;
           return (
-            <li key={n} className="py-4 border-b border-rule">
-              <div className="grid grid-cols-12 gap-4 items-baseline">
-                <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-                  <Dot tone="ink" />
-                  <span className="font-display font-medium text-h5">{n}</span>
-                </div>
-                <div className="col-span-12 md:col-span-7 text-body-sm text-ink-2">
-                  {desc}
-                </div>
-                <div className="col-span-12 md:col-span-2 md:text-right">
-                  <Link
-                    href={`/api/skills/${encodeURIComponent(n)}`}
-                    className="font-mono text-kicker uppercase text-ink border border-rule px-3 py-1.5 hover:bg-paper-2 inline-block"
-                  >
-                    Download SKILL.md
-                  </Link>
-                </div>
-                <div className="col-span-12 mt-2 text-body-sm text-ink-2">
-                  <span className="font-mono text-kicker uppercase text-muted">
-                    OR INSTALL VIA CLI ·{' '}
-                  </span>
-                  <Code>arpc skill install {n}</Code> (kyberbot, in cwd)
-                  <span className="mx-2 text-rule">·</span>
-                  <Code>arpc skill install {n} --target claude-code</Code>
-                </div>
-              </div>
-            </li>
+            <SkillCard
+              key={n}
+              idx={`S.${String(i + 1).padStart(2, '0')}`}
+              name={n}
+              description={desc}
+              tone={tone}
+              category={tpl.category}
+              framework={tpl.framework}
+              status={tpl.status}
+              filename={tpl.filename}
+            />
           );
         })}
-      </ul>
+      </CardMatrix>
     </section>
   );
+}
+
+function SkillCard({
+  idx,
+  name,
+  description,
+  tone,
+  category,
+  framework,
+  status,
+  filename,
+}: {
+  idx: string;
+  name: string;
+  description: string;
+  tone: 'paper' | 'paper-2' | 'blue' | 'yellow' | 'red';
+  category: string;
+  framework: 'kyberbot-claude' | 'openclaw' | 'hermes';
+  status: 'available' | 'preview';
+  filename: string;
+}): React.JSX.Element {
+  // blue + red use white-on-color; yellow + paper use ink-on-paper.
+  const onAccent = tone === 'blue' || tone === 'red';
+  const isPreview = status === 'preview';
+  return (
+    <Card
+      tone={tone}
+      className={
+        'min-h-[320px] gap-3 justify-between ' +
+        (isPreview ? 'opacity-70' : '')
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span
+          className={
+            'font-mono text-kicker uppercase ' +
+            (onAccent ? 'text-white/90' : 'text-muted')
+          }
+        >
+          {idx}
+        </span>
+        <span
+          className={
+            'font-mono text-kicker uppercase text-right ' +
+            (onAccent ? 'text-white' : 'text-ink')
+          }
+        >
+          {category}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <h3 className="text-h3 font-display font-medium max-w-[18ch]">{name}</h3>
+        {isPreview && (
+          <Badge tone={onAccent ? 'paper' : 'yellow'} className="text-[9px] px-2 py-0.5">
+            PREVIEW
+          </Badge>
+        )}
+      </div>
+      <p
+        className={
+          'text-body-sm flex-1 max-w-[44ch] ' +
+          (onAccent ? 'text-white/90' : 'text-ink-2')
+        }
+      >
+        {description}
+      </p>
+      <div className="flex flex-col gap-2 mt-3">
+        {isPreview ? (
+          <span
+            className={
+              'inline-flex items-center gap-2 font-mono text-kicker uppercase border border-current/30 px-3 py-2 ' +
+              (onAccent ? 'text-white/80' : 'text-muted')
+            }
+          >
+            ▢ ADAPTER COMING SOON
+          </span>
+        ) : (
+          <ButtonLink
+            href={`/api/skills/${encodeURIComponent(name)}`}
+            variant={onAccent ? 'default' : 'primary'}
+            size="sm"
+            arrow
+          >
+            Download {filename}
+          </ButtonLink>
+        )}
+        <details
+          className={
+            'text-body-sm ' + (onAccent ? 'text-white/90' : 'text-ink-2')
+          }
+        >
+          <summary
+            className={
+              'cursor-pointer font-mono text-kicker uppercase ' +
+              (onAccent ? 'text-white/80' : 'text-muted')
+            }
+          >
+            ▸ {framework === 'kyberbot-claude' ? 'INSTALL VIA CLI' : 'PREVIEW THE FORMAT'}
+          </summary>
+          <pre className="mt-2 text-xs leading-snug whitespace-pre-wrap">
+{framework === 'kyberbot-claude'
+  ? `# kyberbot (default)
+arpc skill install ${name}
+
+# claude-code (project-scoped)
+arpc skill install ${name} --target claude-code
+
+# claude-code (user-wide)
+arpc skill install ${name} --target claude-code-global`
+  : framework === 'openclaw'
+    ? `# Once the OpenClaw adapter ships, you'll drop this file at:
+#   <openclaw-project>/skills/contact.py
+# OpenClaw uses Python decorator + Skill subclass — not SKILL.md.
+# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`
+    : `# Once the Hermes adapter ships, you'll drop this file at:
+#   <hermes-agent>/src/skills/contact.ts
+# Hermes uses a @tool decorator on Agent methods — not SKILL.md.
+# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`}
+          </pre>
+        </details>
+      </div>
+    </Card>
+  );
+}
+
+/** Strip the leading line(s) of placeholder Python/TS to summarise it for the card. */
+function extractPreviewBlurb(content: string): string {
+  // First useful comment paragraph from a # or // header.
+  const lines = content.split('\n');
+  const para: string[] = [];
+  let started = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!started && (t.startsWith('# ') || t.startsWith('// '))) {
+      started = true;
+      para.push(t.replace(/^(#|\/\/) ?/, ''));
+      continue;
+    }
+    if (started) {
+      if (t.startsWith('#') || t.startsWith('//')) {
+        const stripped = t.replace(/^(#|\/\/) ?/, '');
+        if (stripped === '') break;
+        para.push(stripped);
+      } else {
+        break;
+      }
+    }
+  }
+  return para.join(' ').trim() || 'Preview — adapter pending.';
 }
 
 /** Pull the `description: "…"` line from a skill's frontmatter for display. */

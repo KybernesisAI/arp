@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { AppShell } from '@/components/app/AppShell';
-import { Badge, Code, Link, PlateHead } from '@/components/ui';
+import { Badge, Card, Code, Link, PlateHead } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { RevokeConfirmForm } from './RevokeConfirmForm';
 
@@ -49,13 +49,13 @@ export default async function RevokeConfirmPage(props: {
       />
 
       <div className="max-w-2xl space-y-6">
-        <div className="border border-signal-red bg-paper p-5">
-          <Badge tone="red" className="mb-2">IRREVERSIBLE</Badge>
+        <Card tone="red" padded>
+          <Badge tone="paper" className="mb-2 text-[9px] px-2 py-0.5">IRREVERSIBLE</Badge>
           <p className="text-body">
             You are about to revoke the connection to{' '}
             <Code>{conn.peerDid}</Code>.
           </p>
-          <ul className="mt-3 text-body-sm text-ink-2 list-disc ml-6">
+          <ul className="mt-3 text-body-sm text-white/85 list-disc ml-6">
             <li>Your agent will stop accepting messages from this peer.</li>
             <li>
               Outbound attempts to this peer will be refused by the local
@@ -67,7 +67,7 @@ export default async function RevokeConfirmPage(props: {
               a distinct connection id.
             </li>
           </ul>
-        </div>
+        </Card>
 
         <RevokeConfirmForm connectionId={id} peerDid={conn.peerDid} />
 

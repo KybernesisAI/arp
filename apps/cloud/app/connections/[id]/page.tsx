@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import { AppShell } from '@/components/app/AppShell';
 import {
   Badge,
+  ButtonLink,
+  Card,
   Code,
   Link,
   PlateHead,
@@ -55,8 +57,8 @@ export default async function ConnectionDetailPage(props: {
       />
 
       {connection.status === 'revoked' && (
-        <div className="mb-8 border border-signal-red bg-paper p-5">
-          <Badge tone="red" className="mb-2">REVOKED</Badge>
+        <Card tone="red" padded className="mb-8">
+          <Badge tone="paper" className="mb-2 text-[9px] px-2 py-0.5">REVOKED</Badge>
           <p className="text-body">
             This connection has been revoked
             {connection.revokeReason ? (
@@ -66,10 +68,10 @@ export default async function ConnectionDetailPage(props: {
             ) : null}
             . Historical audit remains available below.
           </p>
-        </div>
+        </Card>
       )}
 
-      <section className="mb-10 border border-rule bg-paper p-6">
+      <Card tone="paper" padded className="mb-10 border border-rule">
         <header className="grid grid-cols-12 gap-4 items-baseline pb-3 border-b border-rule">
           <div className="col-span-12 md:col-span-8">
             <div className="font-mono text-kicker uppercase text-muted">
@@ -80,7 +82,9 @@ export default async function ConnectionDetailPage(props: {
             </div>
           </div>
           <div className="col-span-12 md:col-span-4 md:text-right">
-            <Badge tone={statusTone}>{connection.status.toUpperCase()}</Badge>
+            <Badge tone={statusTone} className="text-[9px] px-2 py-0.5">
+              {connection.status.toUpperCase()}
+            </Badge>
           </div>
         </header>
 
@@ -136,71 +140,101 @@ export default async function ConnectionDetailPage(props: {
             </dd>
           </div>
         </dl>
-      </section>
+      </Card>
 
       <section className="mb-10">
-        <h3 className="font-display font-medium text-h4 mb-3 pb-2 border-b border-rule">
-          Granted scopes{' '}
-          <span className="text-muted font-mono text-body-sm ml-2">
-            {connection.cedarPolicies.length}
+        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+          <h3 className="font-display font-medium text-h3">
+            Granted scopes{' '}
+            <span className="text-muted font-mono text-body-sm ml-2">
+              {connection.cedarPolicies.length}
+            </span>
+          </h3>
+          <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
+            // S · POLICIES
           </span>
-        </h3>
+        </header>
         {connection.cedarPolicies.length === 0 ? (
-          <p className="text-body text-ink-2">None.</p>
+          <Card tone="paper-2" padded>
+            <p className="text-body text-ink-2">None.</p>
+          </Card>
         ) : (
-          <ul className="space-y-3">
-            {connection.cedarPolicies.map((policy, i) => (
-              <li
-                key={i}
-                className="border border-rule bg-paper-2 p-3 font-mono text-xs whitespace-pre-wrap break-all"
-              >
-                {policy}
-              </li>
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {connection.cedarPolicies.map((policy, i) => (
+                <li
+                  key={i}
+                  className={
+                    'px-5 py-3 font-mono text-xs whitespace-pre-wrap break-all ' +
+                    (i === connection.cedarPolicies.length - 1 ? '' : 'border-b border-rule')
+                  }
+                >
+                  {policy}
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
       <section className="mb-10">
-        <h3 className="font-display font-medium text-h4 mb-3 pb-2 border-b border-rule">
-          Obligations in effect{' '}
-          <span className="text-muted font-mono text-body-sm ml-2">
-            {connection.obligations.length}
+        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+          <h3 className="font-display font-medium text-h3">
+            Obligations in effect{' '}
+            <span className="text-muted font-mono text-body-sm ml-2">
+              {connection.obligations.length}
+            </span>
+          </h3>
+          <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
+            // O · ATTACHED
           </span>
-        </h3>
+        </header>
         {connection.obligations.length === 0 ? (
-          <p className="text-body text-ink-2">No obligations attached.</p>
+          <Card tone="paper-2" padded>
+            <p className="text-body text-ink-2">No obligations attached.</p>
+          </Card>
         ) : (
-          <ul className="space-y-2">
-            {connection.obligations.map((ob, i) => (
-              <li key={i} className="border border-rule bg-paper p-3">
-                <div className="font-mono text-kicker uppercase text-ink">
-                  {(ob as { type?: string }).type ?? 'obligation'}
-                </div>
-                <pre className="mt-1 text-body-sm text-ink-2 whitespace-pre-wrap break-all">
-                  {JSON.stringify((ob as { params?: unknown }).params ?? {}, null, 2)}
-                </pre>
-              </li>
-            ))}
-          </ul>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ul className="list-none p-0 m-0">
+              {connection.obligations.map((ob, i) => (
+                <li
+                  key={i}
+                  className={
+                    'px-5 py-3 ' +
+                    (i === connection.obligations.length - 1 ? '' : 'border-b border-rule')
+                  }
+                >
+                  <div className="font-mono text-kicker uppercase text-ink">
+                    {(ob as { type?: string }).type ?? 'obligation'}
+                  </div>
+                  <pre className="mt-1 text-body-sm text-ink-2 whitespace-pre-wrap break-all">
+                    {JSON.stringify((ob as { params?: unknown }).params ?? {}, null, 2)}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
       <div className="flex flex-wrap gap-3">
-        <Link
+        <ButtonLink
           href={`/connections/${encodeURIComponent(connection.connectionId)}/audit`}
-          variant="mono"
+          variant="default"
+          size="sm"
+          arrow
         >
-          View audit log →
-        </Link>
+          View audit log
+        </ButtonLink>
         {connection.status === 'active' && (
-          <Link
+          <ButtonLink
             href={`/connections/${encodeURIComponent(connection.connectionId)}/revoke`}
-            variant="mono"
-            className="text-signal-red border-signal-red"
+            variant="default"
+            size="sm"
+            arrow
           >
-            Revoke →
-          </Link>
+            Revoke
+          </ButtonLink>
         )}
       </div>
     </AppShell>

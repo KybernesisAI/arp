@@ -5,6 +5,7 @@ import { BUNDLES } from '@kybernesis/arp-scope-catalog';
 import { getScopeCatalog } from '@/lib/catalog';
 import {
   Badge,
+  Card,
   Code,
   PlateHead,
 } from '@/components/ui';
@@ -52,13 +53,13 @@ export default async function PairPage(): Promise<React.JSX.Element> {
       </div>
 
       {agents.length === 0 ? (
-        <div className="border border-rule bg-paper p-7 max-w-2xl">
-          <Badge tone="yellow" className="mb-3">NO AGENTS</Badge>
+        <Card tone="yellow" padded className="border border-rule max-w-2xl">
+          <Badge tone="yellow" className="mb-3 text-[9px] px-2 py-0.5">NO AGENTS</Badge>
           <p className="text-body">
             Provision an agent first — pairing always happens under one of
             your agents.
           </p>
-        </div>
+        </Card>
       ) : (
         <PairForm
           principalDid={principalDid}

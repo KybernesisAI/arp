@@ -117,28 +117,28 @@ export default function LoginForm(): React.JSX.Element {
       <div className="flex flex-col gap-6">
         <div className="border border-rule bg-paper p-7">
           <Badge tone="yellow" className="mb-3">
-            KEY NOT REGISTERED
+            KEY NOT REGISTERED ON THIS DEVICE
           </Badge>
           <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-            This device has a principal key, but no account.
+            This browser has a principal key, but it&apos;s not yours.
           </h2>
           <p className="text-body text-ink-2 mb-3">
-            We found a principal key in this browser&apos;s storage and verified it
-            cryptographically, but no ARP Cloud tenant is registered to it. This
-            usually means the tenant was cleaned up, or you&apos;re testing across
-            different accounts.
+            We found a principal key in this browser&apos;s storage and verified
+            it cryptographically, but no ARP Cloud tenant is registered to it.
+            That key isn&apos;t your account — it&apos;s a leftover (stale localStorage,
+            test session, etc.). Sign in with your recovery phrase to reach
+            your real account.
           </p>
           <Pre className="mb-5">{autoDid}</Pre>
-          <div className="flex gap-3 flex-wrap">
-            <ButtonLink href="/onboarding" variant="primary" size="md">
-              Create an account with this key
-            </ButtonLink>
-            <Button variant="default" onClick={() => void handleClearAndContinue()}>
-              Use a different account (clear this key)
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            arrow
+            onClick={() => void handleClearAndContinue()}
+          >
+            Sign in with my recovery phrase
+          </Button>
           <p className="mt-4 font-mono text-kicker uppercase text-muted">
-            CLEARING THE KEY DELETES IT FROM THIS BROWSER ONLY · YOUR RECOVERY PHRASE STILL WORKS
+            CLEARING THE LOCAL KEY DELETES IT FROM THIS BROWSER ONLY · YOUR PHRASE STILL WORKS
           </p>
         </div>
       </div>
@@ -151,48 +151,51 @@ export default function LoginForm(): React.JSX.Element {
         <FieldError>Auto sign-in failed: {autoError}. Use a path below.</FieldError>
       )}
 
-      <div className="border border-rule bg-paper p-7">
-        <Badge tone="blue" className="mb-3">
-          SIGN IN · PASSKEY
-        </Badge>
-        <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-          Sign in with your device.
-        </h2>
-        <p className="text-body text-ink-2 mb-5">
-          Touch ID, Face ID, or Windows Hello — whichever your device provides. Your passkey
-          stays on this device; we never see it.
-        </p>
-        {passkeyError && <FieldError className="mb-4">Error: {passkeyError}</FieldError>}
-        <Button
-          variant="primary"
-          arrow
-          onClick={() => void handlePasskey()}
-          disabled={passkeyStage === 'pending' || passkeySupported === false}
-          data-testid="passkey-signin-btn"
-        >
-          {passkeyStage === 'pending' ? 'Waiting for passkey…' : 'Sign in with passkey'}
-        </Button>
-        {passkeySupported === false && (
-          <p className="mt-3 font-mono text-kicker uppercase text-muted">
-            PASSKEYS UNAVAILABLE IN THIS BROWSER · USE RECOVERY PHRASE BELOW
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-rule border border-rule">
+        {/* Passkey path */}
+        <div className="bg-paper p-7">
+          <Badge tone="blue" className="mb-3">
+            PASSKEY · THIS DEVICE
+          </Badge>
+          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
+            Sign in with your device.
+          </h2>
+          <p className="text-body text-ink-2 mb-5">
+            Touch ID, Face ID, or Windows Hello — whichever your device provides. Your passkey
+            stays on this device; we never see it.
           </p>
-        )}
-      </div>
+          {passkeyError && <FieldError className="mb-4">Error: {passkeyError}</FieldError>}
+          <Button
+            variant="primary"
+            arrow
+            onClick={() => void handlePasskey()}
+            disabled={passkeyStage === 'pending' || passkeySupported === false}
+            data-testid="passkey-signin-btn"
+          >
+            {passkeyStage === 'pending' ? 'Waiting for passkey…' : 'Sign in with passkey'}
+          </Button>
+          {passkeySupported === false && (
+            <p className="mt-3 font-mono text-kicker uppercase text-muted">
+              PASSKEYS UNAVAILABLE IN THIS BROWSER · USE RECOVERY PHRASE →
+            </p>
+          )}
+        </div>
 
-      <div>
-        <button
-          type="button"
-          onClick={() => setRecoveryOpen((v) => !v)}
-          data-testid="recovery-toggle"
-          className="font-mono text-kicker uppercase text-muted hover:text-ink transition-colors border-b border-current pb-0.5"
-        >
-          {recoveryOpen ? '▾' : '▸'} Sign in with recovery phrase
-        </button>
-        {recoveryOpen && (
-          <div className="border border-rule bg-paper p-7 mt-3">
-            <RecoveryPhraseSignIn />
-          </div>
-        )}
+        {/* Recovery phrase path — peer of passkey, no longer hidden */}
+        <div className="bg-paper-2 p-7" data-testid="recovery-phrase-panel">
+          <Badge tone="yellow" className="mb-3">
+            RECOVERY PHRASE · ANY DEVICE
+          </Badge>
+          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
+            Sign in from a new browser.
+          </h2>
+          <p className="text-body text-ink-2 mb-5">
+            Paste the 12-word phrase you saved when you created the account.
+            Use this when your passkey isn&apos;t on this device — for example,
+            you&apos;re signing in to localhost or a fresh install.
+          </p>
+          <RecoveryPhraseSignIn />
+        </div>
       </div>
 
       <div>
@@ -284,14 +287,6 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
 
   return (
     <div>
-      <h3 className="font-display font-medium text-h4 mt-0 mb-2">
-        Paste your 12-word recovery phrase
-      </h3>
-      <p className="text-body-sm text-ink-2 mb-4">
-        We re-derive your principal key from the phrase, sign the server&apos;s challenge in this
-        browser, and mint a session. The phrase never leaves your device — it&apos;s persisted
-        in localStorage so you stay signed in next time.
-      </p>
       {error && <FieldError className="mb-3">Error: {error}</FieldError>}
       <Label>Recovery phrase</Label>
       <Textarea

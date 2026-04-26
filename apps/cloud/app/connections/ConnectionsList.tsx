@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Badge, Button, Code, Dot, Link } from '@/components/ui';
+import { Badge, Button, Card, Code, Dot, Link } from '@/components/ui';
 
 export interface AgentOption {
   did: string;
@@ -190,46 +190,49 @@ export function ConnectionsList({
       )}
 
       {rows.length === 0 ? (
-        <div className="border border-rule bg-paper p-7">
-          <Badge tone="muted" className="mb-3">NO RESULTS</Badge>
-          <p className="text-body">
-            No connections match these filters.
-          </p>
-        </div>
+        <Card tone="paper-2" padded className="border border-rule">
+          <Badge tone="muted" className="mb-3 text-[9px] px-2 py-0.5">NO RESULTS</Badge>
+          <p className="text-body">No connections match these filters.</p>
+        </Card>
       ) : (
-        <ul className="list-none p-0 m-0 border-t border-rule" data-testid="connections-list">
-          {rows.map((row) => (
-            <li
-              key={`${row.agentDid}::${row.connectionId}`}
-              className="grid grid-cols-12 gap-4 py-4 border-b border-rule items-baseline"
-            >
-              <div className="col-span-12 md:col-span-3 font-mono text-kicker uppercase text-ink">
-                <Link
-                  href={`/connections/${encodeURIComponent(row.connectionId)}`}
-                  variant="mono"
-                >
-                  {row.connectionId.slice(0, 18)}
-                  {row.connectionId.length > 18 ? '…' : ''}
-                </Link>
-              </div>
-              <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2 break-all">
-                → <Code>{truncateDid(row.peerDid)}</Code>
-              </div>
-              <div className="col-span-6 md:col-span-2 font-mono text-kicker uppercase inline-flex items-center gap-2">
-                <Dot tone={statusTone(row.status)} />
-                <Badge tone={statusBadgeTone(row.status)}>
-                  {row.status.toUpperCase()}
-                </Badge>
-              </div>
-              <div className="col-span-6 md:col-span-1 font-mono text-kicker uppercase text-muted">
-                {row.scopesCount} scope{row.scopesCount === 1 ? '' : 's'}
-              </div>
-              <div className="col-span-12 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
-                {new Date(row.createdAt).toLocaleDateString()}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <Card tone="paper-2" padded={false} className="border border-rule">
+          <ul className="list-none p-0 m-0" data-testid="connections-list">
+            {rows.map((row, i) => (
+              <li
+                key={`${row.agentDid}::${row.connectionId}`}
+                className={
+                  'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' +
+                  (i === rows.length - 1 ? '' : 'border-b border-rule')
+                }
+              >
+                <div className="col-span-12 md:col-span-3 font-mono text-kicker uppercase text-ink">
+                  <Link
+                    href={`/connections/${encodeURIComponent(row.connectionId)}`}
+                    variant="mono"
+                  >
+                    {row.connectionId.slice(0, 18)}
+                    {row.connectionId.length > 18 ? '…' : ''}
+                  </Link>
+                </div>
+                <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2 break-all">
+                  → <Code>{truncateDid(row.peerDid)}</Code>
+                </div>
+                <div className="col-span-6 md:col-span-2 font-mono text-kicker uppercase inline-flex items-center gap-2">
+                  <Dot tone={statusTone(row.status)} />
+                  <Badge tone={statusBadgeTone(row.status)} className="text-[9px] px-2 py-0.5">
+                    {row.status.toUpperCase()}
+                  </Badge>
+                </div>
+                <div className="col-span-6 md:col-span-1 font-mono text-kicker uppercase text-muted">
+                  {row.scopesCount} scope{row.scopesCount === 1 ? '' : 's'}
+                </div>
+                <div className="col-span-12 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
+                  {new Date(row.createdAt).toLocaleDateString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       {cursor && (

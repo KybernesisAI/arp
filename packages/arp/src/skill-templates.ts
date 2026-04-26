@@ -20,10 +20,36 @@
  * download button both pick it up automatically.
  */
 
+export type SkillFramework = 'kyberbot-claude' | 'openclaw' | 'hermes';
+
 export type SkillTemplate = {
   name: string;
   filename: string;
   content: string;
+  /**
+   * Which framework family the template targets. `kyberbot-claude`
+   * means the file is the standard Anthropic-format SKILL.md (works
+   * unchanged in both KyberBot and Claude Code). `openclaw` and
+   * `hermes` are placeholders for those frameworks' native plugin/
+   * decorator formats — they ship as previews until adapters land.
+   */
+  framework: SkillFramework;
+  /**
+   * `available` — fully wired, downloadable, installable.
+   * `preview`   — placeholder; the framework adapter isn't done yet,
+   *               so download/install is gated and the dashboard
+   *               renders the card with "ADAPTER COMING SOON".
+   */
+  status: 'available' | 'preview';
+  /** Human-readable category shown on dashboard cards. */
+  category: string;
+  /**
+   * Brand-colour suggestion for the dashboard card. Lets framework-
+   * specific cards match the framework's identity (OpenClaw red,
+   * Hermes yellow, etc). When unset, the dashboard cycles tones
+   * automatically.
+   */
+  brandTone?: 'paper' | 'paper-2' | 'blue' | 'yellow' | 'red';
 };
 
 const CONTACT_SKILL_MD = `---
@@ -91,8 +117,109 @@ You reply: (whatever Ian's agent replied)
   auto-populates contacts.yaml after a successful pairing.)
 `;
 
+/**
+ * OpenClaw plugins are Python decorator–style — a Python file that
+ * registers an action with the OpenClaw runtime and exposes its
+ * trigger metadata via class attributes. We don't ship one yet
+ * (adapter pending); this placeholder shows what the file will look
+ * like so users know the format isn't a SKILL.md.
+ */
+const OPENCLAW_CONTACT_PY = `# openclaw_skills/contact.py — preview, adapter pending
+#
+# OpenClaw plugins are Python classes that subclass Skill and declare
+# their trigger surface as class attrs. The dashboard's "Download"
+# button on this card will produce the real file once the OpenClaw
+# adapter for arpc lands. Below is the shape we're targeting:
+
+from openclaw import Skill, action, trigger
+import subprocess
+
+
+class Contact(Skill):
+    """Send a message to another ARP agent and wait for the reply."""
+
+    name = "contact"
+    triggers = [
+        trigger.verb("ask", "message", "ping", "contact", "check_with"),
+        trigger.pattern(r"(ask|message|ping|check with) (?P<name>\\w+)"),
+    ]
+
+    @action
+    def run(self, name: str, text: str) -> str:
+        # Shell out to arpc; the supervisor handles signing + waits for
+        # the peer's reply.
+        out = subprocess.run(
+            ["arpc", "send", name, text],
+            capture_output=True,
+            check=True,
+        )
+        return out.stdout.decode().strip()
+`;
+
+/**
+ * Hermes-Agent uses a TypeScript decorator pattern — \`@tool\` on a
+ * method of an Agent class. Adapter pending; this is the shape we're
+ * targeting so users can preview the integration.
+ */
+const HERMES_CONTACT_TS = `// hermes/skills/contact.ts — preview, adapter pending
+//
+// Hermes-Agent surfaces capabilities via \`@tool\`-decorated methods on
+// an Agent subclass. The dashboard's "Download" on this card will
+// produce the real file once the Hermes adapter for arpc ships. Below
+// is the shape we're targeting:
+
+import { Agent, tool } from '@hermes-agent/core';
+import { execFileSync } from 'node:child_process';
+
+export class ContactSkill extends Agent {
+  /**
+   * Send a message to another ARP agent and wait for the reply.
+   * The Hermes runtime auto-routes user prompts to this tool when
+   * they match the description's verb pattern.
+   */
+  @tool({
+    description:
+      'Send a message to another ARP agent and wait for their reply. ' +
+      'Use when the user asks you to ask, message, contact, ping, or check with another agent.',
+    parameters: {
+      name: { type: 'string', description: 'Contact name from contacts.yaml or a did:web: URI' },
+      text: { type: 'string', description: 'The question or message to deliver' },
+    },
+  })
+  async contact({ name, text }: { name: string; text: string }): Promise<string> {
+    const out = execFileSync('arpc', ['send', name, text], { encoding: 'utf-8' });
+    return out.trim();
+  }
+}
+`;
+
 export const SKILL_TEMPLATES: Record<string, SkillTemplate> = {
-  contact: { name: 'contact', filename: 'SKILL.md', content: CONTACT_SKILL_MD },
+  contact: {
+    name: 'contact',
+    filename: 'SKILL.md',
+    content: CONTACT_SKILL_MD,
+    framework: 'kyberbot-claude',
+    status: 'available',
+    category: 'MESSAGING · KYBERBOT + CLAUDE CODE',
+  },
+  'contact-openclaw': {
+    name: 'contact-openclaw',
+    filename: 'contact.py',
+    content: OPENCLAW_CONTACT_PY,
+    framework: 'openclaw',
+    status: 'preview',
+    category: 'MESSAGING · OPENCLAW',
+    brandTone: 'red',
+  },
+  'contact-hermes': {
+    name: 'contact-hermes',
+    filename: 'contact.ts',
+    content: HERMES_CONTACT_TS,
+    framework: 'hermes',
+    status: 'preview',
+    category: 'MESSAGING · HERMES-AGENT',
+    brandTone: 'yellow',
+  },
 };
 
 export function listSkillNames(): string[] {
