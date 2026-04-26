@@ -30,15 +30,25 @@ export {
   canonicalBytes,
   payloadFromProposal,
   payloadFromToken,
+  canonicalAmendmentBytes,
+  payloadFromAmendment,
   type CanonicalConnectionPayload,
+  type CanonicalAudienceAmendmentPayload,
 } from './canonical.js';
+export {
+  createSignedAmendment,
+  verifyAmendment,
+  type CreateAmendmentInput,
+} from './amendment.js';
 export { signBytes, verifyBytes, type KeyPair } from './signing.js';
 export { newConnectionId, newProposalId } from './id.js';
 export {
   PairingProposalSchema,
   ScopeSelectionSchema,
   SignatureEntrySchema,
+  AudienceAmendmentSchema,
   type PairingProposal,
   type ScopeSelection,
   type SignatureEntry,
+  type AudienceAmendment,
 } from './types.js';

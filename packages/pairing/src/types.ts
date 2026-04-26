@@ -30,6 +30,33 @@ export type SignatureEntry = z.infer<typeof SignatureEntrySchema>;
 export const DidUriSchema = z.string().regex(DID_URI_REGEX);
 
 /**
+ * Acceptor-side amendment carrying the audience's grants (what they
+ * allow the issuer's agent to do TO them) and their signature over
+ * those grants. Stored alongside the proposal in the connection's
+ * tokenJson; the cedar_policies inside are merged into the connection's
+ * effective policy set on accept.
+ */
+export const AudienceAmendmentSchema = z.object({
+  /** The connection_id this amendment binds to (same as proposal.connection_id). */
+  connection_id: z
+    .string()
+    .regex(/^conn_[A-Za-z0-9_-]{4,}$/),
+  /** Audience's selected scopes (for audit + re-compile verification). */
+  scope_selections: z.array(ScopeSelectionSchema),
+  /**
+   * Compiled cedar policies for the audience's grants. Principal in
+   * these is the ISSUER's agent (proposal.subject) — i.e., they grant
+   * the issuer's agent rights to act on the audience's resources.
+   */
+  cedar_policies: z.array(z.string().min(1)),
+  obligations: z.array(ObligationSchema).default([]),
+  /** Signature by the audience principal over the canonical amendment bytes. */
+  sig: SignatureEntrySchema,
+});
+
+export type AudienceAmendment = z.infer<typeof AudienceAmendmentSchema>;
+
+/**
  * PairingProposal — the wire artifact shared out-of-band (QR, deep link,
  * pasted URL). Once both principals sign, the same JSON can be projected
  * into a ConnectionToken (see `toConnectionToken`).
@@ -83,6 +110,21 @@ export const PairingProposalSchema = z.object({
    * issuer entry is present; after countersign both are.
    */
   sigs: z.record(z.string().min(1), SignatureEntrySchema),
+  /**
+   * Bidirectional consent (Phase 12).
+   *
+   * The acceptor (proposal.audience side) optionally adds their own
+   * grants — what THEY allow the issuer's agent to do TO them — as a
+   * separately-signed amendment. Without this, ARP is one-way: only the
+   * issuer can grant capabilities. Bidirectional connections are the
+   * primary use case (two paired agents conversing as equals), so this
+   * is offered every time the audience accepts.
+   *
+   * The amendment lives outside the issuer's signed canonical bytes so
+   * the issuer's signature stays valid; the audience's signature on
+   * the amendment commits their declared grants.
+   */
+  audience_amendment: AudienceAmendmentSchema.optional(),
 });
 
 export type PairingProposal = z.infer<typeof PairingProposalSchema>;
