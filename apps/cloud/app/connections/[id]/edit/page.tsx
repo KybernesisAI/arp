@@ -153,6 +153,11 @@ async function loadDetail(id: string): Promise<DetailState | null> {
       label: b.label,
       description: b.description,
       scopes: b.scopes.map((s) => ({ id: s.id })),
+      needsParams: b.scopes.some(
+        (s) =>
+          s.params != null &&
+          Object.values(s.params).some((v) => v === '<user-picks>'),
+      ),
     })),
   };
 }
