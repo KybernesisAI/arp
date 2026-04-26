@@ -14,6 +14,7 @@
     "lint": "eslint app lib components tests"
   },
   "dependencies": {
+    "@kybernesis/arp": "workspace:*",
     "@kybernesis/arp-cloud-db": "workspace:*",
     "@kybernesis/arp-cloud-runtime": "workspace:*",
     "@kybernesis/arp-consent-ui": "workspace:*",

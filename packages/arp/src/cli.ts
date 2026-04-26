@@ -49,7 +49,7 @@ import * as service from './service.js';
 import * as send from './send.js';
 import * as skill from './skill.js';
 
-const VERSION = '0.7.0';
+const VERSION = '0.8.0';
 
 interface ResolvedConfig {
   handoffPath: string;
@@ -195,6 +195,8 @@ interface Flags {
   timeoutSec?: number;
   connectionId?: string;
   as?: string;
+  // arpc skill install
+  target?: string;
 }
 
 function parseArgs(argv: string[]): { cmd: string; sub: string | null; positional: string[]; flags: Flags } {
@@ -239,6 +241,9 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
         break;
       case '--as':
         flags.as = next();
+        break;
+      case '--target':
+        flags.target = next();
         break;
       case '-h':
       case '--help':
@@ -292,8 +297,11 @@ Send a message (uses the running supervisor):
   arpc contacts remove <name>      Remove a contact entry.
 
 Skills (drop a SKILL.md template into the agent folder):
-  arpc skill install contact       Teach the LLM to call \`arpc send\` when
-                                   the user asks it to message another agent.
+  arpc skill list                  Show available skills.
+  arpc skill install <name>        Drop a SKILL.md into the right place.
+                                   --target kyberbot              (default)
+                                   --target claude-code           (project)
+                                   --target claude-code-global    (user-wide)
 
 Auto-start at login (macOS launchd):
   arpc service install       Run the supervisor automatically on every login.
@@ -549,7 +557,7 @@ async function main(): Promise<void> {
       send.cmdContacts(sub, positional);
       return;
     case 'skill':
-      skill.cmdSkill(sub, positional);
+      skill.cmdSkill(sub, positional, flags.target);
       return;
     default:
       console.error(`unknown command: ${cmd}\n`);

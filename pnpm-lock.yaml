@@ -139,6 +139,9 @@ importers:
 
   apps/cloud:
     dependencies:
+      '@kybernesis/arp':
+        specifier: workspace:*
+        version: link:../../packages/arp
       '@kybernesis/arp-cloud-db':
         specifier: workspace:*
         version: link:../../packages/cloud-db
