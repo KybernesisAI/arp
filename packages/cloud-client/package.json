@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-cloud-client",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "ARP Cloud outbound client. Opens a WebSocket from the user's machine to cloud.arp.run and relays DIDComm envelopes to a locally-running agent process.",
   "license": "MIT",
   "repository": {
