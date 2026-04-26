@@ -10,9 +10,16 @@ import {
   Pre,
 } from '@/components/ui';
 import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
-import { countersignProposalClient } from '@/lib/pairing-client';
-import type { PairingProposal } from '@kybernesis/arp-pairing';
+import {
+  countersignProposalClient,
+  createSignedAmendmentClient,
+  type CompiledBundle,
+} from '@/lib/pairing-client';
+import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
 import type { ConsentView } from '@kybernesis/arp-consent-ui';
+import type { ScopeTemplate } from '@kybernesis/arp-spec';
+import type { BundlePreset, ScopePickerState } from '@/app/pair/ScopePicker';
+import { ScopePickerModal } from '@/app/pair/ScopePickerModal';
 
 interface AgentChoice {
   did: string;
@@ -27,6 +34,9 @@ interface AcceptState {
   agents?: AgentChoice[];
   acceptingAgentDid?: string;
   connectionId?: string;
+  catalog?: ScopeTemplate[];
+  bundles?: BundlePreset[];
+  audiencePicker?: ScopePickerState;
 }
 
 /**
@@ -75,16 +85,18 @@ export function AcceptClient({
           return;
         }
 
-        // Fetch the tenant's agents + a consent view from the server —
-        // the consent-UI renderer needs the scope catalog (fs-backed) so
-        // we do the projection server-side and ship the view.
-        const [viewRes, agentsRes] = await Promise.all([
+        // Fetch the tenant's agents + a consent view + the scope
+        // catalog. The consent-UI renderer + the bidirectional scope
+        // picker both need the catalog (fs-backed) so we do all the
+        // server-side calls together.
+        const [viewRes, agentsRes, catalogRes] = await Promise.all([
           fetch('/api/pairing/consent', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ proposal }),
           }),
           fetch('/api/agents', { method: 'GET' }),
+          fetch('/api/pairing/scope-catalog-list', { method: 'GET' }),
         ]);
         if (!viewRes.ok) {
           throw new Error(
@@ -94,9 +106,16 @@ export function AcceptClient({
         if (!agentsRes.ok) {
           throw new Error('failed to load agents');
         }
+        if (!catalogRes.ok) {
+          throw new Error('failed to load scope catalog');
+        }
         const viewBody = (await viewRes.json()) as { view: ConsentView };
         const agentsBody = (await agentsRes.json()) as {
           agents: AgentChoice[];
+        };
+        const catalogBody = (await catalogRes.json()) as {
+          catalog: ScopeTemplate[];
+          bundles: BundlePreset[];
         };
         setState({
           stage: 'awaiting_consent',
@@ -107,6 +126,14 @@ export function AcceptClient({
             proposal.audience ??
             agentsBody.agents[0]?.did ??
             '',
+          catalog: catalogBody.catalog,
+          bundles: catalogBody.bundles,
+          audiencePicker: {
+            selectedIds: [],
+            paramsMap: {},
+            valid: false,
+            errors: {},
+          },
         });
       } catch (err) {
         setState({ stage: 'error', error: (err as Error).message });
@@ -126,8 +153,48 @@ export function AcceptClient({
       }
 
       const rawPrivateKey = await extractPrivateKey();
+
+      // Bidirectional consent — if the audience selected scopes for the
+      // reverse direction, compile + sign an amendment. The amendment's
+      // cedar policies grant proposal.subject (the issuer's agent), so
+      // we ask the scope-catalog API to compile with that as the
+      // audienceDid argument. Block submit if the picker has errors.
+      let amendment: Awaited<ReturnType<typeof createSignedAmendmentClient>> | null = null;
+      if (state.audiencePicker && state.audiencePicker.selectedIds.length > 0) {
+        if (!state.audiencePicker.valid) {
+          throw new Error('fix the highlighted parameter errors in your grants first');
+        }
+        const audienceCompiled = await compileScopesRemotely(
+          state.audiencePicker.selectedIds.map((id) => ({
+            id,
+            params: state.audiencePicker?.paramsMap[id] ?? {},
+          })),
+          state.proposal.subject,
+        );
+        amendment = await createSignedAmendmentClient({
+          connectionId: state.proposal.connection_id,
+          scopeSelections: state.audiencePicker.selectedIds.map((id) => ({
+            id,
+            params: state.audiencePicker?.paramsMap[id] ?? {},
+          })),
+          compiled: audienceCompiled,
+          audienceKey: {
+            privateKey: rawPrivateKey,
+            kid: `${principalDid}#key-1`,
+          },
+        });
+      }
+
+      // Attach the amendment BEFORE countersigning so the audience's
+      // proposal-level signature (the existing flow's countersignature)
+      // is over the same canonical bytes the issuer signed — the
+      // amendment lives outside payloadFromProposal so canonical bytes
+      // are unchanged whether or not it's present.
+      const proposalWithAmendment: PairingProposal = amendment
+        ? { ...state.proposal, audience_amendment: amendment }
+        : state.proposal;
       const dual = await countersignProposalClient({
-        proposal: state.proposal,
+        proposal: proposalWithAmendment,
         counterpartyKey: {
           privateKey: rawPrivateKey,
           kid: `${principalDid}#key-1`,
@@ -209,9 +276,37 @@ export function AcceptClient({
 
   // awaiting_consent | submitting
   const view = state.view!;
+  const onAudiencePickerChange = (s: ScopePickerState) =>
+    setState({ ...state, audiencePicker: s });
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <ConsentPanel view={view} />
+      <div className="space-y-6">
+        <div>
+          <span className="font-mono text-kicker uppercase text-muted block mb-2">
+            // 1 · WHAT THEY ASK FROM YOU
+          </span>
+          <ConsentPanel view={view} />
+        </div>
+        <div>
+          <span className="font-mono text-kicker uppercase text-muted block mb-2">
+            // 2 · WHAT YOU GRANT THEM IN RETURN
+          </span>
+          <div className="border border-rule bg-paper p-5 space-y-3 text-body-sm">
+            <p className="text-ink-2 m-0">
+              The connection is mutual. Pick what you allow{' '}
+              <Code>{state.proposal?.subject}</Code> to do toward your
+              agent. Leave empty if this is a one-way capability grant.
+            </p>
+            {state.catalog && state.bundles && (
+              <ScopePickerModal
+                catalog={state.catalog}
+                bundles={state.bundles}
+                onChange={onAudiencePickerChange}
+              />
+            )}
+          </div>
+        </div>
+      </div>
       <div className="border border-rule bg-paper p-7 space-y-4">
         <Badge tone={view.risk === 'high' ? 'red' : view.risk === 'medium' ? 'yellow' : 'blue'}>
           RISK · {view.risk.toUpperCase()}
@@ -243,7 +338,15 @@ export function AcceptClient({
             variant="primary"
             arrow
             onClick={() => void accept()}
-            disabled={state.stage === 'submitting' || !state.acceptingAgentDid}
+            disabled={
+              state.stage === 'submitting' ||
+              !state.acceptingAgentDid ||
+              !!(
+                state.audiencePicker &&
+                state.audiencePicker.selectedIds.length > 0 &&
+                !state.audiencePicker.valid
+              )
+            }
             data-testid="accept-approve-btn"
           >
             {state.stage === 'submitting' ? 'Accepting…' : 'Approve + countersign'}
@@ -302,6 +405,37 @@ function ConsentSection({
       </ul>
     </div>
   );
+}
+
+async function compileScopesRemotely(
+  scopeSelections: ScopeSelection[],
+  audienceDid: string,
+): Promise<CompiledBundle> {
+  const paramsMap: Record<string, Record<string, unknown>> = {};
+  for (const s of scopeSelections) {
+    if (s.params && Object.keys(s.params).length > 0) {
+      paramsMap[s.id] = s.params;
+    }
+  }
+  const res = await fetch('/api/pairing/scope-catalog', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      ids: scopeSelections.map((s) => s.id),
+      paramsMap,
+      audienceDid,
+    }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+    };
+    const detail = body.detail ?? body.error ?? `status ${res.status}`;
+    throw new Error(`scope-catalog compile failed: ${detail}`);
+  }
+  const body = (await res.json()) as { compiled: CompiledBundle };
+  return body.compiled;
 }
 
 /** base64url → utf8 string (browser-safe). */

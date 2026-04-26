@@ -25,6 +25,7 @@ import canonicalizeFn from 'canonicalize';
 import * as ed25519 from '@noble/ed25519';
 import { base64urlEncode } from '@kybernesis/arp-transport/browser';
 import type {
+  AudienceAmendment,
   PairingProposal,
   ScopeSelection,
   SignatureEntry,
@@ -140,6 +141,49 @@ export async function countersignProposalClient(args: {
     [args.counterpartyDid]: sig,
   };
   return { ...args.proposal, sigs };
+}
+
+/**
+ * Build + sign the audience-side amendment in the browser. Mirrors
+ * `@kybernesis/arp-pairing::createSignedAmendment`. The amendment
+ * carries the audience's grants — what THEY allow the issuer's agent
+ * to do TO them — and is signed independently from the proposal so
+ * the issuer's existing signature remains valid.
+ */
+export async function createSignedAmendmentClient(args: {
+  connectionId: string;
+  scopeSelections: ScopeSelection[];
+  compiled: CompiledBundle;
+  audienceKey: KeyPair;
+}): Promise<AudienceAmendment> {
+  const unsigned = {
+    connection_id: args.connectionId,
+    scope_selections: args.scopeSelections.map((s) => ({
+      id: s.id,
+      params: s.params ?? {},
+    })),
+    cedar_policies: args.compiled.policies,
+    obligations: args.compiled.obligations,
+  };
+  const bytes = canonicalAmendmentBytesOf(unsigned);
+  const sig = await signBytesClient(bytes, args.audienceKey);
+  return { ...unsigned, sig };
+}
+
+function canonicalAmendmentBytesOf(payload: {
+  connection_id: string;
+  scope_selections: ScopeSelection[];
+  cedar_policies: string[];
+  obligations: Array<{ type: string; params: Record<string, unknown> }>;
+}): Uint8Array {
+  // Mirrors packages/pairing/src/canonical.ts::payloadFromAmendment.
+  const json = canonicalize({
+    connection_id: payload.connection_id,
+    scope_selections: payload.scope_selections,
+    cedar_policies: payload.cedar_policies,
+    obligations: payload.obligations,
+  });
+  return new TextEncoder().encode(json);
 }
 
 function canonicalBytesOf(

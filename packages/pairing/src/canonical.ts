@@ -1,7 +1,7 @@
 import canonicalizeFn from 'canonicalize';
 import type { ConnectionToken } from '@kybernesis/arp-spec';
 import type { Obligation } from './obligation-schema.js';
-import type { PairingProposal } from './types.js';
+import type { AudienceAmendment, PairingProposal, ScopeSelection } from './types.js';
 
 const canonicalize = canonicalizeFn as (value: unknown) => string;
 
@@ -76,4 +76,33 @@ export function payloadFromToken(token: ConnectionToken): CanonicalConnectionPay
 export function canonicalBytes(payload: CanonicalConnectionPayload): Uint8Array {
   const json = canonicalize(payload);
   return new TextEncoder().encode(json);
+}
+
+/**
+ * Canonical bytes for an audience amendment — what the audience's
+ * principal signs to commit their own grants. Independent from the
+ * proposal canonical so the issuer's signature stays valid.
+ */
+export interface CanonicalAudienceAmendmentPayload {
+  connection_id: string;
+  scope_selections: ScopeSelection[];
+  cedar_policies: string[];
+  obligations: Obligation[];
+}
+
+export function payloadFromAmendment(
+  amendment: AudienceAmendment,
+): CanonicalAudienceAmendmentPayload {
+  return {
+    connection_id: amendment.connection_id,
+    scope_selections: amendment.scope_selections,
+    cedar_policies: amendment.cedar_policies,
+    obligations: amendment.obligations,
+  };
+}
+
+export function canonicalAmendmentBytes(
+  payload: CanonicalAudienceAmendmentPayload,
+): Uint8Array {
+  return new TextEncoder().encode(canonicalize(payload));
 }

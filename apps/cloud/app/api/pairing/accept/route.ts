@@ -32,6 +32,7 @@ import { z } from 'zod';
 import {
   PairingProposalSchema,
   verifyPairingProposal,
+  verifyAmendment,
 } from '@kybernesis/arp-pairing';
 import { compileBundle } from '@kybernesis/arp-scope-catalog';
 import {
@@ -139,20 +140,116 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
+    // 3b. Bidirectional consent — verify + re-compile the audience's
+    //     amendment if present. The amendment carries the audience's
+    //     own grants (what THEY allow the issuer's agent to do TO them),
+    //     signed independently by the audience's principal. Without
+    //     bidirectional grants the connection is one-way; with them
+    //     paired agents can converse as equals — the primary use case.
+    let amendmentEffectivePolicies: string[] = [];
+    let amendmentEffectiveObligations: typeof proposal.obligations = [];
+    if (proposal.audience_amendment) {
+      const amendment = proposal.audience_amendment;
+      if (amendment.connection_id !== proposal.connection_id) {
+        return NextResponse.json(
+          {
+            error: 'amendment_mismatch',
+            reason: 'audience_amendment.connection_id does not match proposal.connection_id',
+          },
+          { status: 400 },
+        );
+      }
+      // The amendment is signed by the audience's PRINCIPAL. Match by
+      // looking at the proposal's `sigs` map — the non-issuer entry is
+      // the audience principal that countersigned. We use the same
+      // resolver that just verified the proposal, so this principal is
+      // already known to be valid + key-extractable.
+      const audienceSigEntry = Object.entries(proposal.sigs).find(
+        ([k]) => k !== proposal.issuer,
+      );
+      if (!audienceSigEntry) {
+        return NextResponse.json(
+          { error: 'amendment_audience_unknown', reason: 'no audience signer on proposal' },
+          { status: 400 },
+        );
+      }
+      const audiencePrincipalDid = audienceSigEntry[0];
+      const amendmentSignerResult = await resolver.resolve(audiencePrincipalDid);
+      if (!amendmentSignerResult.ok) {
+        return NextResponse.json(
+          {
+            error: 'amendment_resolver_failed',
+            reason: `cannot resolve amendment signer: ${amendmentSignerResult.reason}`,
+          },
+          { status: 400 },
+        );
+      }
+      const verifyAmend = await verifyAmendment(amendment, amendmentSignerResult.value);
+      if (!verifyAmend.ok) {
+        return NextResponse.json(
+          { error: 'amendment_signature_invalid', reason: verifyAmend.reason },
+          { status: 400 },
+        );
+      }
+      // Re-compile audience's selections to guard against a forged
+      // amendment.cedar_policies blob. The audience's policies grant
+      // the ISSUER's agent — so audienceDid in the cedar template
+      // becomes proposal.subject (issuer's agent).
+      const recompiledAmendment = compileBundle({
+        scopeIds: amendment.scope_selections.map((s) => s.id),
+        paramsMap: Object.fromEntries(
+          amendment.scope_selections.map((s) => [s.id, s.params ?? {}]),
+        ),
+        audienceDid: proposal.subject,
+        catalog: getScopeCatalog(),
+      });
+      if (recompiledAmendment.policies.length !== amendment.cedar_policies.length) {
+        return NextResponse.json(
+          {
+            error: 'amendment_cedar_mismatch',
+            reason: `amendment policy count mismatch (claimed=${amendment.cedar_policies.length}, recompiled=${recompiledAmendment.policies.length})`,
+          },
+          { status: 400 },
+        );
+      }
+      for (let i = 0; i < recompiledAmendment.policies.length; i++) {
+        if (recompiledAmendment.policies[i] !== amendment.cedar_policies[i]) {
+          return NextResponse.json(
+            {
+              error: 'amendment_cedar_mismatch',
+              reason: `amendment cedar policy #${i} does not match local recompilation`,
+            },
+            { status: 400 },
+          );
+        }
+      }
+      amendmentEffectivePolicies = [...amendment.cedar_policies];
+      amendmentEffectiveObligations = amendment.obligations.map((o) => ({
+        type: o.type,
+        params: { ...o.params },
+      }));
+    }
+
     // Project the ConnectionToken from the already-dual-signed proposal.
     // verifyPairingProposal already confirmed both principals signed the
     // same canonical bytes, so the sig map is safe to strip to values.
+    // Effective cedar_policies merges proposal (issuer's grants) with
+    // amendment (audience's grants) — PDP evaluates all of them and the
+    // matching principal+action policy fires.
     const realToken = {
       connection_id: proposal.connection_id,
       issuer: proposal.issuer,
       subject: proposal.subject,
       audience: proposal.audience,
       purpose: proposal.purpose,
-      cedar_policies: [...proposal.cedar_policies],
-      obligations: proposal.obligations.map((o) => ({
-        type: o.type,
-        params: { ...o.params },
-      })),
+      cedar_policies: [...proposal.cedar_policies, ...amendmentEffectivePolicies],
+      obligations: [
+        ...proposal.obligations.map((o) => ({
+          type: o.type,
+          params: { ...o.params },
+        })),
+        ...amendmentEffectiveObligations,
+      ],
       scope_catalog_version: proposal.scope_catalog_version,
       expires: proposal.expires_at,
       sigs: Object.fromEntries(
