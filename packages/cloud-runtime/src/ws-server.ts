@@ -117,6 +117,36 @@ export function createCloudWsServer(opts: CloudWsServerOptions): CloudWsServer {
 
       const pending = new Map<string, { resolve: () => void; reject: (err: Error) => void }>();
 
+      // ---- liveness heartbeat -------------------------------------------
+      // Detect half-open TCPs (NAT timeouts, ungraceful network drops) by
+      // pinging every 25s and terminating sessions that miss two acks
+      // (~50s). Without this a dead Mythos WS sits in the in-memory
+      // sessions registry until the gateway tries to push a message,
+      // then the user sees ack_timeout / queued_no_session for every
+      // inbound while the connection is silently broken.
+      let isAlive = true;
+      ws.on('pong', () => {
+        isAlive = true;
+      });
+      const heartbeat = setInterval(() => {
+        if (!isAlive) {
+          try {
+            ws.terminate();
+          } catch {
+            /* already gone */
+          }
+          return;
+        }
+        isAlive = false;
+        try {
+          ws.ping();
+        } catch {
+          /* socket closing; ignore */
+        }
+      }, 25_000);
+      heartbeat.unref?.();
+      ws.on('close', () => clearInterval(heartbeat));
+
       const handle: AgentSessionHandle = {
         did: auth.agentDid,
         tenantId: auth.tenantId,
