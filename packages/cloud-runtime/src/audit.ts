@@ -72,47 +72,75 @@ export function createPostgresAudit(params: {
 
   return {
     async append(input) {
-      const latest = await db.latestAudit(input.agentDid, input.connectionId);
-      const seq = latest ? latest.seq + 1 : 0;
-      const prevHash = latest ? latest.selfHash : GENESIS_PREV_HASH;
-      const timestamp = input.timestamp ?? now().toISOString();
-      const obligations = input.obligations ?? [];
-      const policiesFired = [...input.policiesFired];
-      const spend = input.spendDeltaCents ?? 0;
-      const reason = input.reason ?? null;
+      // Concurrent dispatches racing the same (agent, connection) pair
+      // both read latest seq=N, both try to insert seq=N+1, second insert
+      // hits uniq_audit_agent_conn_seq → 500. Retry on unique conflict;
+      // each retry re-reads latest so we converge to a fresh seq. Cap
+      // retries to bound worst-case under sustained load (the ping-pong
+      // case generated hundreds of concurrent inserts).
+      const MAX_RETRIES = 8;
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const latest = await db.latestAudit(input.agentDid, input.connectionId);
+        const seq = latest ? latest.seq + 1 : 0;
+        const prevHash = latest ? latest.selfHash : GENESIS_PREV_HASH;
+        const timestamp = input.timestamp ?? now().toISOString();
+        const obligations = input.obligations ?? [];
+        const policiesFired = [...input.policiesFired];
+        const spend = input.spendDeltaCents ?? 0;
+        const reason = input.reason ?? null;
 
-      const base = {
-        seq,
-        timestamp,
-        msg_id: input.msgId,
-        decision: input.decision,
-        policies_fired: policiesFired,
-        obligations,
-        spend_delta_cents: spend,
-        reason,
-        prev_hash: prevHash,
-      };
-      const selfHash = hashJcs(base);
-
-      await db.appendAudit(
-        input.agentDid,
-        {
-          connectionId: input.connectionId,
-          msgId: input.msgId,
-          decision: input.decision,
-          obligations,
-          policiesFired,
+        const base = {
+          seq,
           timestamp,
-          ...(reason !== null ? { reason } : {}),
-          spendDeltaCents: spend,
-        },
-        { prevHash, selfHash, seq },
-      );
-      log?.debug(
-        { agentDid: input.agentDid, connectionId: input.connectionId, seq, decision: input.decision },
-        'audit append',
-      );
-      return { ...base, self_hash: selfHash };
+          msg_id: input.msgId,
+          decision: input.decision,
+          policies_fired: policiesFired,
+          obligations,
+          spend_delta_cents: spend,
+          reason,
+          prev_hash: prevHash,
+        };
+        const selfHash = hashJcs(base);
+
+        try {
+          await db.appendAudit(
+            input.agentDid,
+            {
+              connectionId: input.connectionId,
+              msgId: input.msgId,
+              decision: input.decision,
+              obligations,
+              policiesFired,
+              timestamp,
+              ...(reason !== null ? { reason } : {}),
+              spendDeltaCents: spend,
+            },
+            { prevHash, selfHash, seq },
+          );
+          log?.debug(
+            { agentDid: input.agentDid, connectionId: input.connectionId, seq, decision: input.decision, attempt },
+            'audit append',
+          );
+          return { ...base, self_hash: selfHash };
+        } catch (err) {
+          const msg = (err as Error).message ?? '';
+          // Postgres unique violation surfaces with code 23505; the
+          // serverless drivers tend to leak the constraint name in the
+          // message. Match either signal to be driver-agnostic.
+          const isSeqRace =
+            msg.includes('uniq_audit_agent_conn_seq') ||
+            msg.includes('duplicate key') ||
+            (err as { code?: string }).code === '23505';
+          if (!isSeqRace || attempt === MAX_RETRIES - 1) {
+            throw err;
+          }
+          lastErr = err;
+          // Tiny jittered backoff so racers don't lockstep.
+          await new Promise((r) => setTimeout(r, Math.random() * 25));
+        }
+      }
+      throw lastErr ?? new Error('audit append: exhausted retries');
     },
     async list(agentDid, connectionId, opts) {
       const rows = await db.listAudit(agentDid, connectionId, opts ?? {});
