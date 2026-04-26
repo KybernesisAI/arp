@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Badge,
   Button,
@@ -19,20 +19,12 @@ import {
   type CompiledBundle,
 } from '@/lib/pairing-client';
 import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
-
-interface BundleOption {
-  id: string;
-  label: string;
-  description: string;
-  scopes: Array<{ id: string }>;
-  needsParams?: boolean;
-}
-
-interface ScopeOption {
-  id: string;
-  label: string;
-  risk: string;
-}
+import type { ScopeTemplate } from '@kybernesis/arp-spec';
+import {
+  ScopePicker,
+  type BundlePreset,
+  type ScopePickerState,
+} from '@/app/pair/ScopePicker';
 
 interface AgentOption {
   did: string;
@@ -54,12 +46,9 @@ interface GeneratedState {
  *   - `replaces=<old_connection_id>` carried into the new proposal so
  *     /api/pairing/accept atomically supersedes the old row when the
  *     peer countersigns
- *   - the resulting share URL clearly labels the action as a rescope
- *
- * The user picks a NEW bundle (or re-confirms the current one). We
- * don't do a granular "toggle individual scopes" surface in this first
- * cut — that's a follow-up. Bundle re-pick already covers ~80% of the
- * "I want to tighten or broaden" use cases.
+ *   - the ScopePicker is pre-seeded from the connection's previously
+ *     approved scope_selections so editing scopes feels like adjusting
+ *     what's already there, not starting fresh
  */
 export function EditConnectionForm({
   connectionId,
@@ -67,49 +56,51 @@ export function EditConnectionForm({
   currentAgentDid,
   currentPeerDid,
   currentPurpose,
-  currentBundleId,
   agents,
-  scopes,
+  catalog,
   bundles,
+  initialSelected,
+  initialParams,
 }: {
   connectionId: string;
   principalDid: string;
   currentAgentDid: string;
   currentPeerDid: string;
   currentPurpose: string;
-  currentBundleId: string | null;
   agents: AgentOption[];
-  scopes: ScopeOption[];
-  bundles: BundleOption[];
+  catalog: ScopeTemplate[];
+  bundles: BundlePreset[];
+  initialSelected: string[];
+  initialParams: Record<string, Record<string, unknown>>;
 }): React.JSX.Element {
-  void scopes;
   void agents;
 
   const [purpose, setPurpose] = useState(currentPurpose);
-  // Default to a bundle that compiles without user-supplied params; if
-  // the connection's previous bundle is one of those, prefer it.
-  const initialBundleId =
-    currentBundleId && bundles.find((b) => b.id === currentBundleId && !b.needsParams)
-      ? currentBundleId
-      : bundles.find((b) => !b.needsParams)?.id ?? bundles[0]?.id ?? '';
-  const [bundleId, setBundleId] = useState(initialBundleId);
   const [expiresDays, setExpiresDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedState | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [picker, setPicker] = useState<ScopePickerState>({
+    selectedIds: initialSelected,
+    paramsMap: initialParams,
+    valid: initialSelected.length > 0,
+    errors: {},
+  });
 
-  const selectedBundle = useMemo(
-    () => bundles.find((b) => b.id === bundleId) ?? null,
-    [bundles, bundleId],
-  );
+  const onPickerChange = useCallback((s: ScopePickerState) => setPicker(s), []);
 
   const generate = useCallback(async () => {
     setBusy(true);
     setError(null);
     setGenerated(null);
     try {
-      if (!selectedBundle) throw new Error('select a bundle first');
+      if (picker.selectedIds.length === 0) {
+        throw new Error('pick at least one scope');
+      }
+      if (!picker.valid) {
+        throw new Error('fix the highlighted parameter errors first');
+      }
 
       const principal = await getOrCreatePrincipalKey();
       if (principal.did !== principalDid) {
@@ -121,12 +112,12 @@ export function EditConnectionForm({
       const expiresAt = new Date(
         Date.now() + expiresDays * 24 * 60 * 60 * 1000,
       ).toISOString();
-      const scopeSelections: ScopeSelection[] = selectedBundle.scopes.map((s) => ({
-        id: s.id,
-        params: {},
+      const scopeSelections: ScopeSelection[] = picker.selectedIds.map((id) => ({
+        id,
+        params: picker.paramsMap[id] ?? {},
       }));
-      const compiled = await compileBundleRemotely(
-        scopeSelections.map((s) => s.id),
+      const compiled = await compileScopesRemotely(
+        scopeSelections,
         currentPeerDid,
       );
 
@@ -155,7 +146,7 @@ export function EditConnectionForm({
     }
   }, [
     purpose,
-    selectedBundle,
+    picker,
     principalDid,
     currentAgentDid,
     currentPeerDid,
@@ -211,29 +202,14 @@ export function EditConnectionForm({
           />
         </div>
 
-        <div>
-          <Label htmlFor="edit-bundle">New scope bundle</Label>
-          <select
-            id="edit-bundle"
-            className="mt-1 w-full border border-rule bg-paper px-3 py-2 font-mono text-sm"
-            value={bundleId}
-            onChange={(e) => setBundleId(e.target.value)}
-          >
-            {bundles.map((b) => (
-              <option key={b.id} value={b.id} disabled={b.needsParams ?? false}>
-                {b.label}
-                {b.needsParams ? ' (needs project_id — UI coming soon)' : ''}
-              </option>
-            ))}
-          </select>
-          {selectedBundle && (
-            <FieldHint>{selectedBundle.description.toUpperCase()}</FieldHint>
-          )}
-          {selectedBundle?.needsParams && (
-            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
-              THIS BUNDLE NEEDS PER-SCOPE INPUTS WE DON&apos;T COLLECT YET
-            </p>
-          )}
+        <div className="pt-2 border-t border-rule">
+          <ScopePicker
+            catalog={catalog}
+            bundles={bundles}
+            initialSelected={initialSelected}
+            initialParams={initialParams}
+            onChange={onPickerChange}
+          />
         </div>
 
         <div>
@@ -254,7 +230,7 @@ export function EditConnectionForm({
             variant="primary"
             arrow
             onClick={() => void generate()}
-            disabled={busy || !selectedBundle}
+            disabled={busy || !picker.valid}
           >
             {busy ? 'Generating…' : 'Generate updated invitation'}
           </Button>
@@ -276,8 +252,9 @@ export function EditConnectionForm({
         </Badge>
         {!generated && (
           <p className="text-body">
-            Pick the new bundle and hit <strong>Generate</strong>. We'll
-            sign a fresh proposal in your browser carrying{' '}
+            Adjust the scopes (add, remove, or re-parameterise) and hit{' '}
+            <strong>Generate</strong>. We&apos;ll sign a fresh proposal in
+            your browser carrying{' '}
             <Code>replaces={connectionId.slice(0, 18)}…</Code>.
           </p>
         )}
@@ -316,7 +293,7 @@ export function EditConnectionForm({
               swaps to the new policies and the old connection enters
               the <Code>revoked</Code> status with{' '}
               <Code>replacedBy</Code> pointing at the new id. Until they
-              accept, the old policies stay in effect — there's no
+              accept, the old policies stay in effect — there&apos;s no
               permission gap.
             </div>
           </>
@@ -328,17 +305,30 @@ export function EditConnectionForm({
 
 // --- helpers (mirrored from PairForm) ----------------------------------
 
-async function compileBundleRemotely(
-  ids: string[],
+async function compileScopesRemotely(
+  scopeSelections: ScopeSelection[],
   audienceDid: string,
 ): Promise<CompiledBundle> {
+  const paramsMap: Record<string, Record<string, unknown>> = {};
+  for (const s of scopeSelections) {
+    if (s.params && Object.keys(s.params).length > 0) {
+      paramsMap[s.id] = s.params;
+    }
+  }
   const res = await fetch('/api/pairing/scope-catalog', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ids, audienceDid }),
+    body: JSON.stringify({
+      ids: scopeSelections.map((s) => s.id),
+      paramsMap,
+      audienceDid,
+    }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+    };
     const detail = body.detail ?? body.error ?? `status ${res.status}`;
     throw new Error(`scope-catalog compile failed: ${detail}`);
   }

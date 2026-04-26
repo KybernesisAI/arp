@@ -18,30 +18,15 @@ import {
   type CompiledBundle,
 } from '@/lib/pairing-client';
 import type { PairingProposal, ScopeSelection } from '@kybernesis/arp-pairing';
+import type { ScopeTemplate } from '@kybernesis/arp-spec';
+import { ScopePicker, type BundlePreset, type ScopePickerState } from './ScopePicker';
 
 export interface AgentOption {
   did: string;
   name: string;
 }
 
-export interface BundleOption {
-  id: string;
-  label: string;
-  description: string;
-  scopes: Array<{ id: string }>;
-  /** True when the bundle has scopes whose params are `<user-picks>` (project_id, collection_id, …). */
-  needsParams?: boolean;
-}
-
-export interface ScopeOption {
-  id: string;
-  label: string;
-  risk: string;
-}
-
 function suggestContactName(did: string): string {
-  // did:web:samantha.agent → samantha
-  // did:web:owner.samantha.agent → samantha
   const m = did.match(/^did:web:([^:]+)/);
   if (!m) return 'peer';
   const host = m[1] ?? 'peer';
@@ -63,28 +48,26 @@ interface GeneratedState {
 /**
  * Client-side pairing form.
  *
- * The signing step happens locally — the principal's private did:key lives
- * in this browser (Phase 8.5 invariant) so every proposal is signed before
- * we hit the server. The server's only job is to persist the signed
- * proposal + return the shareable URL.
- *
- * Scope-catalog flow: pick a bundle id → the server compiles the cedar
- * policies + obligations via /api/pairing/scope-catalog (the catalog
- * loader is fs-backed and can't run in the browser bundle) → the client
- * signs + posts. Server re-compiles on accept to catch any forgery.
+ * Per-scope picker drives the proposal: the issuer toggles individual
+ * scopes on the catalog and fills in their parameters
+ * (`project_id="alpha"`, `attribute_allowlist=['name','email']`, …).
+ * Bundle presets are still offered as one-click loaders that pre-fill
+ * the scope set + non-`<user-picks>` defaults; the user can then add /
+ * remove / re-parameterise anything before signing. The /api/pairing
+ * /scope-catalog route compiles the cedar policies + obligations
+ * server-side because the catalog loader is fs-backed.
  */
 export function PairForm({
   principalDid,
   agents,
-  scopes,
+  catalog,
   bundles,
 }: {
   principalDid: string;
   agents: AgentOption[];
-  scopes: ScopeOption[];
-  bundles: BundleOption[];
+  catalog: ScopeTemplate[];
+  bundles: BundlePreset[];
 }): React.JSX.Element {
-  void scopes;
   const params = useSearchParams();
   const fromQuery = params?.get('from') ?? null;
   const initialIssuer =
@@ -101,31 +84,31 @@ export function PairForm({
   }, [fromQuery]);
   const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
   const [purpose, setPurpose] = useState('Test connection');
-  // Default to the first bundle that doesn't need user-supplied parameters.
-  // Bundles with `<user-picks>` placeholders (project_id, collection_id…)
-  // would 400 from /api/pairing/scope-catalog because the form doesn't
-  // collect those values yet. The dropdown still lists them, just disabled
-  // with a "needs project_id — coming soon" note.
-  const initialBundleId =
-    bundles.find((b) => !b.needsParams)?.id ?? bundles[0]?.id ?? '';
-  const [bundleId, setBundleId] = useState(initialBundleId);
   const [expiresDays, setExpiresDays] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedState | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [picker, setPicker] = useState<ScopePickerState>({
+    selectedIds: [],
+    paramsMap: {},
+    valid: false,
+    errors: {},
+  });
 
-  const selectedBundle = useMemo(
-    () => bundles.find((b) => b.id === bundleId) ?? null,
-    [bundles, bundleId],
-  );
+  const onPickerChange = useCallback((s: ScopePickerState) => setPicker(s), []);
 
   const generate = useCallback(async () => {
     setBusy(true);
     setError(null);
     setGenerated(null);
     try {
-      if (!selectedBundle) throw new Error('select a bundle first');
+      if (picker.selectedIds.length === 0) {
+        throw new Error('pick at least one scope');
+      }
+      if (!picker.valid) {
+        throw new Error('fix the highlighted parameter errors first');
+      }
       if (!issuerAgent) throw new Error('no agent selected');
 
       const principal = await getOrCreatePrincipalKey();
@@ -138,12 +121,12 @@ export function PairForm({
       const expiresAt = new Date(
         Date.now() + expiresDays * 24 * 60 * 60 * 1000,
       ).toISOString();
-      const scopeSelections: ScopeSelection[] = selectedBundle.scopes.map((s) => ({
-        id: s.id,
-        params: {},
+      const scopeSelections: ScopeSelection[] = picker.selectedIds.map((id) => ({
+        id,
+        params: picker.paramsMap[id] ?? {},
       }));
-      const compiled = await compileBundleRemotely(
-        scopeSelections.map((s) => s.id),
+      const compiled = await compileScopesRemotely(
+        scopeSelections,
         audienceDid,
       );
 
@@ -172,7 +155,7 @@ export function PairForm({
   }, [
     audienceDid,
     purpose,
-    selectedBundle,
+    picker,
     principalDid,
     issuerAgent,
     expiresDays,
@@ -199,8 +182,6 @@ export function PairForm({
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 1500);
     } catch {
-      // clipboard API may be blocked in some iframe contexts; leave the
-      // state idle so the user can copy manually from the Pre block.
       setCopyState('idle');
     }
   }
@@ -259,30 +240,12 @@ export function PairForm({
           />
         </div>
 
-        <div>
-          <Label htmlFor="pair-bundle">Scope bundle</Label>
-          <select
-            id="pair-bundle"
-            className="mt-1 w-full border border-rule bg-paper px-3 py-2 font-mono text-sm"
-            value={bundleId}
-            onChange={(e) => setBundleId(e.target.value)}
-            data-testid="pair-bundle-select"
-          >
-            {bundles.map((b) => (
-              <option key={b.id} value={b.id} disabled={b.needsParams ?? false}>
-                {b.label}
-                {b.needsParams ? ' (needs project_id — UI coming soon)' : ''}
-              </option>
-            ))}
-          </select>
-          {selectedBundle && (
-            <FieldHint>{selectedBundle.description.toUpperCase()}</FieldHint>
-          )}
-          {selectedBundle?.needsParams && (
-            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
-              THIS BUNDLE NEEDS PER-SCOPE INPUTS WE DON&apos;T COLLECT YET · PICK A DIFFERENT ONE
-            </p>
-          )}
+        <div className="pt-2 border-t border-rule">
+          <ScopePicker
+            catalog={catalog}
+            bundles={bundles}
+            onChange={onPickerChange}
+          />
         </div>
 
         <div>
@@ -306,8 +269,7 @@ export function PairForm({
             disabled={
               busy ||
               !issuerAgent ||
-              !selectedBundle ||
-              selectedBundle.needsParams ||
+              !picker.valid ||
               !isValidDidUri(audienceDid)
             }
             data-testid="pair-generate-btn"
@@ -329,9 +291,11 @@ export function PairForm({
           </h3>
           {!generated && (
             <p className="text-body-sm text-ink-2">
-              Fill in the form and click &ldquo;Generate invitation&rdquo; —
-              we&rsquo;ll produce a signed URL you can share via Signal,
-              email, or any private channel you trust.
+              Pick the scopes you want to share, fill in any required
+              params (project_id, attribute_allowlist, …), and click
+              &ldquo;Generate invitation&rdquo;. We&rsquo;ll produce a
+              signed URL you can share over Signal, email, or any
+              channel you trust.
             </p>
           )}
           {generated && (
@@ -393,14 +357,24 @@ arpc contacts add ${suggestContactName(audienceDid)} ${audienceDid}`}
   );
 }
 
-async function compileBundleRemotely(
-  ids: string[],
+async function compileScopesRemotely(
+  scopeSelections: ScopeSelection[],
   audienceDid: string,
 ): Promise<CompiledBundle> {
+  const paramsMap: Record<string, Record<string, unknown>> = {};
+  for (const s of scopeSelections) {
+    if (s.params && Object.keys(s.params).length > 0) {
+      paramsMap[s.id] = s.params;
+    }
+  }
   const res = await fetch('/api/pairing/scope-catalog', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ids, audienceDid }),
+    body: JSON.stringify({
+      ids: scopeSelections.map((s) => s.id),
+      paramsMap,
+      audienceDid,
+    }),
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
@@ -428,21 +402,17 @@ async function extractPrivateKey(): Promise<Uint8Array> {
 /**
  * Lenient input normaliser for the peer-DID field. Catches the common
  * autocorrect-on-mobile-keyboard mistake of `did.web.foo.agent` →
- * `did:web:foo.agent`. Doesn't try to be clever beyond that — anything
- * else gets a "not a valid DID URI" inline error and round-trips
- * unchanged so the user can see what they typed.
+ * `did:web:foo.agent`. Anything else round-trips unchanged so the user
+ * can see what they typed (with an inline "not valid" warning).
  */
 function normaliseDidInput(raw: string): string {
   const v = raw.trim();
-  // Common autocorrect: `did.web.X` (periods instead of colons)
   const m = v.match(/^did\.web\.(.+)$/);
   if (m && m[1]) return `did:web:${m[1]}`;
-  // Common: missing `did:` prefix entirely (`web:foo.agent`)
   if (/^web:.+/.test(v)) return `did:${v}`;
   return v;
 }
 
 function isValidDidUri(v: string): boolean {
-  // Same shape as packages/pairing/src/types.ts::DID_URI_REGEX
   return /^did:[a-z0-9]+:[A-Za-z0-9._%-]+(?::[A-Za-z0-9._%-]+)*$/.test(v.trim());
 }

@@ -64,7 +64,7 @@ export default async function PairPage(): Promise<React.JSX.Element> {
         <PairForm
           principalDid={principalDid}
           agents={agents}
-          scopes={catalog.map((s) => ({ id: s.id, label: s.label, risk: s.risk }))}
+          catalog={catalog}
           bundles={bundles}
         />
       )}
@@ -76,16 +76,19 @@ async function loadState() {
   const { tenantDb, session } = await requireTenantDb();
   const agents = await tenantDb.listAgents();
   const catalog = getScopeCatalog();
+  // Pre-bake bundles into preset shape the ScopePicker consumes:
+  // each scope carries the bundle's pinned params (project_id="alpha",
+  // days_ahead=7, …) so clicking a preset loads them as defaults the
+  // user can then override per-scope. `<user-picks>` markers stay in
+  // and get filtered to "" when rendered so the user has to fill them in.
   const bundles = BUNDLES.map((b) => ({
     id: b.id,
     label: b.label,
     description: b.description,
-    scopes: b.scopes.map((s) => ({ id: s.id })),
-    // A bundle that has any `<user-picks>` placeholder needs user input
-    // (project_id, collection_id, kb_id, …) the current PairForm doesn't
-    // yet collect. Flag it so the dropdown disables it with a clear note
-    // rather than failing scope-catalog compile when the user clicks
-    // Generate. Removes the "scope-catalog compile failed: 500" cliff.
+    scopes: b.scopes.map((s) => ({
+      id: s.id,
+      params: (s.params ?? {}) as Record<string, unknown>,
+    })),
     needsParams: b.scopes.some(
       (s) =>
         s.params != null &&
@@ -94,7 +97,7 @@ async function loadState() {
   }));
   return {
     agents: agents.map((a) => ({ did: a.did, name: a.agentName })),
-    catalog,
+    catalog: catalog.slice(),
     bundles,
     principalDid: session.principalDid,
   };

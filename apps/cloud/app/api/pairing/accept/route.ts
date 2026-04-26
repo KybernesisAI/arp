@@ -342,9 +342,15 @@ async function insertConnection(
     cedarPolicies: input.token.cedar_policies as unknown as Record<string, unknown>,
     obligations: input.token.obligations as unknown as Record<string, unknown>,
     scopeCatalogVersion: input.token.scope_catalog_version,
-    metadata: input.proposal.replaces
-      ? ({ replaces: input.proposal.replaces } as Record<string, unknown>)
-      : null,
+    // Persist scope_selections in metadata so the connection-edit UI can
+    // pre-fill the per-scope picker from what was previously approved.
+    // (cedar_policies are the wire-level upper bound; the human-shaped
+    // selections live only in the proposal and would otherwise be lost
+    // after accept.)
+    metadata: {
+      scopeSelections: input.proposal.scope_selections as unknown,
+      ...(input.proposal.replaces ? { replaces: input.proposal.replaces } : {}),
+    } as Record<string, unknown>,
     expiresAt: new Date(input.token.expires),
   });
 }
