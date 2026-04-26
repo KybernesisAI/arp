@@ -46,6 +46,8 @@ interface UnsignedProposal {
   required_vcs: string[];
   expires_at: string;
   created_at: string;
+  /** Set when re-countersigning to replace an existing connection. */
+  replaces?: string;
 }
 
 export interface CompiledBundle {
@@ -78,6 +80,13 @@ export async function createSignedProposalClient(args: {
   issuerKey: KeyPair;
   now?: () => Date;
   ids?: { proposalId?: string; connectionId?: string };
+  /**
+   * When set, the resulting proposal carries `replaces` and is treated by
+   * the acceptor's /api/pairing/accept as a re-countersign of an existing
+   * connection. The new proposal still gets a fresh connection_id; the
+   * `replaces` field links it to the predecessor.
+   */
+  replaces?: string;
 }): Promise<PairingProposal> {
   const now = args.now ?? (() => new Date());
   const proposalId = args.ids?.proposalId ?? newProposalId();
@@ -99,6 +108,7 @@ export async function createSignedProposalClient(args: {
     required_vcs: args.requiredVcs ?? [],
     expires_at: args.expiresAt,
     created_at: now().toISOString(),
+    ...(args.replaces ? { replaces: args.replaces } : {}),
   };
   const bytes = canonicalBytesOf(unsigned);
   const sig = await signBytesClient(bytes, args.issuerKey);
@@ -138,7 +148,7 @@ function canonicalBytesOf(
   // Mirrors packages/pairing/src/canonical.ts::payloadFromProposal. The
   // signing payload excludes proposal_id + scope_selections + created_at
   // + required_vcs — those are proposal-only metadata.
-  const payload = {
+  const payload: Record<string, unknown> = {
     connection_id: proposal.connection_id,
     issuer: proposal.issuer,
     subject: proposal.subject,
@@ -149,6 +159,11 @@ function canonicalBytesOf(
     scope_catalog_version: proposal.scope_catalog_version,
     expires: proposal.expires_at,
   };
+  // Only include `replaces` when set so existing pre-Phase-12 proposals
+  // (which never had this field) hash to identical bytes — backward-
+  // compatible. Mirrors packages/pairing/src/canonical.ts.
+  const r = (proposal as UnsignedProposal | PairingProposal).replaces;
+  if (typeof r === 'string' && r.length > 0) payload['replaces'] = r;
   const json = canonicalize(payload);
   return new TextEncoder().encode(json);
 }

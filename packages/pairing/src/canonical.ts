@@ -22,12 +22,21 @@ export interface CanonicalConnectionPayload {
   obligations: Obligation[];
   scope_catalog_version: string;
   expires: string;
+  /**
+   * When set, the signature commits the proposal as a replacement of
+   * an existing connection. Omitted from the signed bytes when unset so
+   * that pre-Phase-12 proposals (which never had this field) hash to
+   * identical bytes — backward-compatible. Including a JSON key with
+   * value `undefined` would change the canonical output on new flows
+   * only, so existing token signatures stay verifiable.
+   */
+  replaces?: string;
 }
 
 export function payloadFromProposal(
   proposal: PairingProposal,
 ): CanonicalConnectionPayload {
-  return {
+  const out: CanonicalConnectionPayload = {
     connection_id: proposal.connection_id,
     issuer: proposal.issuer,
     subject: proposal.subject,
@@ -38,10 +47,12 @@ export function payloadFromProposal(
     scope_catalog_version: proposal.scope_catalog_version,
     expires: proposal.expires_at,
   };
+  if (proposal.replaces) out.replaces = proposal.replaces;
+  return out;
 }
 
 export function payloadFromToken(token: ConnectionToken): CanonicalConnectionPayload {
-  return {
+  const out: CanonicalConnectionPayload = {
     connection_id: token.connection_id,
     issuer: token.issuer,
     subject: token.subject,
@@ -52,6 +63,14 @@ export function payloadFromToken(token: ConnectionToken): CanonicalConnectionPay
     scope_catalog_version: token.scope_catalog_version,
     expires: token.expires,
   };
+  // Forward `replaces` if the token shape grows it (cloud-db tokenJson is
+  // free-form jsonb; downstream verifiers can attach it without breaking
+  // older readers).
+  const maybeReplaces = (token as unknown as { replaces?: string }).replaces;
+  if (typeof maybeReplaces === 'string' && maybeReplaces) {
+    out.replaces = maybeReplaces;
+  }
+  return out;
 }
 
 export function canonicalBytes(payload: CanonicalConnectionPayload): Uint8Array {

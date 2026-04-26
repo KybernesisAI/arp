@@ -3,12 +3,12 @@ import { notFound, redirect } from 'next/navigation';
 import { AppShell } from '@/components/app/AppShell';
 import {
   Badge,
-  ButtonLink,
   Card,
   Code,
   Link,
   PlateHead,
 } from '@/components/ui';
+import { ConnectionActions } from './ConnectionActions';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 
 export const runtime = 'nodejs';
@@ -217,26 +217,23 @@ export default async function ConnectionDetailPage(props: {
         )}
       </section>
 
-      <div className="flex flex-wrap gap-3">
-        <ButtonLink
-          href={`/connections/${encodeURIComponent(connection.connectionId)}/audit`}
-          variant="default"
-          size="sm"
-          arrow
-        >
-          View audit log
-        </ButtonLink>
-        {connection.status === 'active' && (
-          <ButtonLink
-            href={`/connections/${encodeURIComponent(connection.connectionId)}/revoke`}
-            variant="default"
-            size="sm"
-            arrow
-          >
-            Revoke
-          </ButtonLink>
-        )}
-      </div>
+      <ConnectionActions
+        connectionId={connection.connectionId}
+        status={connection.status}
+      />
+
+      {connection.status === 'suspended' && (
+        <Card tone="yellow" padded className="mt-6">
+          <Badge tone="yellow" className="mb-2 text-[9px] px-2 py-0.5">
+            SUSPENDED
+          </Badge>
+          <p className="text-body">
+            Inbound DIDComm against this connection is rejected. The
+            token still exists; click <strong>Resume</strong> above to
+            reactivate without re-pairing.
+          </p>
+        </Card>
+      )}
     </AppShell>
   );
 }

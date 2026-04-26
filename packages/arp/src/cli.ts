@@ -49,7 +49,7 @@ import * as service from './service.js';
 import * as send from './send.js';
 import * as skill from './skill.js';
 
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 
 interface ResolvedConfig {
   handoffPath: string;

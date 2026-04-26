@@ -35,6 +35,7 @@ import {
 } from '@kybernesis/arp-pairing';
 import { compileBundle } from '@kybernesis/arp-scope-catalog';
 import {
+  connections,
   pairingInvitations,
   tenants,
   toTenantId,
@@ -169,6 +170,37 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
+    // 4b. If this proposal replaces an existing connection (Phase 4 Task 7
+    //     re-countersign flow), validate the replacement target lives on
+    //     this tenant + still belongs to the same agent pair. Otherwise
+    //     reject — a malicious issuer could otherwise try to "replace" a
+    //     connection they don't own.
+    if (proposal.replaces) {
+      const oldConn = await tenantDb.getConnection(proposal.replaces);
+      if (!oldConn) {
+        return NextResponse.json(
+          { error: 'replaces_not_found', replaces: proposal.replaces },
+          { status: 404 },
+        );
+      }
+      if (oldConn.agentDid !== acceptingAgentDid || oldConn.peerDid !== proposal.subject) {
+        return NextResponse.json(
+          {
+            error: 'replaces_pair_mismatch',
+            detail:
+              'the replaced connection is not between the same two agents as the new proposal',
+          },
+          { status: 403 },
+        );
+      }
+      if (oldConn.status === 'revoked') {
+        return NextResponse.json(
+          { error: 'replaces_revoked', detail: 'cannot replace a revoked connection' },
+          { status: 409 },
+        );
+      }
+    }
+
     // 5. Insert the connection on the caller's (acceptor) tenant.
     await insertConnection(tenantDb, {
       connectionId: proposal.connection_id,
@@ -178,6 +210,27 @@ export async function POST(req: Request): Promise<Response> {
       token: realToken,
       proposal,
     });
+
+    // 5b. Supersede the predecessor on this tenant if applicable.
+    if (proposal.replaces) {
+      await tenantDb.updateConnectionStatus(
+        proposal.replaces,
+        'revoked',
+        `superseded_by:${proposal.connection_id}`,
+      );
+      // Stamp the metadata pointer so audit chains can trace the rescope
+      // forward. We use the tenantDb.raw escape hatch since metadata is
+      // not in updateConnectionStatus's signature.
+      await tenantDb.raw
+        .update(connections)
+        .set({ metadata: { replacedBy: proposal.connection_id } as Record<string, unknown> })
+        .where(
+          and(
+            eq(connections.tenantId, tenantDb.tenantId),
+            eq(connections.connectionId, proposal.replaces),
+          ),
+        );
+    }
 
     // 6. Best-effort insert on the issuer's cloud tenant (if they're also
     //    hosted here). Sovereign sidecar issuers reconcile locally.
@@ -205,6 +258,31 @@ export async function POST(req: Request): Promise<Response> {
             token: realToken,
             proposal,
           });
+          // Mirror the supersede on the issuer's side when this is a
+          // replacement. Both tenants' rows for the old connection_id
+          // need to flip to 'revoked' or the issuer side keeps using the
+          // stale policies.
+          if (proposal.replaces) {
+            const oldOnIssuer = await issuerTenantDb.getConnection(proposal.replaces);
+            if (oldOnIssuer && oldOnIssuer.status !== 'revoked') {
+              await issuerTenantDb.updateConnectionStatus(
+                proposal.replaces,
+                'revoked',
+                `superseded_by:${proposal.connection_id}`,
+              );
+              await issuerTenantDb.raw
+                .update(connections)
+                .set({
+                  metadata: { replacedBy: proposal.connection_id } as Record<string, unknown>,
+                })
+                .where(
+                  and(
+                    eq(connections.tenantId, issuerTenantId),
+                    eq(connections.connectionId, proposal.replaces),
+                  ),
+                );
+            }
+          }
         }
       }
     }
@@ -264,7 +342,9 @@ async function insertConnection(
     cedarPolicies: input.token.cedar_policies as unknown as Record<string, unknown>,
     obligations: input.token.obligations as unknown as Record<string, unknown>,
     scopeCatalogVersion: input.token.scope_catalog_version,
-    metadata: null,
+    metadata: input.proposal.replaces
+      ? ({ replaces: input.proposal.replaces } as Record<string, unknown>)
+      : null,
     expiresAt: new Date(input.token.expires),
   });
 }

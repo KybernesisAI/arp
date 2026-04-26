@@ -65,11 +65,12 @@ export interface EnqueuedMessage {
 export interface AuditInsertInput {
   connectionId: string;
   msgId: string;
-  // Phase-10b widened to include 'revoke' so the cloud revoke route can
-  // append a chained entry that the audit viewer renders as a distinct
-  // event type. The underlying hash chain doesn't care about the value —
-  // it's hashed as-is via JCS + SHA-256.
-  decision: 'allow' | 'deny' | 'revoke';
+  // Phase-10b widened to include 'revoke' for the cloud revoke route's
+  // chained audit entry. Phase-12+ extends this to 'suspend' / 'resume'
+  // for reversible owner-initiated pauses, and 'rescope' for connection-
+  // edit-driven token replacements. The underlying hash chain doesn't
+  // care about the value — it's hashed as-is via JCS + SHA-256.
+  decision: 'allow' | 'deny' | 'revoke' | 'suspend' | 'resume' | 'rescope';
   timestamp: string;
   obligations: CloudObligation[];
   policiesFired: string[];

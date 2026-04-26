@@ -62,6 +62,22 @@ export const PairingProposalSchema = z.object({
   expires_at: z.string().datetime({ offset: true }),
   created_at: z.string().datetime({ offset: true }),
   /**
+   * When set, this proposal replaces the connection at this id. The
+   * acceptor's /api/pairing/accept transitions the old row to
+   * `superseded` and the new row inherits its place. Used by the
+   * connection-edit / re-countersign flow (Phase 4 Task 7) — issuer
+   * mutates scopes/obligations, signs a fresh proposal carrying the
+   * old connection_id here, peer reviews + countersigns to commit.
+   * The new proposal MUST have a different connection_id from the one
+   * it replaces (otherwise both would address the same row).
+   */
+  replaces: z
+    .string()
+    .regex(/^conn_[A-Za-z0-9_-]{4,}$/, {
+      message: 'replaces must be a connection_id of the form conn_…',
+    })
+    .optional(),
+  /**
    * Signer-label → signature map. Labels are principal DIDs so verification
    * can route directly to the correct DID doc. At invitation time only the
    * issuer entry is present; after countersign both are.
