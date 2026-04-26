@@ -150,6 +150,90 @@ describe('dispatchInbound', () => {
     expect(delivered[0]?.kind).toBe('inbound_message');
   });
 
+  it('finds the connection when the row is stored from the peer-direction (same-tenant pairing)', async () => {
+    // Simulate the same-tenant pairing case: only ONE row exists for the
+    // pair, stored as agent=peer (ghost) / peer=us (samantha). The previous
+    // dispatch lookup keyed strictly on agentDid=ctx.agentDid and rejected
+    // this layout with missing_connection_id even though the pair is real.
+    // Seed the peer as an agent in the same tenant so the FK on
+    // connections.agent_did is satisfied (this is the same-tenant case).
+    const ed = await import('@noble/ed25519');
+    const { ed25519RawToMultibase } = await import('@kybernesis/arp-transport');
+    const peerAgentPriv = ed.utils.randomPrivateKey();
+    const peerAgentPub = await ed.getPublicKeyAsync(peerAgentPriv);
+    await h.tenantDb.createAgent({
+      did: h.peerDid,
+      principalDid: 'did:key:zStubPeerPrincipal',
+      agentName: 'peer-as-tenant-agent',
+      agentDescription: 'test',
+      publicKeyMultibase: ed25519RawToMultibase(peerAgentPub),
+      handoffJson: {},
+      wellKnownDid: {},
+      wellKnownAgentCard: {},
+      wellKnownArp: {},
+      scopeCatalogVersion: 'v1',
+      tlsFingerprint: 'cloud',
+    });
+
+    const reversedConnId = 'conn_rev_dir_1';
+    const reversedToken = {
+      connection_id: reversedConnId,
+      issuer: 'did:key:zStub',
+      subject: h.peerDid,
+      audience: h.agentDid,
+      purpose: 'test-reversed',
+      cedar_policies: ['permit(principal, action, resource);'],
+      obligations: [],
+      scope_catalog_version: 'v1',
+      expires: new Date(Date.now() + 86400_000).toISOString(),
+      sigs: { issuer: 'stub', audience: 'stub' },
+    };
+    await h.tenantDb.createConnection({
+      connectionId: reversedConnId,
+      agentDid: h.peerDid, // <-- swapped vs. createActiveConnection
+      peerDid: h.agentDid, // <-- swapped vs. createActiveConnection
+      label: null,
+      purpose: 'test-reversed',
+      tokenJws: JSON.stringify(reversedToken),
+      tokenJson: reversedToken as unknown as Record<string, unknown>,
+      cedarPolicies: ['permit(principal, action, resource);'],
+      obligations: [],
+      scopeCatalogVersion: 'v1',
+      metadata: null,
+      expiresAt: null,
+    });
+
+    // Sender (peer) doesn't pass connection_id — the auto-resolve should
+    // find the row via the peer-direction match.
+    const envelope = await h.signFromPeer({
+      id: 'msg-rev',
+      type: 'https://didcomm.org/arp/1.0/request',
+      from: h.peerDid,
+      to: [h.agentDid],
+      body: { action: 'ping' },
+    });
+    const result = await dispatchInbound(
+      {
+        tenantDb: h.tenantDb,
+        tenantId: h.tenantId,
+        agentDid: h.agentDid,
+        audit: h.audit,
+        pdp: h.pdp,
+        resolver: h.resolver,
+        sessions: h.sessions,
+        logger: h.logger,
+        metrics: h.metrics,
+        now: () => Date.now(),
+      },
+      envelope,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.decision).toBe('allow');
+    const entries = await h.audit.list(h.agentDid, reversedConnId);
+    expect(entries.length).toBe(1);
+    expect(entries[0]?.decision).toBe('allow');
+  });
+
   it('denies when connection revoked', async () => {
     await h.createActiveConnection('conn_rev01');
     await h.tenantDb.updateConnectionStatus('conn_rev01', 'revoked', 'owner');
