@@ -5,6 +5,7 @@ import { Badge, Card, Code, Link, PlateHead } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { BUNDLES } from '@kybernesis/arp-scope-catalog';
 import { getScopeCatalog } from '@/lib/catalog';
+import type { ScopeTemplate } from '@kybernesis/arp-spec';
 import { EditConnectionForm } from './EditConnectionForm';
 
 export const runtime = 'nodejs';
@@ -35,7 +36,16 @@ export default async function ConnectionEditPage(props: {
     throw err;
   }
   if (!detail) notFound();
-  const { connection, agentName, principalDid, agents, catalog, bundles } = detail;
+  const {
+    connection,
+    agentName,
+    principalDid,
+    agents,
+    catalog,
+    bundles,
+    initialSelected,
+    initialParams,
+  } = detail;
 
   if (connection.status === 'revoked') {
     return (
@@ -95,10 +105,11 @@ export default async function ConnectionEditPage(props: {
         currentAgentDid={connection.agentDid}
         currentPeerDid={connection.peerDid}
         currentPurpose={connection.purpose ?? 'Edited connection'}
-        currentBundleId={connection.bundleId ?? null}
         agents={agents}
-        scopes={catalog.map((s) => ({ id: s.id, label: s.label, risk: s.risk }))}
+        catalog={catalog}
         bundles={bundles}
+        initialSelected={initialSelected}
+        initialParams={initialParams}
       />
     </AppShell>
   );
@@ -111,18 +122,20 @@ interface DetailState {
     peerDid: string;
     purpose: string | null;
     status: string;
-    bundleId: string | null;
   };
   agentName: string;
   principalDid: string;
   agents: Array<{ did: string; name: string }>;
-  catalog: ReturnType<typeof getScopeCatalog>;
+  catalog: ScopeTemplate[];
   bundles: Array<{
     id: string;
     label: string;
     description: string;
-    scopes: Array<{ id: string }>;
+    scopes: Array<{ id: string; params?: Record<string, unknown> }>;
+    needsParams: boolean;
   }>;
+  initialSelected: string[];
+  initialParams: Record<string, Record<string, unknown>>;
 }
 
 async function loadDetail(id: string): Promise<DetailState | null> {
@@ -130,11 +143,25 @@ async function loadDetail(id: string): Promise<DetailState | null> {
   const row = await tenantDb.getConnection(id);
   if (!row) return null;
   const agent = await tenantDb.getAgent(row.agentDid);
-  const meta = (row.metadata ?? {}) as Record<string, unknown>;
-  // bundleId may have been stored on the original proposal; if not, the
-  // user picks again. Best-effort lookup.
-  const bundleId = typeof meta['bundleId'] === 'string' ? (meta['bundleId'] as string) : null;
   const allAgents = await tenantDb.listAgents();
+
+  // Recover the original per-scope selections so the editor pre-fills
+  // with whatever was previously approved. They were persisted into
+  // `metadata.scopeSelections` at accept-time. Pre-Phase-4-Task-7
+  // connections won't have that, so we just render an empty picker —
+  // the user re-picks from scratch in that case.
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
+  const rawSelections = Array.isArray(meta['scopeSelections'])
+    ? (meta['scopeSelections'] as Array<{ id: string; params?: Record<string, unknown> }>)
+    : [];
+  const initialSelected = rawSelections.map((s) => s.id);
+  const initialParams: Record<string, Record<string, unknown>> = {};
+  for (const s of rawSelections) {
+    if (s.params && Object.keys(s.params).length > 0) {
+      initialParams[s.id] = s.params;
+    }
+  }
+
   return {
     connection: {
       connectionId: row.connectionId,
@@ -142,22 +169,26 @@ async function loadDetail(id: string): Promise<DetailState | null> {
       peerDid: row.peerDid,
       purpose: row.purpose,
       status: row.status,
-      bundleId,
     },
     agentName: agent?.agentName ?? row.agentDid,
     principalDid: session.principalDid,
     agents: allAgents.map((a) => ({ did: a.did, name: a.agentName })),
-    catalog: getScopeCatalog(),
+    catalog: getScopeCatalog().slice(),
     bundles: BUNDLES.map((b) => ({
       id: b.id,
       label: b.label,
       description: b.description,
-      scopes: b.scopes.map((s) => ({ id: s.id })),
+      scopes: b.scopes.map((s) => ({
+        id: s.id,
+        params: (s.params ?? {}) as Record<string, unknown>,
+      })),
       needsParams: b.scopes.some(
         (s) =>
           s.params != null &&
           Object.values(s.params).some((v) => v === '<user-picks>'),
       ),
     })),
+    initialSelected,
+    initialParams,
   };
 }
