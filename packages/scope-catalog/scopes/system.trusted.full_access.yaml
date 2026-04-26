@@ -1,0 +1,21 @@
+id: system.trusted.full_access
+version: 1.0.0
+label: Full access (trusted internal)
+description: Peer can perform any action on any resource. Use ONLY for agents you fully control (intra-company, same-principal, internal automation). This bypasses all per-action policy gating.
+category: delegation
+risk: critical
+parameters: []
+cedar_template: |
+  permit (
+    principal == Agent::"{{audience_did}}",
+    action,
+    resource
+  );
+consent_text_template: "Grant Peer unrestricted access (every action, every resource). Use only for agents you fully control."
+obligations_forced:
+  - type: audit_level
+    params:
+      level: verbose
+implies: []
+conflicts_with: []
+step_up_required: true

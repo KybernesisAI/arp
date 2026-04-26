@@ -25,6 +25,14 @@ export interface BundleDefinition {
 
 export const BUNDLES: readonly BundleDefinition[] = [
   {
+    id: 'bundle.trusted_full_access.v1',
+    version: '1.0.0',
+    label: 'Internal trust · full access',
+    description:
+      'Peer can do anything — every action, every resource. Use ONLY for agents you fully control (same-principal, intra-company, internal automation). Bypasses all per-action policy gating.',
+    scopes: [{ id: 'system.trusted.full_access' }],
+  },
+  {
     id: 'bundle.project_collaboration.v1',
     version: '1.0.0',
     label: 'Project collaboration',
