@@ -21,7 +21,7 @@ import { verifyEnvelope, multibaseEd25519ToRaw } from '@kybernesis/arp-transport
 import type { DidCommMessage } from '@kybernesis/arp-transport';
 import { createPdp, type Entity, type Pdp, type PdpDecision } from '@kybernesis/arp-pdp';
 import type { ConnectionToken, DidDocument, Obligation } from '@kybernesis/arp-spec';
-import type { TenantDb } from '@kybernesis/arp-cloud-db';
+import type { ConnectionRow, TenantDb } from '@kybernesis/arp-cloud-db';
 import type { PostgresAudit } from './audit.js';
 import type { SessionRegistry } from './sessions.js';
 import type { CloudRuntimeLogger, TenantMetrics, WsServerEvent } from './types.js';
@@ -86,16 +86,19 @@ export async function dispatchInbound(
   const msg = verified.message;
 
   // ---- lookup connection -------------------------------------------
-  const connectionId = extractConnectionId(msg);
-  if (!connectionId) {
-    log.warn({ msgId: msg.id }, 'missing_connection_id');
-    return { ok: false, decision: 'deny', reason: 'missing_connection_id' };
-  }
-  const conn = await ctx.tenantDb.getConnection(connectionId);
-  if (!conn) {
-    log.warn({ msgId: msg.id, connectionId }, 'unknown_connection');
-    return { ok: false, decision: 'deny', reason: 'unknown_connection' };
-  }
+  // Prefer an explicit `connection_id` in the message body; fall back to
+  // resolving from (ctx.agentDid, peerDid) → unique active connection.
+  // The fallback exists because senders can omit `connection_id` (the
+  // contacts.yaml file is a flat name → DID map and doesn't track ids),
+  // and the audience side already authenticated peerDid via signature
+  // verification — so a single active pair between us and the peer is
+  // unambiguous to resolve here. If two or more active pairs exist
+  // (rare, e.g. mid-rescope or duplicate accept), require explicit.
+  const explicitId = extractConnectionId(msg);
+  const resolved = await resolveConnection(ctx, explicitId, peerDid, msg.id, log);
+  if (!resolved.ok) return resolved.deny;
+  const conn = resolved.conn;
+  const connectionId = conn.connectionId;
   if (conn.agentDid !== ctx.agentDid) {
     // Connection is for another agent under the same tenant — route elsewhere
     // via the tenant context in theory, but for an inbound we identify the
@@ -271,6 +274,46 @@ function extractConnectionId(msg: DidCommMessage): string | null {
   const body = (msg.body ?? {}) as Record<string, unknown>;
   const raw = body['connection_id'];
   return typeof raw === 'string' ? raw : null;
+}
+
+type ResolveConnectionResult =
+  | { ok: true; conn: ConnectionRow }
+  | { ok: false; deny: DispatchResult };
+
+async function resolveConnection(
+  ctx: DispatchContext,
+  explicitId: string | null,
+  peerDid: string,
+  msgId: string,
+  log: ReturnType<CloudRuntimeLogger['child']>,
+): Promise<ResolveConnectionResult> {
+  // Explicit id takes precedence — it's the canonical wire-level handle.
+  if (explicitId) {
+    const conn = await ctx.tenantDb.getConnection(explicitId);
+    if (conn) return { ok: true, conn };
+  }
+  // Fallback: unique active connection for (this agent, this peer).
+  const candidates = await ctx.tenantDb.listConnections({
+    agentDid: ctx.agentDid,
+    status: 'active',
+  });
+  const matches = candidates.filter((c) => c.peerDid === peerDid);
+  if (matches.length === 1) {
+    return { ok: true, conn: matches[0]! };
+  }
+  if (matches.length === 0) {
+    if (!explicitId) {
+      log.warn({ msgId, peerDid }, 'missing_connection_id_no_match');
+      return { ok: false, deny: { ok: false, decision: 'deny', reason: 'missing_connection_id' } };
+    }
+    log.warn({ msgId, connectionId: explicitId }, 'unknown_connection');
+    return { ok: false, deny: { ok: false, decision: 'deny', reason: 'unknown_connection' } };
+  }
+  log.warn(
+    { msgId, peerDid, candidates: matches.map((m) => m.connectionId) },
+    'ambiguous_connection',
+  );
+  return { ok: false, deny: { ok: false, decision: 'deny', reason: 'ambiguous_connection' } };
 }
 
 function mapRequest(msg: DidCommMessage): { action: string; resource: Entity; context?: Record<string, unknown> } {
