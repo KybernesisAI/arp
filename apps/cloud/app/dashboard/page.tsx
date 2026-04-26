@@ -16,6 +16,7 @@ import {
 import { AppShell } from '@/components/app/AppShell';
 import { ProvisionAgentButton } from './ProvisionAgentButton';
 import { SelfTestConnectionButton } from './SelfTestConnectionButton';
+import { SKILL_TEMPLATES, listSkillNames } from '@kybernesis/arp/skill-templates';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 
 export const runtime = 'nodejs';
@@ -182,6 +183,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </ul>
         )}
       </section>
+
+      <SkillsSection />
 
       <section>
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
@@ -525,4 +528,74 @@ export function normalizeDecision(raw: string): ActivityEntry['decision'] {
 
 function inferMsgType(decision: string): string {
   return decision ? `audit:${decision}` : 'audit';
+}
+
+/**
+ * Skills section — lists the skill templates available for download, so
+ * users without `arpc` installed can still grab SKILL.md from a browser.
+ * Each row shows: name, what triggers it, install paths for both
+ * KyberBot and Claude Code, plus a download link to /api/skills/<name>.
+ */
+function SkillsSection(): React.JSX.Element {
+  const names = listSkillNames();
+  return (
+    <section className="mb-10">
+      <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+        <h2 className="font-display font-medium text-h3">
+          Agent skills
+          <span className="text-muted font-mono text-body-sm ml-2">
+            {names.length} available
+          </span>
+        </h2>
+      </header>
+      <p className="text-body text-ink-2 mb-4 max-w-3xl">
+        Drop these into your agent folder so its LLM picks up new
+        capabilities. Same SKILL.md works in KyberBot (
+        <Code>./skills/&lt;name&gt;/SKILL.md</Code>) and Claude Code (
+        <Code>.claude/skills/&lt;name&gt;/SKILL.md</Code>) — only the
+        install path differs.
+      </p>
+      <ul className="list-none p-0 m-0 border-t border-rule">
+        {names.map((n) => {
+          const tpl = SKILL_TEMPLATES[n]!;
+          const desc = extractSkillDescription(tpl.content);
+          return (
+            <li key={n} className="py-4 border-b border-rule">
+              <div className="grid grid-cols-12 gap-4 items-baseline">
+                <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
+                  <Dot tone="ink" />
+                  <span className="font-display font-medium text-h5">{n}</span>
+                </div>
+                <div className="col-span-12 md:col-span-7 text-body-sm text-ink-2">
+                  {desc}
+                </div>
+                <div className="col-span-12 md:col-span-2 md:text-right">
+                  <Link
+                    href={`/api/skills/${encodeURIComponent(n)}`}
+                    className="font-mono text-kicker uppercase text-ink border border-rule px-3 py-1.5 hover:bg-paper-2 inline-block"
+                  >
+                    Download SKILL.md
+                  </Link>
+                </div>
+                <div className="col-span-12 mt-2 text-body-sm text-ink-2">
+                  <span className="font-mono text-kicker uppercase text-muted">
+                    OR INSTALL VIA CLI ·{' '}
+                  </span>
+                  <Code>arpc skill install {n}</Code> (kyberbot, in cwd)
+                  <span className="mx-2 text-rule">·</span>
+                  <Code>arpc skill install {n} --target claude-code</Code>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** Pull the `description: "…"` line from a skill's frontmatter for display. */
+function extractSkillDescription(skillMd: string): string {
+  const m = skillMd.match(/^description:\s*"([^"]+)"\s*$/m);
+  return m ? m[1]! : '(see skill body)';
 }
