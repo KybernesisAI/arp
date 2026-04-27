@@ -70,6 +70,24 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', () => void stop());
   process.on('SIGTERM', () => void stop());
+
+  // Transient Neon HTTP egress failures (Railway's network occasionally
+  // can't reach Neon for a few seconds — ETIMEDOUT/ENETUNREACH) bubble
+  // up as unhandledRejection from route handlers. Without these
+  // listeners Node terminates the process; with the gateway's
+  // restartPolicyMaxRetries:10 a sustained Neon blip can exhaust the
+  // budget and leave it CRASHED. Log + keep the process alive — that
+  // single request returns 500 but the next one succeeds once the
+  // network heals.
+  process.on('unhandledRejection', (reason) => {
+    logger.error(
+      { err: reason instanceof Error ? reason.message : String(reason) },
+      'unhandledRejection',
+    );
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error({ err: err.message, stack: err.stack }, 'uncaughtException');
+  });
 }
 
 void main();
