@@ -109,7 +109,17 @@ export function createKyberBotAdapter(opts: KyberBotAdapterOptions): Adapter {
       if (!baseUrl || !apiToken) {
         throw new Error('KyberBot adapter not initialised; call init() first');
       }
-      const sessionId = `arp:${ctx.peerDid}`;
+      // Scope the kyberbot session id to (peer, connection) so a
+      // re-pair (revoke + new connection_id) gets a fresh Claude
+      // session — without this, a pre-existing session can carry
+      // hundreds of garbage messages from a prior loop or mid-debug
+      // exchange and the LLM short-circuits ("No response requested.").
+      // peerDid alone is too coarse — the conversation outlives the
+      // pairing. Falling back to peer-only when connectionId is null
+      // (legacy / direct-test paths).
+      const sessionId = ctx.connectionId
+        ? `arp:${ctx.peerDid}:${ctx.connectionId}`
+        : `arp:${ctx.peerDid}`;
       const body = JSON.stringify({ prompt: ctx.text, sessionId });
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs);
