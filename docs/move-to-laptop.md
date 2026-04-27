@@ -77,6 +77,38 @@ node ../../packages/cloud-db/migrate-once.mjs --help 2>&1 | head -3   # migratio
 | Mythos agent | Other Mac (`~/mythos`, launchd) — stays there |
 | npm publish auth | `~/.npmrc` token (laptop needs its own `npm login`) |
 
+## Restoring Claude's auto-memory on the laptop
+
+`~/arp/CLAUDE.md` (project conventions) is in the repo — `git clone`
+brings it automatically. But Claude Code's per-project auto-memory
+(my preference notes, project state notes, feedback rules) lives at
+`~/.claude/projects/<slug>/memory/` and is **not in git**.
+
+A copy was mirrored to Obsidian at:
+
+```
+~/.../Obsidian/Samantha/_arp-claude-memory/
+```
+
+(iCloud-synced — already on the laptop.)
+
+**On the laptop**, after cloning + first `claude` run in `~/arp`:
+
+```bash
+# Find the slug Claude created for this project's path:
+ls ~/.claude/projects/ | grep -i arp
+# e.g. -Users-ianborders-arp
+
+# Restore memory into that slug:
+SLUG=$(ls ~/.claude/projects/ | grep -i arp | head -1)
+cp -R "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/Samantha/_arp-claude-memory/." \
+      "$HOME/.claude/projects/$SLUG/memory/"
+ls ~/.claude/projects/$SLUG/memory/      # should list MEMORY.md + 5 entries
+```
+
+Run claude in `~/arp` and verify it picks up the rules (e.g. it
+should "just ship" routine fixes without asking).
+
 ## What's in flight (recent state)
 
 Last successful round-trip: bidirectional pair Atlas ↔ Mythos with both directions of cedar policy. Currently shipped + deployed:
