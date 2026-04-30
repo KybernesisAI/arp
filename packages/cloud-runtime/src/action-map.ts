@@ -22,6 +22,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { loadScopesFromDirectory } from '@kybernesis/arp-scope-catalog';
 
 export interface ScopeResourceTemplate {
@@ -41,33 +42,66 @@ interface ScopeMapping {
 let cachedMap: Map<string, ScopeMapping> | null = null;
 
 /**
- * Locate `packages/scope-catalog/scopes` relative to the @kybernesis/arp-
- * scope-catalog package. Works from both local workspace (pnpm) and a
- * normal `node_modules` install (production gateway deploy).
+ * Locate `@kybernesis/arp-scope-catalog/scopes` regardless of whether the
+ * runtime is ESM or CJS, monorepo or pnpm-deploy'd flattened image.
+ *
+ * Order:
+ *   1. createRequire(import.meta.url).resolve(...) — works in ESM
+ *   2. plain require.resolve(...) — works in CJS bundles where bare
+ *      `require` is the runtime function (also works post-tsup CJS build)
+ *   3. relative-to-this-file fallback for monorepo dev where the
+ *      cloud-runtime dist sits two levels up from packages/scope-catalog
+ *
+ * Each step is wrapped in try/catch because the ones that don't apply
+ * to the current runtime throw rather than returning a sentinel.
  */
 function locateScopesDir(): string | null {
-  // 1. Try node_modules path: @kybernesis/arp-scope-catalog/scopes
+  // 1. ESM-safe: createRequire bound to this module's URL.
   try {
-    const pkgPath = require.resolve('@kybernesis/arp-scope-catalog/package.json');
+    const here = fileURLToPath(import.meta.url);
+    const req = createRequire(here);
+    const pkgPath = req.resolve('@kybernesis/arp-scope-catalog/package.json');
     const dir = resolvePath(dirname(pkgPath), 'scopes');
     if (existsSync(dir)) return dir;
   } catch {
-    /* not installed via node_modules; fall through */
+    /* not ESM, or scope-catalog not in node_modules; fall through */
   }
-  // 2. Try monorepo path relative to this file
+  // 2. CJS-safe: plain require.resolve (only defined when bundled to CJS).
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const req = (globalThis as any).require ?? eval('typeof require !== "undefined" ? require : null');
+    if (req && typeof req.resolve === 'function') {
+      const pkgPath = req.resolve('@kybernesis/arp-scope-catalog/package.json');
+      const dir = resolvePath(dirname(pkgPath), 'scopes');
+      if (existsSync(dir)) return dir;
+    }
+  } catch {
+    /* CJS require not available; fall through */
+  }
+  // 3. Monorepo dev fallback: ../../scope-catalog/scopes from this file.
   try {
     const here = dirname(fileURLToPath(import.meta.url));
     const candidate = resolvePath(here, '../../scope-catalog/scopes');
     if (existsSync(candidate)) return candidate;
   } catch {
-    /* import.meta unavailable in some contexts */
+    /* import.meta.url unavailable */
   }
   return null;
 }
 
 function buildMap(): Map<string, ScopeMapping> {
   const dir = locateScopesDir();
-  if (!dir) return new Map();
+  if (!dir) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[action-map] scope catalog directory not found — typed `arpc request` ' +
+        'envelopes will fail PDP eval until this is resolved. Looked at ' +
+        'createRequire-ESM, plain require, and monorepo relative.',
+    );
+    return new Map();
+  }
+  // eslint-disable-next-line no-console
+  console.info(`[action-map] loaded scope catalog from ${dir}`);
   const scopes = loadScopesFromDirectory(dir);
   const map = new Map<string, ScopeMapping>();
   for (const scope of scopes) {
