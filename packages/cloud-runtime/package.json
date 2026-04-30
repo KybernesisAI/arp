@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-cloud-runtime",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "ARP Cloud multi-tenant runtime. Routes inbound DIDComm envelopes to agents, evaluates PDP decisions, writes Postgres-backed audit, delivers to outbound WebSocket clients.",
   "license": "MIT",
   "repository": {
@@ -36,6 +36,7 @@
     "@kybernesis/arp-audit": "workspace:*",
     "@kybernesis/arp-cloud-db": "workspace:*",
     "@kybernesis/arp-pdp": "workspace:*",
+    "@kybernesis/arp-scope-catalog": "workspace:*",
     "@kybernesis/arp-spec": "workspace:*",
     "@kybernesis/arp-templates": "workspace:*",
     "@kybernesis/arp-transport": "workspace:*",

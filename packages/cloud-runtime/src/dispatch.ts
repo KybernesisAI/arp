@@ -25,6 +25,7 @@ import type { ConnectionRow, TenantDb } from '@kybernesis/arp-cloud-db';
 import type { PostgresAudit } from './audit.js';
 import type { SessionRegistry } from './sessions.js';
 import type { CloudRuntimeLogger, TenantMetrics, WsServerEvent } from './types.js';
+import { scopeIdToCedarAction, scopeIdToResourceTemplate } from './action-map.js';
 
 export interface PeerResolver {
   /** Resolve a peer's DID document. */
@@ -354,10 +355,39 @@ function mapRequest(msg: DidCommMessage): { action: string; resource: Entity; co
     !explicitAction &&
     typeof body['text'] === 'string' &&
     body['resource'] === undefined;
-  const action = explicitAction ?? (isPlainText ? 'relay_to_principal' : inferActionFromType(msg.type));
-  const resource = isPlainText
-    ? ({ type: 'Principal', id: 'self' } as Entity)
-    : coerceResource(body['resource']);
+  // Translate scope-id-shaped actions (`notes.search`, `files.project.files.read`)
+  // into their cedar action verbs (`search`, `read`) so PDP evaluation matches
+  // the compiled policy. See action-map.ts for the mapping rationale. Pass
+  // verbatim if the action isn't a known scope id.
+  const rawAction =
+    explicitAction ?? (isPlainText ? 'relay_to_principal' : inferActionFromType(msg.type));
+  const action = scopeIdToCedarAction(rawAction);
+  // Resource resolution priority:
+  //   1. plain-text path → Principal::self
+  //   2. caller passed body.resource → use as-is
+  //   3. caller passed scope-id action → derive resource from the scope's
+  //      cedar template (e.g. notes.search collection_id=alpha → Collection::"alpha")
+  //   4. fallback → Resource::default
+  let resource: Entity;
+  if (isPlainText) {
+    resource = { type: 'Principal', id: 'self' };
+  } else if (body['resource'] !== undefined) {
+    resource = coerceResource(body['resource']);
+  } else if (explicitAction) {
+    const tpl = scopeIdToResourceTemplate(explicitAction);
+    if (tpl) {
+      const id = tpl.idParam ? body[tpl.idParam] : tpl.literalId;
+      if (typeof id === 'string') {
+        resource = { type: tpl.type, id };
+      } else {
+        resource = coerceResource(undefined);
+      }
+    } else {
+      resource = coerceResource(undefined);
+    }
+  } else {
+    resource = coerceResource(undefined);
+  }
   const context =
     typeof body['context'] === 'object' && body['context'] !== null
       ? (body['context'] as Record<string, unknown>)
