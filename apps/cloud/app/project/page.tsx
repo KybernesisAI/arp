@@ -34,26 +34,33 @@ export default function ProjectLandingPage(): React.JSX.Element {
             ]}
           />
           <div className="grid grid-cols-12 gap-6 pb-12">
-            <div className="col-span-12 lg:col-span-8 flex flex-col">
+            <div className="col-span-12 lg:col-span-7 flex flex-col">
               <EyebrowTag dotTone="yellow" className="mb-7">
                 ARP · THE OPEN PROTOCOL
               </EyebrowTag>
               <HeroTitle>
+                <HeroLine>The open</HeroLine>
                 <HeroLine>
-                  A common <Emphasis tone="blue">language</Emphasis>
+                  protocol{' '}
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-[0.7em] h-[0.62em] mx-[0.05em] align-baseline bg-signal-blue translate-y-[0.02em]"
+                  />{' '}
+                  for
                 </HeroLine>
                 <HeroLine>
-                  for AI agents to <Underline>talk</Underline>.
+                  <Emphasis tone="red">AI agents</Emphasis>
                 </HeroLine>
                 <HeroLine>
-                  A common <Emphasis tone="red">ledger</Emphasis>
+                  to work <Underline>with</Underline>
                 </HeroLine>
-                <HeroLine>for what they do.</HeroLine>
+                <HeroLine>each other.</HeroLine>
               </HeroTitle>
               <HeroSub>
-                ARP is an open protocol for agent-to-agent communication and permissions.
-                Reference implementations in TypeScript. <b className="text-ink">MIT-licensed</b>.
-                Built in the open.
+                Your agents need to reach other agents — to{' '}
+                <b className="font-medium text-ink">book, buy, coordinate, and collaborate</b>.
+                ARP is the protocol that lets them do it safely. No platform owns the network.
+                No vendor owns your agents.
               </HeroSub>
               <HeroCTA>
                 <ButtonLink
@@ -70,39 +77,61 @@ export default function ProjectLandingPage(): React.JSX.Element {
               </HeroCTA>
               <HeroTrust
                 items={[
-                  'OPEN SOURCE',
-                  'REFERENCE RUNTIME',
-                  'COMPLIANCE TESTKIT',
+                  'OPEN PROTOCOL',
+                  'YOURS TO RUN',
+                  'BUILT IN PUBLIC',
                 ]}
               />
             </div>
-            <div className="hidden lg:flex col-span-4 flex-col border border-rule">
-              <div className="px-3.5 py-2.5 border-b border-rule bg-paper font-mono text-kicker uppercase text-muted flex justify-between">
+            <div className="hidden lg:flex col-span-5 flex-col border border-rule bg-paper">
+              <div className="px-3.5 py-2.5 border-b border-rule font-mono text-kicker uppercase text-muted flex justify-between">
                 <span>
-                  <b className="text-ink font-medium">FIG&nbsp;A</b> · SEVEN LAYERS
+                  <b className="text-ink font-medium">FIG&nbsp;A</b> · SEVEN-LAYER STACK
                 </span>
                 <span>V0.1</span>
               </div>
-              <ul className="flex-1 list-none p-0 m-0 divide-y divide-rule">
+              <ol className="flex-1 list-none p-0 m-0 flex flex-col">
                 {[
-                  ['01', 'IDENTITY'],
-                  ['02', 'TRANSPORT'],
-                  ['03', 'PAIRING'],
-                  ['04', 'POLICY'],
-                  ['05', 'OBLIGATIONS'],
-                  ['06', 'AUDIT'],
-                  ['07', 'RUNTIME'],
-                ].map(([num, label]) => (
+                  { num: '07', label: 'RUNTIME', sub: 'Reference implementation' },
+                  { num: '06', label: 'AUDIT', sub: 'Tamper-evident chain' },
+                  { num: '05', label: 'OBLIGATIONS', sub: 'Caps · windows · TTLs' },
+                  { num: '04', label: 'POLICY', sub: 'Cedar + ARP extensions', accent: true },
+                  { num: '03', label: 'PAIRING', sub: 'Signed handshake' },
+                  { num: '02', label: 'TRANSPORT', sub: 'Signed envelopes' },
+                  { num: '01', label: 'IDENTITY', sub: 'DIDs + .agent domains' },
+                ].map(({ num, label, sub, accent }) => (
                   <li
                     key={num}
-                    className="flex items-center gap-3 px-4 py-3 font-mono text-kicker uppercase"
+                    className={`group relative flex flex-1 items-stretch gap-4 pl-4 pr-4 border-b border-rule last:border-b-0 ${
+                      accent ? 'bg-signal-yellow/40' : ''
+                    }`}
                   >
-                    <span className="text-muted">{num}</span>
-                    <span className="flex-1 text-ink">{label}</span>
-                    <span className="text-signal-blue">›</span>
+                    <span
+                      aria-hidden
+                      className={`block w-[3px] self-stretch ${
+                        accent ? 'bg-signal-red' : 'bg-rule'
+                      }`}
+                    />
+                    <span className="flex flex-1 items-center gap-4 py-3.5">
+                      <span className="font-mono text-kicker uppercase text-muted w-6 tabular-nums">
+                        {num}
+                      </span>
+                      <span className="flex-1 flex flex-col gap-1">
+                        <span className="font-display font-medium text-ink text-[0.95rem] leading-none tracking-[-0.01em]">
+                          {label}
+                        </span>
+                        <span className="font-mono text-[0.65rem] uppercase text-muted leading-none">
+                          {sub}
+                        </span>
+                      </span>
+                    </span>
                   </li>
                 ))}
-              </ul>
+              </ol>
+              <div className="border-t border-rule px-3.5 py-2.5 font-mono text-kicker uppercase text-muted flex justify-between">
+                <span>STACK · 07 · MIT</span>
+                <span className="text-signal-blue">↗</span>
+              </div>
             </div>
           </div>
         </Container>

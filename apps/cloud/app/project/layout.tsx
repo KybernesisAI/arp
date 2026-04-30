@@ -16,7 +16,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
         links={[
           { label: 'Protocol', href: '/architecture' },
           { label: 'About', href: '/about' },
-          { label: 'Docs', href: '#' },
+          { label: 'Docs', href: 'https://docs.arp.run', external: true },
           { label: 'GitHub', href: 'https://github.com/KybernesisAI/arp', external: true },
         ]}
         cta={
@@ -34,18 +34,18 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
             title: 'Protocol',
             links: [
               { label: 'Architecture', href: '/architecture' },
-              { label: 'Specification [TBD]', href: '#' },
-              { label: 'Scope catalog [TBD]', href: '#' },
-              { label: 'Changelog [TBD]', href: '#' },
+              { label: 'Specification', href: 'https://spec.arp.run', external: true },
+              { label: 'Scope catalog', href: 'https://docs.arp.run/docs/scope-catalog', external: true },
+              { label: 'Changelog', href: 'https://github.com/KybernesisAI/arp/releases', external: true },
             ],
           },
           {
             title: 'Developers',
             links: [
-              { label: 'Documentation [TBD]', href: '#' },
-              { label: 'SDK reference [TBD]', href: '#' },
-              { label: 'Adapter guide [TBD]', href: '#' },
-              { label: 'Testkit [TBD]', href: '#' },
+              { label: 'Documentation', href: 'https://docs.arp.run', external: true },
+              { label: 'SDK reference', href: 'https://docs.arp.run/docs/sdks', external: true },
+              { label: 'Adapter guide', href: 'https://docs.arp.run/docs/adapters', external: true },
+              { label: 'Testkit', href: 'https://github.com/KybernesisAI/arp/tree/main/packages/testkit', external: true },
             ],
           },
           {
@@ -75,7 +75,8 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
             title: 'Legal',
             links: [
               { label: 'License (MIT)', href: 'https://github.com/KybernesisAI/arp/blob/main/LICENSE', external: true },
-              { label: 'Trademark [TBD]', href: '#' },
+              { label: 'Terms', href: '/legal/terms' },
+              { label: 'Privacy', href: '/legal/privacy' },
             ],
           },
         ]}
