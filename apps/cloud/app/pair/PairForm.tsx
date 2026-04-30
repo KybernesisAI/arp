@@ -71,6 +71,8 @@ export function PairForm({
 }): React.JSX.Element {
   const params = useSearchParams();
   const fromQuery = params?.get('from') ?? null;
+  const peerQuery = params?.get('peer') ?? null;
+  const normalisedPeerQuery = peerQuery ? normaliseDidInput(peerQuery) : null;
   const initialIssuer =
     fromQuery && agents.some((a) => a.did === fromQuery)
       ? fromQuery
@@ -82,7 +84,21 @@ export function PairForm({
     }
     // intentionally only run when fromQuery changes
   }, [fromQuery]);
-  const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
+  const [audienceDid, setAudienceDid] = useState(
+    normalisedPeerQuery && isValidDidUri(normalisedPeerQuery)
+      ? normalisedPeerQuery
+      : 'did:web:peer.agent',
+  );
+  useEffect(() => {
+    if (
+      normalisedPeerQuery &&
+      isValidDidUri(normalisedPeerQuery) &&
+      normalisedPeerQuery !== audienceDid
+    ) {
+      setAudienceDid(normalisedPeerQuery);
+    }
+    // intentionally only run when peer query changes
+  }, [normalisedPeerQuery]);
   const [purpose, setPurpose] = useState('Test connection');
   const [expiresDays, setExpiresDays] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -400,14 +416,17 @@ async function extractPrivateKey(): Promise<Uint8Array> {
 /**
  * Lenient input normaliser for the peer-DID field. Catches the common
  * autocorrect-on-mobile-keyboard mistake of `did.web.foo.agent` →
- * `did:web:foo.agent`. Anything else round-trips unchanged so the user
- * can see what they typed (with an inline "not valid" warning).
+ * `did:web:foo.agent`, and accepts bare `.agent` names from Headless
+ * Domains deep links (e.g. `janice.agent` → `did:web:janice.agent`).
+ * Anything else round-trips unchanged so the user can see what they
+ * typed (with an inline "not valid" warning).
  */
 function normaliseDidInput(raw: string): string {
   const v = raw.trim();
   const m = v.match(/^did\.web\.(.+)$/);
   if (m && m[1]) return `did:web:${m[1]}`;
   if (/^web:.+/.test(v)) return `did:${v}`;
+  if (/^[A-Za-z0-9._-]+\.agent$/.test(v)) return `did:web:${v}`;
   return v;
 }
 
