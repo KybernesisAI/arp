@@ -214,13 +214,47 @@ interface Flags {
   internalSupervisor?: boolean;
   help?: boolean;
   version?: boolean;
-  // arpc send
+  // arpc send / arpc request
   async?: boolean;
   timeoutSec?: number;
   connectionId?: string;
   as?: string;
+  // arpc request — repeatable --param k=v
+  params?: Record<string, unknown>;
   // arpc skill install
   target?: string;
+}
+
+/**
+ * Coerce a `--param key=value` value into a useful JS type. Used by
+ * `arpc request` so callers can pass numbers, booleans, arrays, and
+ * objects without having to JSON.stringify the whole params bag.
+ *
+ *   --param max_tokens=2000     → 2000 (number)
+ *   --param dry_run=true        → true (boolean)
+ *   --param tags='["a","b"]'    → ['a','b']
+ *   --param config='{"x":1}'    → {x:1}
+ *   --param query="hello world" → "hello world" (string)
+ */
+function coerceParamValue(raw: string): unknown {
+  if (raw === '') return '';
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (raw === 'null') return null;
+  // JSON-shaped values
+  if (raw.startsWith('[') || raw.startsWith('{')) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
+  }
+  // Numeric (int or float) — guard against e.g. "1.2.3" version strings
+  if (/^-?\d+(\.\d+)?$/.test(raw)) {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return raw;
 }
 
 function parseArgs(argv: string[]): { cmd: string; sub: string | null; positional: string[]; flags: Flags } {
@@ -263,6 +297,22 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
       case '--connection':
         flags.connectionId = next();
         break;
+      case '--param': {
+        // Repeatable: --param key=value parses key/value pairs into
+        // flags.params for `arpc request`. Numeric values are coerced
+        // to numbers; "true"/"false" to booleans; everything else
+        // stays as a string. JSON values starting with '[' or '{'
+        // parse as arrays/objects.
+        const raw = next();
+        if (!raw) break;
+        const eq = raw.indexOf('=');
+        if (eq === -1) break;
+        const key = raw.slice(0, eq);
+        const val = raw.slice(eq + 1);
+        flags.params = flags.params ?? {};
+        flags.params[key] = coerceParamValue(val);
+        break;
+      }
       case '--as':
         flags.as = next();
         break;
@@ -314,8 +364,19 @@ Many agents — supervisor (one process for all, daemonised):
   arpc host remove <folder>  Remove an agent folder.
 
 Send a message (uses the running supervisor):
-  arpc send <name|did> "<text>"   Send to a contact (or did:web: directly).
+  arpc send <name|did> "<text>"   Send free-form chat to a contact.
                                    By default waits up to 30s for a reply.
+  arpc request <name|did> <action> --param k=v  ...
+                                   Send a structured ARP action (typed
+                                   dispatch on the audience side).
+                                   Examples:
+                                     arpc request mythos notes.search \\
+                                       --param collection_id=alpha \\
+                                       --param query="hiring"
+                                     arpc request mythos knowledge.query \\
+                                       --param kb_id=alpha \\
+                                       --param query="design status" \\
+                                       --param max_tokens=2000
   arpc contacts list               Show this agent's address book.
   arpc contacts add <name> <did>   Add a contact entry.
   arpc contacts remove <name>      Remove a contact entry.
@@ -575,6 +636,15 @@ async function main(): Promise<void> {
         ...(flags.timeoutSec !== undefined ? { timeoutSec: flags.timeoutSec } : {}),
         ...(flags.connectionId ? { connectionId: flags.connectionId } : {}),
         ...(flags.as ? { as: flags.as } : {}),
+      });
+      return;
+    case 'request':
+      await send.cmdRequest(positional, {
+        async: flags.async,
+        ...(flags.timeoutSec !== undefined ? { timeoutSec: flags.timeoutSec } : {}),
+        ...(flags.connectionId ? { connectionId: flags.connectionId } : {}),
+        ...(flags.as ? { as: flags.as } : {}),
+        ...(flags.params ? { params: flags.params } : {}),
       });
       return;
     case 'contacts':
