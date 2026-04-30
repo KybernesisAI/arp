@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kybernesis/arp-cloud-bridge": "workspace:*",
+    "@kybernesis/arp-cloud-bridge": "^0.3.1",
     "js-yaml": "^4.1.0",
     "posthog-node": "^5.32.0"
   },

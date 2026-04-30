@@ -683,8 +683,8 @@ importers:
   packages/arp:
     dependencies:
       '@kybernesis/arp-cloud-bridge':
-        specifier: workspace:*
-        version: link:../cloud-bridge
+        specifier: ^0.3.1
+        version: 0.3.1
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.1
@@ -2099,6 +2099,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kybernesis/arp-cloud-bridge@0.3.1':
+    resolution: {integrity: sha512-2nimFqvvAxhCaOEU9Y/eB7Q1vD4IhD34kM66YNLnTQBjKnz77SaKPOsthvm5NIX61ZFzLEdnMLCQch24oBbDdg==}
+    hasBin: true
 
   '@kybernesis/arp-cloud-client@0.2.0':
     resolution: {integrity: sha512-KmCOMAeOOdkGyIcUKEWRR+0aG6OEBdwhvNmUao99DJyChHbfZtn5ZLbrY4JJAd8v7fHIakWLLEYXm+wRBOpsTA==}
@@ -5961,6 +5965,17 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kybernesis/arp-cloud-bridge@0.3.1':
+    dependencies:
+      '@kybernesis/arp-cloud-client': 0.2.0
+      '@kybernesis/arp-transport': 0.3.2
+      js-yaml: 4.1.1
+      posthog-node: 5.32.0
+    transitivePeerDependencies:
+      - bufferutil
+      - rxjs
+      - utf-8-validate
 
   '@kybernesis/arp-cloud-client@0.2.0':
     dependencies:
