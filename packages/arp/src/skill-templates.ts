@@ -88,7 +88,7 @@ ARP gives you two paths to a peer. Pick the right one for the user's intent:
    matches the user's intent or when the question is genuinely
    conversational.
 
-The connection's Cedar policy decides which paths are open. \`arpc peer-actions\`
+The connection's policy decides which paths are open. \`arpc peer-actions\`
 tells you what's available — always run it first.
 
 ## How
@@ -157,14 +157,42 @@ fields naturally — don't dump raw JSON unless the user asked for it.
 
 ### 5. Handle the failure cases
 
-- **Exit 3, \`denied by audience policy\`** — the cedar policy doesn't
-  permit what you tried. Tell the user why ("They've only granted me
-  notes.search on Project Alpha, not Project Beta") and suggest they
-  edit the connection at \`cloud.arp.run\` if they want to widen access.
+- **Exit 3 (denied)** — the connection's policy doesn't permit what you
+  tried. Tell the user plainly that the policy denied access — DON'T use
+  internal terms like "cedar", "PDP", "scope ID", or "policy_denied"
+  in your reply. Just say something like:
+    "Atlas's policy doesn't allow access to that information."
+    "I can't query Atlas about Project Beta — the connection's policy
+     only permits Project Alpha."
+    "Atlas's policy on this connection doesn't grant me a calendar
+     scope, so I can't check their availability."
+  Then offer the next step: "If you want, edit the connection at
+  cloud.arp.run/connections to widen the access."
 - **Exit 2, \`reply_timeout\`** — the request was delivered but the peer
   didn't reply in time. Tell the user; don't retry.
 - **\`gateway_unreachable\`** — supervisor or gateway is down. Tell the
   user; investigate before retrying.
+
+## Voice + tone for denials
+
+When you have to refuse the user's request because of a policy:
+
+- Use natural phrases: "Atlas's policy", "their policy", "this connection's
+  permissions", "the access settings on this connection".
+- Never name internal mechanisms: cedar, PDP, scope IDs, msgId, exit codes,
+  reason strings, JSON shapes.
+- Be specific about WHAT was blocked when you can — "Project Beta isn't in
+  the granted scope" beats "the request was denied".
+- Offer one concrete next step (widen connection, switch to chat fallback,
+  ask a different agent) rather than a list of options.
+
+Bad reply: "Cedar denied — policy_denied. The notes.search scope on this
+connection is pinned to collection_id=alpha only; project beta is outside
+Atlas's grant to me."
+
+Good reply: "I can't see Atlas's notes on Project Beta — their policy on
+this connection only covers Project Alpha. If you want me to ask, you'd
+need to widen access at cloud.arp.run/connections."
 
 ## Examples
 
@@ -259,8 +287,8 @@ class Contact(Skill):
         elif "messaging.relay.to_principal" in scopes:
             cmd = ["arpc", "send", name, intent, "--timeout", "90"]
         else:
-            return (f"connection to {name} doesn't grant a scope that covers this intent. "
-                    "Edit the connection at cloud.arp.run to grant the scope.")
+            return (f"{name}'s policy on this connection doesn't allow that. "
+                    "Widen the connection's access at cloud.arp.run/connections to enable it.")
 
         out = subprocess.run(cmd, capture_output=True, check=True)
         return out.stdout.decode().strip()
@@ -329,8 +357,8 @@ export class ContactSkill extends Agent {
     } else if (scopes.has('messaging.relay.to_principal')) {
       cmd = ['send', name, intent, '--timeout', '90'];
     } else {
-      return \`connection to \${name} doesn't grant a scope that covers this intent. \` +
-             \`Edit the connection at cloud.arp.run to grant the scope.\`;
+      return \`\${name}'s policy on this connection doesn't allow that. \` +
+             \`Widen the connection's access at cloud.arp.run/connections to enable it.\`;
     }
     return execFileSync('arpc', cmd, { encoding: 'utf-8' }).trim();
   }
