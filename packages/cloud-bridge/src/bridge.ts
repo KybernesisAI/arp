@@ -61,6 +61,19 @@ export interface SendOutboundParams {
   connectionId?: string | null;
   /** DIDComm protocol URI. Defaults to `https://didcomm.org/arp/1.0/request`. */
   msgType?: string;
+  /**
+   * Phase B/C — structured ARP action. When set, the envelope body
+   * carries `action` + `resource` + caller-supplied params instead of
+   * just `text`. The cloud PDP evaluates Cedar policies against the
+   * resource attrs; the audience-side adapter dispatches to its
+   * /api/arp/<action> handler. Plain-text sends leave this unset and
+   * keep using the chat-relay path.
+   */
+  action?: string;
+  /** Action-specific params merged into the envelope body (project_id, kb_id, query, etc.). */
+  params?: Record<string, unknown>;
+  /** Optional Cedar resource entity (passed through to PDP). */
+  resource?: { type: string; id: string; attrs?: Record<string, unknown> };
 }
 
 export interface SendOutboundResult {
@@ -166,8 +179,17 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
       const msgId = randomUUID();
       const thid = params.thid ?? msgId;
       const msgType = params.msgType ?? 'https://didcomm.org/arp/1.0/request';
+      // ── Phase B/C — structured ARP action wire shape ────────────────
+      // Plain sends just put `text` in body; typed sends add `action`
+      // (and `resource` + caller's params merged in). The cloud PDP
+      // pulls action + resource out via dispatch.mapRequest and
+      // evaluates cedar against them. Audience adapter dispatches on
+      // body.action — see packages/cloud-bridge/src/adapters/kyberbot.ts.
       const messageBody: Record<string, unknown> = { text: params.text };
       if (params.connectionId) messageBody['connection_id'] = params.connectionId;
+      if (params.action) messageBody['action'] = params.action;
+      if (params.resource) messageBody['resource'] = params.resource;
+      if (params.params) Object.assign(messageBody, params.params);
       const env = await signEnvelope({
         message: {
           id: msgId,

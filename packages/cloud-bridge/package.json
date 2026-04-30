@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-cloud-bridge",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "External bridge: connects ARP cloud-gateway to a locally running agent framework (KyberBot, OpenClaw, Hermes) via that framework's existing native API. No code changes to the agent framework.",
   "license": "MIT",
   "repository": {

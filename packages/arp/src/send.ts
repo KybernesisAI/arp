@@ -199,6 +199,114 @@ export async function cmdSend(positional: string[], flags: SendFlags): Promise<v
   process.exit(1);
 }
 
+// ---- arpc request — typed ARP action -------------------------------------
+
+interface RequestFlags extends SendFlags {
+  /** Structured params merged into the envelope body. Each --param k=v adds one key. */
+  params?: Record<string, unknown>;
+}
+
+/**
+ * Send a structured ARP action to a peer. Sibling to `arpc send`,
+ * but the envelope body carries `{action, ...params}` instead of
+ * `{text}`. Cloud PDP evaluates against the action + claimed
+ * resource; the audience-side adapter dispatches to its
+ * `/api/arp/<action>` typed handler (defense-in-depth filtering at
+ * the data layer).
+ *
+ * Usage:
+ *   arpc request <peer> <action> --param k=v --param k2=v2 [--timeout SEC]
+ *
+ * Examples:
+ *   arpc request mythos notes.search --param collection_id=alpha --param query="hiring"
+ *   arpc request mythos notes.read   --param collection_id=alpha --param source_path=...
+ *   arpc request mythos knowledge.query --param kb_id=alpha --param query="design status" --param max_tokens=2000
+ *
+ * The reply is the typed JSON response (or error envelope) the peer's
+ * /api/arp/<action> handler returned, printed verbatim. Async / fire-
+ * and-forget is supported via --async (returns the queued msgId).
+ */
+export async function cmdRequest(positional: string[], flags: RequestFlags): Promise<void> {
+  const recipientArg = positional[1];
+  const action = positional[2];
+  if (!recipientArg || !action) {
+    console.error(
+      'usage: arpc request <name-or-did> <action> [--param k=v ...] [--async] [--timeout SEC] [--connection ID] [--as <did>]',
+    );
+    process.exit(2);
+  }
+  const cwd = process.cwd();
+  const sender = await detectSender(cwd, flags.as);
+
+  let recipient: ReturnType<typeof resolveRecipient>;
+  try {
+    recipient = resolveRecipient(sender.agentRoot, recipientArg);
+  } catch (err) {
+    console.error(`arpc request: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  const ctrl = readControlFile()!;
+  const timeoutMs = flags.async ? 0 : (flags.timeoutSec ?? 30) * 1000;
+  const params = flags.params ?? {};
+
+  console.log(`from   ${sender.agentDid}`);
+  console.log(`to     ${recipient.did}${recipient.via === 'contacts' ? ` (resolved "${recipientArg}")` : ''}`);
+  console.log(`action ${action}`);
+  if (Object.keys(params).length > 0) {
+    console.log(`params ${JSON.stringify(params)}`);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`http://127.0.0.1:${ctrl.port}/send`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-arp-control-token': ctrl.token,
+      },
+      body: JSON.stringify({
+        from: sender.agentDid,
+        to: recipient.did,
+        // Brief human-readable text describes the action; the audience
+        // adapter dispatches on `action`, not `text`. Useful when a
+        // legacy adapter without typed dispatch falls through to chat.
+        text: `[arp:${action}] ${JSON.stringify(params)}`,
+        action,
+        params,
+        ...(flags.connectionId ? { connectionId: flags.connectionId } : {}),
+        syncTimeoutMs: timeoutMs,
+      }),
+    });
+  } catch (err) {
+    console.error(`arpc request: supervisor unreachable: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (res.status === 202) {
+    console.log(`\nqueued · msgId=${body['msgId']} · thid=${body['thid']}`);
+    return;
+  }
+  if (res.status === 200 && body['reply']) {
+    const reply = body['reply'] as { peerDid: string; text: string };
+    console.log(`\nreply from ${reply.peerDid}:`);
+    console.log(reply.text);
+    return;
+  }
+  if (res.status === 504 && body['error'] === 'reply_timeout') {
+    console.error(
+      `\ngateway accepted (msgId=${body['msgId']}) but no reply within ${timeoutMs / 1000}s.`,
+    );
+    process.exit(2);
+  }
+
+  console.error(
+    `\narpc request: ${res.status} ${body['error'] ?? 'failed'}\n` + JSON.stringify(body, null, 2),
+  );
+  process.exit(1);
+}
+
 // ---- contacts subcommands -------------------------------------------------
 
 function resolveAgentRootForContacts(asFlag?: string): string {

@@ -173,6 +173,16 @@ interface SendRequest {
   connectionId?: string | null;
   /** Wait up to this many ms for a peer reply matched by thid. 0 → fire-and-forget. */
   syncTimeoutMs?: number;
+  // ── Phase B/C — structured ARP action ────────────────────────────
+  /** When set, the envelope body carries action + params instead of
+   *  pure text. Audience adapter dispatches to /api/arp/<action>. */
+  action?: string;
+  /** Action-specific params merged into the envelope body (e.g.,
+   *  collection_id + query for notes.search). */
+  params?: Record<string, unknown>;
+  /** Optional Cedar resource entity. Defaults are inferred per
+   *  action when omitted. */
+  resource?: { type: string; id: string; attrs?: Record<string, unknown> };
 }
 
 async function handleSend(req: IncomingMessage, res: ServerResponse, opts: IpcServerOptions): Promise<void> {
@@ -202,6 +212,9 @@ async function handleSend(req: IncomingMessage, res: ServerResponse, opts: IpcSe
       to: body.to,
       text: body.text,
       ...(body.connectionId ? { connectionId: body.connectionId } : {}),
+      ...(body.action ? { action: body.action } : {}),
+      ...(body.params ? { params: body.params } : {}),
+      ...(body.resource ? { resource: body.resource } : {}),
     });
   } catch (err) {
     return json(res, 500, { error: 'send_failed', detail: (err as Error).message });
