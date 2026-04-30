@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import OnboardingForm from './OnboardingForm';
 import { Link, PlateHead } from '@/components/ui';
 import { AppShell } from '@/components/app/AppShell';
-import { getSession } from '@/lib/session';
+import { resolveAuthenticatedTenantId } from '@/lib/tenant-context';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +15,12 @@ export default async function OnboardingPage(props: {
   const nextUrl = typeof nextRaw === 'string' && nextRaw.startsWith('/') ? nextRaw : null;
 
   // If the user is already logged in with a complete account, skip onboarding
-  // entirely. Carry the deep-link `?next=` if present.
-  const session = await getSession();
-  if (session?.tenantId) {
+  // entirely. Carry the deep-link `?next=` if present. Uses the same
+  // session→tenant resolution as requireTenantDb so a session whose cookie
+  // hasn't been refreshed (tenantId still null after onboard) still hits
+  // the redirect via the principalDid → tenants fallback.
+  const tenantId = await resolveAuthenticatedTenantId();
+  if (tenantId) {
     redirect(nextUrl ?? '/dashboard');
   }
 

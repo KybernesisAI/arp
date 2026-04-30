@@ -10,7 +10,7 @@ import {
   Section,
 } from '@/components/ui';
 import LoginForm from './LoginForm';
-import { getSession } from '@/lib/session';
+import { resolveAuthenticatedTenantId } from '@/lib/tenant-context';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +26,8 @@ export default async function LoginPage(props: {
   const nextUrl = typeof nextRaw === 'string' && nextRaw.startsWith('/') ? nextRaw : null;
 
   // If already logged in with a complete account, skip the login form.
-  const session = await getSession();
-  if (session?.tenantId) {
+  const tenantId = await resolveAuthenticatedTenantId();
+  if (tenantId) {
     redirect(nextUrl ?? '/dashboard');
   }
 
