@@ -19,6 +19,23 @@ export interface InboundContext {
   connectionId: string | null;
   /** Plaintext extracted from the inbound DIDComm body. */
   text: string;
+  /**
+   * Full DIDComm body (action, resource, obligations, custom fields).
+   * Plain-text messages have just `{ text }` here; structured ARP
+   * action requests (Phase B) populate `action`, `resource`,
+   * `obligations`, and any action-specific params. Adapters that
+   * implement typed dispatch (kyberbot in PR-AC-5) inspect this to
+   * route to typed endpoints; legacy adapters that only know how to
+   * chat can ignore everything except `text`.
+   */
+  body?: Record<string, unknown>;
+  /**
+   * Obligations attached to the cloud-side decision. Honoring them
+   * is the ADAPTER's responsibility — that's the difference between
+   * policy-at-the-wire (LLM hopes to comply) and policy-at-the-data-
+   * layer (code guarantees compliance).
+   */
+  obligations?: Array<{ type: string; params: Record<string, unknown> }>;
 }
 
 export interface Adapter {
