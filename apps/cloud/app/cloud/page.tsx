@@ -494,10 +494,10 @@ export default function CloudLandingPage(): React.JSX.Element {
               cadence="/ forever"
               description="For tinkerers and early prototypes."
               features={[
-                '3 agents included',
-                '10,000 requests / month [TBD]',
+                '1 agent',
+                '1,000 inbound messages / month',
+                'Full audit + revocation',
                 'Community support',
-                'Full audit & controls',
               ]}
               ctaLabel="Start free"
               ctaHref="/signup"
@@ -505,16 +505,16 @@ export default function CloudLandingPage(): React.JSX.Element {
             <PricingCard
               tier="TIER 02 · PRO"
               name="Pro"
-              price="${{TBD}}"
-              cadence="/ mo"
-              description="For teams shipping agentic products to real users."
+              price="$5"
+              cadence="/ agent / mo"
+              description="For teams running real agents on real traffic."
               features={[
-                'Usage-based scaling',
+                'Unlimited agents (pay per agent)',
+                '10,000 inbound messages / month',
                 'Priority support',
-                'Advanced controls & policy',
-                'Private networks',
+                'Advanced policy + obligations',
               ]}
-              ctaLabel="Start 14-day trial"
+              ctaLabel="Start"
               ctaHref="/signup?plan=pro"
               highlighted
               popularLabel="MOST POPULAR"
@@ -525,13 +525,13 @@ export default function CloudLandingPage(): React.JSX.Element {
               price="Custom"
               description="For organizations with compliance, volume, and custom needs."
               features={[
-                'SLA & dedicated support',
-                'Security review',
-                'SSO & role-based access',
-                'Procurement-ready',
+                'SLA + dedicated support',
+                'Security + privacy review',
+                'SSO + role-based access',
+                'Procurement-ready contracts',
               ]}
-              ctaLabel="Talk to us [TBD]"
-              ctaHref="#"
+              ctaLabel="Talk to us"
+              ctaHref="mailto:hello@arp.run"
             />
           </div>
           <Grid12 className="mt-7 items-center">
