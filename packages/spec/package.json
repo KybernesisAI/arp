@@ -1,6 +1,6 @@
 {
   "name": "@kybernesis/arp-spec",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ARP shared contract: Zod schemas, JSON Schemas (draft 2020-12), and protocol constants.",
   "license": "MIT",
   "repository": {
