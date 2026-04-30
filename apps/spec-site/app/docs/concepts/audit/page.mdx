@@ -1,0 +1,71 @@
+export const metadata = {
+  title: "Audit & verification",
+  description: "Every interaction is logged in a hash chain you can verify yourself. What gets recorded, how to read it, and how to prove it hasn't been tampered with.",
+};
+
+# Audit & verification
+
+Every ARP interaction — pairing, message, allow, deny, revocation — is recorded in an audit log. The log is **hash-chained**: each entry includes a hash of the previous entry, so any tampering breaks the chain in a way you can detect.
+
+## What gets recorded
+
+Every inbound message at the cloud generates an audit entry with:
+
+- The connection ID
+- The agent and peer DIDs
+- The message ID and DIDComm type
+- The decision (`allow` / `deny` / `revoke` / `suspend` / `resume` / `rescope`)
+- The Cedar policies that fired
+- The obligations that were applied
+- A reason if denied (e.g., `policy_denied`, `auto_allow_response`)
+- Timestamp, sequence number, hash of the previous entry, hash of this entry
+
+## Where to see it
+
+Your dashboard at `cloud.arp.run/connections/<id>/audit` shows the chain for one connection. Default view is most-recent-first, with decision badges and short reason summaries.
+
+The same data is downloadable as JSON if you want to do your own analysis or archival.
+
+## Verifying integrity
+
+Click **Verify integrity** on any audit page. The browser walks the chain:
+
+1. Recomputes each entry's hash from its content
+2. Confirms every entry's `prev_hash` matches the previous entry's `self_hash`
+3. Confirms the sequence numbers are contiguous (0, 1, 2, …)
+4. Reports clean / first break
+
+If the chain verifies, no entry has been added, removed, or modified since it was written. If something fails, the report tells you the exact entry where the break occurred.
+
+This works even if you don't trust the cloud — the verification is local, against the entries the cloud serves you. If the cloud lies and serves a tampered chain, verification catches it.
+
+## Independence
+
+Each `(agent, connection_id)` pair has its own chain. Two agents on the same connection have **two separate chains** — one per side, independently verifiable. Both sides can keep their own copy and prove their own version of events.
+
+## What's not in the audit
+
+- The plain-text body of messages (encrypted bodies exist in DIDComm but are stored separately, not in the audit chain)
+- Free-form chat content beyond metadata
+- Cross-connection correlations (each chain is per-connection)
+
+Audit is about *what happened* — decisions, obligations, lifecycle events. It's not a complete recording of every byte exchanged.
+
+## Three things audit lets you do
+
+**1. Prove a peer asked for something they shouldn't have.** The deny entries with reason `policy_denied` show every attempt that failed.
+
+**2. Prove what you actually shared.** Allow entries record which Cedar policies fired and what obligations applied. If a peer claims they got something you didn't share, the audit shows the policy that gated the share.
+
+**3. Reconstruct lifecycle.** Pairing → re-scope → suspend → revoke. Every state change is in the chain.
+
+## Practical advice
+
+- **Run "Verify integrity" before relying on audit data** — takes seconds, gives you a definite answer.
+- **Download a snapshot for important connections** — useful if you ever need to prove the chain in a dispute.
+- **Pay attention to deny reasons** — `ambiguous_connection`, `obligation_unsatisfiable`, `rate_limited` each tell you something about how the peer is behaving.
+
+## Related
+
+- [Connections](/docs/concepts/connections) — what audit attaches to
+- [Edit or revoke a connection](/docs/guides/edit-connection) — how audit reflects connection lifecycle

@@ -1,216 +1,92 @@
 export const metadata = {
   title: "HNS resolution",
-  description: "How Handshake .agent names resolve in browsers, servers, and CLI tools.",
+  description: "How Handshake .agent names resolve in browsers, agents, and the gateway — and why most users never see the resolution layer at all.",
 };
 
 # HNS resolution
 
-**Problem:** Handshake (HNS) domains don't resolve natively in standard browsers or operating systems. ICANN's DNS doesn't know about `.agent`. Without a bridge, typing `https://atlas.agent` into Chrome fails.
+`.agent` is a Handshake (HNS) TLD. ICANN doesn't know about it, so by default `https://samantha.agent` doesn't load in Chrome. This page is about why that's almost never a problem in practice.
 
-This affects *how humans access the owner UI*. It does **not** affect agent-to-agent communication, which uses DoH natively.
+**Audience:** developers + operators. End users will never read this page; their browser hits `cloud.arp.run`, not `.agent` URLs.
 
-This doc explains the split, the solutions, and what each install mode (Mac/tunnel, VPS, Cloud) should do.
+## TL;DR
 
----
+- **Agent ↔ agent traffic** never touches HNS in production today. Bridges dial outbound to `wss://gateway.arp.run` (an ICANN domain) and the gateway resolves the peer agent's `did:web:<name>.agent` document by fetching from the same gateway-hosted endpoint. No browser, no system DNS, no `.agent` resolution required at runtime.
+- **Owner UI** lives at `cloud.arp.run` (ICANN). End users sign in there to manage their agents. Their `.agent` domain never appears as a URL they have to load.
+- **Power users** who want to load `https://samantha.agent` directly in a browser need an HNS resolver — a public gateway URL like `https://samantha.agent.hns.to`, a browser extension (Fingertip, Resolvr), or a local `hnsd` daemon.
 
-## 1. Two audiences, two resolution paths
+The protocol is HNS-rooted because we want self-sovereign agent identity. Day-to-day operations are ICANN-fronted because that's what users have.
 
-| Audience | What they need | Solution |
+## Why HNS in the first place
+
+A `.agent` Handshake name lets the principal own the namespace without going through a registrar that can be served, subpoenaed, or pulled. The DID document for `did:web:samantha.agent` is published under the principal's own zone control. ICANN's `.com` plus a startup is a worse trust model — the startup can disappear, get acquired, or get told to revoke.
+
+Handshake doesn't fix everything (you still need a host that serves the well-known files), but the **identifier** is portable in a way an ICANN domain isn't.
+
+## Where resolution actually has to happen
+
+| Who needs to resolve `.agent` | When | How |
 |---|---|---|
-| **Agents** (bot ↔ bot) | Resolve `did:web:ghost.agent`, fetch well-known docs, open DIDComm | DoH (`https://hnsdoh.com/dns-query`) or local `hnsd` daemon |
-| **Humans** (owner ↔ UI) | Open `https://ian.atlas.agent` in a browser or mobile app | Mobile app (built-in DoH), HNS gateway URL, or SaaS fallback |
+| The gateway | When a peer agent sends a message addressed to `did:web:<name>.agent` and the gateway needs the peer's DID document | The gateway's resolver service has DoH against an HNS resolver (`hnsdoh.com/dns-query`) wired in |
+| A self-hosted gateway operator | Same as above, but on their own infra | Configure `RESOLVER_DOH_URL` env var; default points at `hnsdoh.com` |
+| A power user wanting to open `https://samantha.agent` in a browser | Rare | HNS gateway URL, browser extension, or local `hnsd` |
+| End users using the managed cloud | Never | They use `cloud.arp.run` |
 
-Agent resolution is already a solved problem — the Headless Domains skill doc covers it. Our runtime configures DoH out of the box. No user action required.
+## How the gateway resolves a peer
 
-Human resolution is the gap. The rest of this doc is about filling it.
+When the bridge connects to `gateway.arp.run` and tells it to deliver a message to `did:web:peer.agent`, the gateway:
 
----
+1. Fetches `https://peer.agent/.well-known/did.json` to get the peer's DID document.
+2. Reads the peer's DIDComm service endpoint (which today is also `gateway.arp.run`, since most agents go through the managed cloud — or whatever gateway the peer is registered with).
+3. Routes the encrypted envelope.
 
-## 2. Agent-side resolution (baked into our runtime)
+Step 1 needs HNS resolution. The gateway uses DoH against `hnsdoh.com/dns-query` and fetches the well-known doc. Bridges and end-user browsers never have to do this themselves.
 
-The ARP sidecar / SDK / cloud client all ship with HNS resolution preconfigured:
+For self-hosted setups, the well-known doc is sometimes hosted on a parallel ICANN host (`peer.example.com`) and the DID document points there — DID:web doesn't strictly require the domain in the DID match the hosting URL. Both arrangements work; the gateway follows the document.
 
-**Default:** DoH against `https://hnsdoh.com/dns-query`. Zero config.
-**Advanced:** users can run `hnsd` locally and point the runtime at `127.0.0.1:53` for trustless resolution.
+## TLS
 
-Wire-level, this means when `samantha.agent` needs to talk to `ghost.agent`:
+Two strategies, applied to two different surfaces:
 
-```
-samantha's runtime
-  → DoH GET hnsdoh.com/dns-query?name=ghost.agent&type=A
-  → returns IP
-  → HTTPS to that IP, Host: ghost.agent
-  → TLS validated against cert pinned in ghost.agent's DID doc (§4)
-  → DIDComm envelope delivered
-```
+### Agent-to-gateway (always TLS via Let's Encrypt)
 
-**This is a self-contained path. It does not depend on ICANN DNS, the user's system resolver, browser extensions, or anything Let's Encrypt sees.**
+Bridges connect to `wss://gateway.arp.run` (or your self-hosted equivalent on an ICANN domain). Standard web PKI. The gateway terminates TLS with a Let's Encrypt cert.
 
----
+Self-hosters: deploy the gateway behind a TLS-terminating proxy (Caddy, the platform's edge — Railway, Fly, Cloudflare) on an ICANN-visible host. Don't try to serve TLS direct from a `.agent` name unless you specifically want power-user-direct access (next section).
 
-## 3. Human-side resolution (three paths)
+### Direct agent endpoint on `.agent` (optional, advanced)
 
-The owner UI is `https://ian.atlas.agent`. Three working ways to reach it:
+If you want peers to be able to fetch `https://samantha.agent/.well-known/did.json` directly without going through `gateway.arp.run`, you need a TLS cert valid for `.agent`. Two options:
 
-### Path A — Mobile app (recommended default)
+1. **DID-pinned self-signed.** Generate a cert, publish its SHA-256 fingerprint in the DID document under a `tlsCertificatePin` field. Peers validate against the pin instead of a CA. More sovereign than web PKI; only works for peers that look up the pin.
+2. **ACME DNS-01 via Headless Domains.** If your HNS registrar supports `_acme-challenge` TXT records, Let's Encrypt can issue for `.agent`. This is non-trivial — most HNS-hosting flows don't support it cleanly today.
 
-The ARP mobile app ships with a built-in HNS resolver. When you tap a notification or scan a pairing QR, the app resolves the owner URL internally and connects directly. The browser DNS problem doesn't apply because we don't use the system browser.
+In practice, almost every production setup just hosts the well-known docs on an ICANN domain (or via the gateway) and skips this entirely. Direct `.agent` browser access is a niche use case.
 
-This is the primary owner UI for most users. Fast, native, handles biometrics and push notifications.
+## What this means for end users
 
-### Path B — HNS gateway URL (works in any browser)
+Nothing. They sign in at `cloud.arp.run`, get a `.agent` name when they provision an agent, and the system handles all the routing. They never type `.agent` into a browser.
 
-Public HNS gateways translate HNS names into regular `.com`/`.to` URLs:
+Pairing URLs use the dashboard's domain too (`https://cloud.arp.run/pair?invite=…`), not `.agent` URLs. Notification deeplinks open the dashboard.
 
-```
-https://ian.atlas.agent          ← native HNS (won't load without extension)
-https://ian.atlas.agent.hns.to   ← works in any browser, anywhere
-```
+## What this means for developers
 
-The gateway does the HNS lookup server-side and proxies the content. TLS is handled by the gateway. Usable from a borrowed laptop, a mobile browser, a work computer — any environment where installing extensions isn't possible.
+If you're authoring an adapter, building a custom agent, or running your own gateway:
 
-**Cost:** the gateway sees your traffic. Not suitable for sensitive sessions, but fine for read-only audit viewing or quick revocations.
+- Don't depend on `.agent` resolving from arbitrary user environments.
+- The DID document is the source of truth for where to send DIDComm — never hardcode `.agent` URLs.
+- For testing locally, point your bridge at a local gateway (`wss://localhost:8765`) and stub the resolver to return synthetic DID docs from a local fixture.
 
-### Path C — SaaS fallback at `app.arp.spec`
+## Recommended defaults
 
-We host a web app at `app.arp.spec` (a regular ICANN domain with a real cert). You log in with your principal DID. The SaaS pulls data from your agent via authenticated API and renders the same owner UI.
+| Setup | Bridge connects to | Browser opens | Resolution needed by |
+|---|---|---|---|
+| Managed cloud (Mode A) | `wss://gateway.arp.run` | `cloud.arp.run` | The gateway (handled) |
+| Self-hosted gateway (Mode B) | `wss://gateway.example.com` | `app.example.com` | Your gateway (configure DoH) |
+| Embedded library (Mode C) | Direct DIDComm to peer's gateway | Whatever you build | Your runtime (configure DoH) |
 
-**When to use:** first-time setup before your agent is running, recovery if your owner subdomain is misconfigured, access from a locked-down machine.
+## Related
 
-**Cost:** we see metadata (who's logged in, what they're looking at). Message bodies stay E2E encrypted between agents — `app.arp.spec` doesn't get those — but it does know you opened the audit log.
-
-### Path D — Browser extension (power users)
-
-Extensions like Fingertip or Resolvr add HNS resolution to Chrome/Firefox. Once installed, `https://ian.atlas.agent` loads natively. TLS certificate handling depends on the extension (usually by accepting a browser-level CA override or using a local proxy).
-
-**When to recommend:** technical users who want native HNS browsing across the board. Not the default.
-
----
-
-## 4. TLS strategy
-
-TLS is the other thing HNS affects. Standard web PKI (Let's Encrypt) expects ICANN-visible DNS for validation. `.agent` is HNS-only, so you can't just `certbot` your way to a cert.
-
-Two TLS strategies, used in different places:
-
-### 4.1 Agent ↔ agent: self-sovereign TLS pinned in DID doc
-
-For agent-to-agent traffic (the main protocol), skip web PKI entirely.
-
-The agent's DID document publishes its TLS cert fingerprint:
-
-```json
-{
-  "id": "did:web:atlas.agent",
-  "verificationMethod": [...],
-  "service": [
-    {
-      "type": "DIDCommMessaging",
-      "serviceEndpoint": "https://atlas.agent/didcomm",
-      "tlsCertificatePin": {
-        "algorithm": "sha256",
-        "value": "a3f5b2e1c8d4..."
-      }
-    }
-  ]
-}
-```
-
-Peer agents validate by computing the fingerprint of the presented cert and comparing. The cert can be self-signed — identity comes from the DID, not a CA. This is **more secure** than web PKI for this use case because there's no CA that could mis-issue, and the fingerprint is under the principal's signature chain.
-
-The ARP SDK handles cert generation, rotation, and DID-doc publishing automatically. Sidecar users don't see any of this.
-
-### 4.2 Human UI endpoints: regular web PKI
-
-Where humans need to connect from browsers or mobile apps with standard TLS stacks:
-
-| Endpoint | Cert source |
-|---|---|
-| `hns.to` gateway | Gateway's own wildcard cert (`*.hns.to`) |
-| `app.arp.spec` SaaS | Regular Let's Encrypt on `arp.spec` |
-| Tunnel endpoints (ngrok, Cloudflare) | Tunnel provider's cert |
-| ARP Cloud hosted UI | Our Let's Encrypt wildcard |
-
-In every human-facing case, the cert lives on an ICANN-visible domain — so standard LE works.
-
-### 4.3 The bridge: ACME-over-DNS-01 via Headless
-
-If a future install mode wants to *serve HTTPS directly to browsers from an HNS domain* (e.g., a power-user setup with a browser extension), ACME DNS-01 can work if Headless exposes a TXT-record API for `_acme-challenge.atlas.agent`. Let's Encrypt queries HNS via their own resolver (they don't — but there's a workaround: publish the TXT record on both HNS and a parallel ICANN domain, and LE validates the ICANN copy).
-
-This is not v0 territory. Listed for completeness.
-
----
-
-## 5. What each install mode does about it
-
-### Mac + tunnel (ngrok / Cloudflare)
-
-**Agent traffic:** sidecar uses DoH → resolves peer `.agent` names → connects. Fine.
-
-**Inbound:** `atlas.agent` needs to resolve to your tunnel endpoint. Two options:
-
-- **ngrok with custom domain:** you've already set `atlas.agent` as your ngrok custom domain, so HNS and ngrok both point the right way. ngrok's cert covers it (they handle custom-domain certs). Other agents resolve `atlas.agent` via DoH → ngrok IP → terminate TLS at ngrok → sidecar.
-- **Cloudflare Tunnel:** same pattern. `atlas.agent` resolves via HNS; Cloudflare terminates TLS with their cert for `atlas.agent` (auto-provisioned).
-
-**Owner UI:** use the mobile app, or `ian.atlas.agent.hns.to` in a browser, or `app.arp.spec` as fallback.
-
-### VPS
-
-**Agent traffic:** sidecar runs on VPS, bound to port 443. Peer agents resolve `atlas.agent` via DoH → VPS IP → direct HTTPS to sidecar.
-
-**TLS:** the sidecar's auto-ACME won't work out of the box because LE can't resolve `atlas.agent` via ICANN DNS. Two fixes:
-
-1. **Use DID-pinned self-signed cert** (agent-to-agent default). Sidecar generates a cert, pins its fingerprint in the DID document on first boot. Peer agents validate against the pin. No LE needed.
-2. **Add a parallel ICANN domain** (e.g., `atlas-proxy.arp.spec`) pointing to the same IP. LE issues a cert for that. Sidecar serves both names; peer agents connect to `atlas.agent` (HNS) but the cert also covers `atlas-proxy.arp.spec` via SAN. Belt-and-suspenders for the rare peer that can't yet validate DID-pinned certs.
-
-Default: option 1 in v0. Option 2 is a migration path if we find old runtimes need web PKI.
-
-**Owner UI:** same three paths — mobile app, `hns.to` gateway, or SaaS.
-
-### ARP Cloud
-
-**Agent traffic:** fully handled on our side. We run `hnsd` + DoH. Peers resolving `atlas.agent` get ARP Cloud's IP, terminate TLS against our cert (LE-issued for the ICANN domain we front `.agent` domains on), we proxy to your Mac's outbound connection.
-
-**Owner UI:** we serve `ian.atlas.agent` content directly from our infra. The URL uses the HNS name for routing (we control the zone on the HNS side too), but the public-facing endpoint is on our ICANN-visible infrastructure with a normal cert. Browser loads it because we've bridged the names for you.
-
-Our fallback: if your browser can't resolve HNS, it auto-redirects to the equivalent `app.arp.spec/atlas.agent/owner` URL and you never notice.
-
-**This is the mode where the HNS-resolution problem is least visible to users.**
-
----
-
-## 6. Recommended defaults per user type
-
-| User type | Owner UI path | Agent TLS |
-|---|---|---|
-| Non-technical | Mobile app → `app.arp.spec` fallback | Managed by us (Cloud mode) or sidecar (VPS/local) |
-| Technical, self-hosted | Mobile app → `ian.atlas.agent.hns.to` | DID-pinned self-signed, automatic via sidecar |
-| Power user | Browser extension → native HNS | DID-pinned or LE-via-DNS-01 |
-| Enterprise | SaaS + SSO to `app.arp.spec` | Managed, with audit requirements |
-
----
-
-## 7. What this changes in the existing docs
-
-| Doc | Change |
-|---|---|
-| `ARP-architecture.md` | Layer 0 description gains a note: HNS-native resolution for agents via DoH, mixed strategy for humans |
-| `ARP-tld-integration-spec*.md` | §3.3 TLS — specify that Headless should expose DNS-01 challenge support *if* we need LE for hybrid use cases, but v0 can run on DID-pinned TLS for agent endpoints |
-| `ARP-installation-and-hosting.md` | Add a short section noting that every install mode defaults to DID-pinned TLS for agent traffic; humans use mobile/gateway/SaaS |
-| `ARP-example-atlas-*.md` (×3) | Add a short "Accessing the owner UI" note describing the three browser paths |
-
-Edits to the example docs happen now.
-
----
-
-## 8. Summary — the one paragraph
-
-HNS domains don't resolve in standard browsers, but this only affects how humans reach the owner UI. Agents talk to each other using DoH against `hnsdoh.com/dns-query` or a local `hnsd` daemon — zero user-visible friction, all wired up in the ARP runtime. Humans reach the owner UI via the ARP mobile app (built-in resolver), an HNS gateway URL like `ian.atlas.agent.hns.to`, or our SaaS fallback at `app.arp.spec`. TLS for agent-to-agent traffic uses certificate fingerprints pinned in the DID document (more sovereign than web PKI); TLS for human-facing UIs uses regular Let's Encrypt on ICANN-visible domains. The architecture stays clean because the two audiences are solved separately.
-
-
----
-
-<div className="mt-16 border-t border-rule pt-6 font-mono text-kicker uppercase tracking-[0.14em] text-muted">
-  Source: <a href="https://github.com/KybernesisAI/arp/blob/main/docs/ARP-hns-resolution.md">docs/ARP-hns-resolution.md</a>
-  {' · '}Ported 2026-04-23
-</div>
+- [Install — Self-host gateway](/docs/install/cloud) — gateway DoH configuration
+- [Architecture](/spec/v0.1/architecture) — system design overview
+- [Identity (concept)](/docs/concepts/identity) — what `.agent` actually identifies

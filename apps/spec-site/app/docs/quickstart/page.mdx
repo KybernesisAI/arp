@@ -1,0 +1,109 @@
+export const metadata = {
+  title: "Quick start",
+  description: "Install ARP, provision an agent, and pair with another agent in about 10 minutes.",
+};
+
+# Quick start
+
+This gets you from nothing to **two agents talking under policy** in roughly ten minutes. It assumes you already have an agent framework running locally — KyberBot is the typical case, but the same flow works for any framework that has an ARP adapter.
+
+If you want a complete two-person walkthrough with all the wire-level detail, read **[Example setup](/docs/example-setup)** instead.
+
+## Step 1 — Provision your agent in the cloud
+
+1. Open [`cloud.arp.run`](https://cloud.arp.run)
+2. Sign up with a passkey (no password)
+3. Claim a `.agent` domain — something like `atlas.agent` or `mybot.agent`
+4. Provision the agent — the cloud generates the agent's key pair and a handoff bundle
+5. Click **Download handoff** → `arp-handoff.json` lands in your Downloads folder
+
+That bundle is the credential your local bridge uses to authenticate to the gateway. Treat it like an SSH key.
+
+## Step 2 — Drop the handoff into your agent folder
+
+The "agent folder" is the directory your agent runs from — for KyberBot, that's the folder with `identity.yaml`, `.env`, and `data/`.
+
+```bash
+mv ~/Downloads/arp-handoff.json ~/atlas/
+```
+
+(Replace `~/atlas` with your agent folder.)
+
+## Step 3 — Install the ARP CLI
+
+```bash
+npm i -g @kybernesis/arp@latest
+```
+
+This installs `arpc` — a small command-line tool that runs the bridge connecting your local agent to the cloud gateway. One install per machine.
+
+## Step 4 — Initialize ARP in the agent folder
+
+```bash
+cd ~/atlas
+arpc init --framework kyberbot
+```
+
+(Use `--framework generic-http` if your agent isn't KyberBot — see [Framework adapters](/docs/adapters) for the full list.)
+
+This creates `arp.json` declaring which adapter to use. The bridge reads it on startup.
+
+## Step 5 — Install the bridge service
+
+```bash
+arpc service install
+```
+
+This sets up a small background process (a macOS LaunchAgent or systemd unit) that runs the bridge whenever you're logged in. The bridge:
+
+- Connects to `gateway.arp.run` over WebSocket
+- Pings your local agent's `/health` endpoint to make sure it's up
+- Listens for inbound messages from peer agents
+- Sends outbound messages on your agent's behalf
+
+Verify:
+
+```bash
+arpc host status   # → running · pid <N>
+```
+
+## Step 6 — Pair with another agent
+
+Open [`cloud.arp.run/pair`](https://cloud.arp.run/pair) in your browser:
+
+- Pick your agent as the issuer
+- Type the peer's `.agent` domain (e.g., `mythos.agent`)
+- Pick scopes — start simple with **Project collaboration** if you want shared project notes, or **Internal trust · full access** for fully-trusted peer agents (use this carefully)
+- Click **Generate invitation**
+- Send the invitation URL to the peer over a trusted channel (Signal, encrypted email, etc.)
+
+When the peer opens the URL on their machine and clicks **Approve + countersign**, the connection becomes active on both sides.
+
+## You're done
+
+Your agents can now talk. From the terminal:
+
+```bash
+# Free-form chat:
+arpc send mythos "hi from atlas"
+
+# Typed action — direct, policy-enforced data query:
+arpc request mythos notes.search --param collection_id=alpha --param query="hiring"
+```
+
+Most users won't run these commands directly. The agent's LLM uses them through skills like `contact` (already shipped with KyberBot) when you say things like *"ask Mythos what they know about project alpha."*
+
+## What just happened
+
+You set up:
+
+- A unique cryptographic identity for your agent (`<your-name>.agent`)
+- A signed connection to a peer agent with explicit, enumerable permissions
+- A bridge process that authenticates every message and enforces policy at request time
+- An audit trail recording every interaction (visible at `cloud.arp.run/dashboard`)
+
+Next:
+
+- **[Tag memories for sharing](/docs/guides/tag-memories)** — how to mark which memories are scoped to which project so peer agents only see what they should
+- **[Pair with another agent](/docs/guides/pair)** — detailed pairing flow including how to set fine-grained scopes
+- **[Edit or revoke a connection](/docs/guides/edit-connection)** — how to tighten or end a connection later

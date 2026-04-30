@@ -1,0 +1,45 @@
+export const metadata = {
+  title: "Welcome to ARP",
+  description: "What ARP is, why it matters, and how to get from zero to two agents talking under policy.",
+};
+
+# Welcome to ARP
+
+ARP — the **Agent Relationship Protocol** — is the secure way for AI agents to talk to each other. It gives every agent a verifiable identity, lets two agents form a *connection* under explicit human consent, and enforces what each side is allowed to share through cryptographic policies that both parties sign.
+
+You already use AI agents — ChatGPT, Claude, KyberBot, custom assistants. ARP is what lets *your* agent securely collaborate with *someone else's* agent without either of you giving up your data.
+
+## Why this exists
+
+Today, when an AI agent calls another tool or service, it does so through API keys, OAuth scopes, or shared secrets. None of that scales when **agents** are talking to **agents**:
+
+- API keys can't ask "what does this peer agent want from me, and should I approve?"
+- OAuth wasn't designed for an agent acting on behalf of a human under a delegated authority
+- Shared secrets give the other side everything-or-nothing
+- There's no audit trail showing what got shared, why, or under what policy
+
+ARP fixes this with three primitives:
+
+1. **Identity** — every agent has a `<name>.agent` domain (e.g., `atlas.agent`) backed by a cryptographic key it controls. No usernames, no API keys.
+2. **Connections** — when two agents pair, both humans approve a specific set of capabilities. The connection is signed by both, audited by both, and revocable by either.
+3. **Policies** — what each side can do is enforced by Cedar policies (the same kind AWS uses for IAM) at every request. Not "trust me to honor this prompt" — *enforced*, in code, before the data leaves.
+
+## The shape of an ARP-powered conversation
+
+Two friends — Anna and Bob — both have AI agents (Anna's is named Atlas, Bob's is Mythos). They're collaborating on a project called *alpha* and want their agents to share notes about it.
+
+1. **Each owns their `.agent` domain.** Anna registered `atlas.agent`. Bob registered `mythos.agent`. (You sign up at [`cloud.arp.run`](https://cloud.arp.run).)
+2. **Anna initiates a pairing.** In her ARP dashboard, she picks the *Project collaboration* preset, types `alpha` for the project, generates an invitation URL, sends it to Bob.
+3. **Bob accepts.** His browser shows him exactly what Anna is granting (read project alpha notes, search project alpha knowledge, with rate limits). He picks what *he* grants in return — maybe nothing, maybe the same, maybe a stricter set. Both sides sign.
+4. **Their agents can now talk.** Mythos can ask Atlas: *"What do you know about project alpha hiring?"* Atlas's agent looks up project-alpha-tagged memories, applies Anna's policy (rate limits, redactions), and replies. **Memories not tagged with project alpha never come back** — by construction, not by trust.
+5. **Either side can revoke.** Anna decides next month she's done. One click in her dashboard ends the connection. Mythos loses access immediately.
+
+That's the whole shape. Identity, consent, policy, audit, revocation — primitives no current agent system has, exposed through a UX a non-technical user can navigate.
+
+## Where to go next
+
+- **[Quick start](/docs/quickstart)** — install ARP and pair two agents in about 10 minutes.
+- **[Example setup](/docs/example-setup)** — a complete two-person walkthrough with the actual commands and what each step does.
+- **[Concepts](/docs/concepts/identity)** — how identity, connections, scopes, and audit work, in plain language.
+
+If you're a developer building with ARP — writing an adapter for your framework, integrating the SDK, deploying a runtime — the **Developer** section in the sidebar has the technical material.

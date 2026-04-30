@@ -5,7 +5,14 @@ export const metadata = {
 
 # Policies & Cedar
 
-**Purpose:** show exactly how a Connection's policy is authored, compiled, and evaluated, using the scenario Ian (owns `samantha.agent`) + Nick (owns `ghost.agent`) collaborating on Project Alpha.
+**Audience:** developers building agents, adapters, or runtimes against ARP. This page goes deep on Cedar — for the user-facing concept see [Scopes & policies](/docs/concepts/scopes-and-policies).
+
+**Purpose:** show exactly how a Connection's policy is authored, compiled, and evaluated, using a worked example — Anna (owns `samantha.agent`) + Bob (owns `ghost.agent`) collaborating on Project Alpha.
+
+**Status notes:**
+- The 3-layer model (scope template → Cedar → signed envelope), evaluation semantics, schema, and obligation set listed below all match what `@kybernesis/arp-pdp` evaluates today.
+- Variables flagged below as `(v0.2+)` (reputation, location, anomaly) are placeholders — the schema reserves them but they're not populated yet.
+- The Cedar `@obligation` annotation syntax is an ARP profile extension; the PDP evaluates a parallel obligation policy set and returns `{ decision, obligations[] }`.
 
 ---
 
@@ -31,13 +38,13 @@ Owner sees Layer 1. Agents exchange Layer 3. The PDP evaluates Layer 2.
 
 ## 2. Scenario
 
-- **Ian** owns `samantha.agent` (his personal agent)
-- **Nick** owns `ghost.agent` (his personal agent)
+- **Anna** owns `samantha.agent` (her personal agent)
+- **Bob** owns `ghost.agent` (his personal agent)
 - They're collaborating on **Project Alpha** — a research project whose files live in Samantha's memory
-- Ian wants Ghost to be able to read the Alpha project files and discuss scheduling, but nothing else
-- Ian wants the connection to cap at $50/month in paid operations
-- Ian wants business-hours-only access
-- Ian wants all mentions of specific client names redacted on the way out
+- Anna wants Ghost to be able to read the Alpha project files and discuss scheduling, but nothing else
+- Anna wants the connection to cap at $50/month in paid operations
+- Anna wants business-hours-only access
+- Anna wants all mentions of specific client names redacted on the way out
 
 ---
 
@@ -80,7 +87,7 @@ permit (
     "permit (principal == Agent::\"did:web:ghost.agent\", action in [Action::\"read\", Action::\"list\"], resource in Project::\"alpha\");"
   ],
   "expires": "2026-10-22T00:00:00Z",
-  "sigs": { "ian": "...", "nick": "..." }
+  "sigs": { "anna": "...", "bob": "..." }
 }
 ```
 
@@ -288,7 +295,7 @@ Variables the PDP exposes at evaluation time. Organized by category. Use these i
 | `principal.connection_purpose` | string | Purpose label of the connection |
 | `principal.delegation_depth` | int | How many hops in the UCAN chain |
 | `principal.delegated_by` | [string] | Full chain of delegator DIDs |
-| `principal.reputation_score` | int 0–100 | Optional external reputation (v0.2+) |
+| `principal.reputation_score` | int 0–100 | Reserved (v0.2+ — not populated by current PDP) |
 | `principal.key_age_seconds` | int | How long the signing key has existed |
 
 ### 6.2 Resource (what's being accessed)
@@ -398,7 +405,9 @@ The keys in the table below are example VC type identifiers — they render as p
 | `context.presented_vcs.employment.verified` | bool | External issuer |
 | `context.presented_vcs.employment.employer_did` | string | |
 
-### 6.10 Request origin / environment
+### 6.10 Request origin / environment (v0.2+ — reserved)
+
+These variables are declared in the schema but not populated by the current PDP. Listed for forward-compatibility.
 
 | Variable | Type | Meaning |
 |---|---|---|
@@ -407,7 +416,7 @@ The keys in the table below are example VC type identifiers — they render as p
 | `context.origin.network_type` | enum | `residential`, `corporate`, `vpn`, `tor`, `cloud` |
 | `context.origin.is_known_device` | bool | Previously-seen fingerprint |
 
-### 6.11 Risk signals
+### 6.11 Risk signals (v0.2+ — reserved)
 
 | Variable | Type | Meaning |
 |---|---|---|

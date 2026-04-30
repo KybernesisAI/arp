@@ -1,0 +1,91 @@
+export const metadata = {
+  title: "Memory & tagging",
+  description: "Why tagging your memories is the gate that makes scope policies meaningful — and what KyberBot users do in practice.",
+};
+
+# Memory & tagging
+
+Scopes (and the Cedar policies they compile to) are only as strict as the data your agent actually has tagged. If you grant a peer "read project alpha notes" but no memory in your agent is tagged `project_id=alpha`, the peer sees nothing. That's the right outcome — narrowness over leakage. But it means **how you tag is the practical privacy layer**.
+
+## What your agent stores
+
+Most agents — KyberBot, custom assistants — store information across several layers:
+
+- A **fact store** (specific things you've told it: "Sarah joined the alpha team")
+- A **timeline** of conversation events
+- A **session** record per chat
+- An **embedding store** (semantic search over chunks)
+
+ARP-aware agents add metadata columns to each of those layers: `project_id`, `tags`, `classification`, `connection_id`, `source_did`. Those names match the scope catalog vocabulary exactly — what the picker types into the parameter is what the agent stores against the row.
+
+## What gets stamped automatically
+
+Some metadata fills itself in:
+
+- **`connection_id`** — when a memory is created during a conversation that came in over an ARP connection, the connection ID is auto-stamped. So *"forget everything that came in from this peer"* is one DELETE.
+- **`source_did`** — same idea for the peer's DID.
+
+## What you set explicitly
+
+The interesting metadata — `project_id`, `tags`, `classification` — you (or your agent's LLM, via the `remember` skill) set when storing a memory.
+
+For KyberBot, the command is:
+
+```bash
+kyberbot remember "Sarah Chen joined project alpha as ML lead" \
+  --project alpha \
+  --tag hiring
+```
+
+The `remember` skill teaches the LLM to add these flags whenever the user mentions a named project, sensitivity context, or cross-cutting theme.
+
+| Flag | When |
+|---|---|
+| `--project <slug>` | Memory is specifically about a named project |
+| `--tag <name>` (repeatable) | Cross-cutting theme |
+| `--classification public\|internal\|confidential\|pii` | Content sensitivity tier |
+
+## What "tagged" means at query time
+
+When a peer agent asks your agent through ARP — say, *"search project alpha notes"* — the audience-side handler does this query at the data layer:
+
+```sql
+SELECT … FROM facts
+WHERE project_id = 'alpha'
+  AND content MATCHES <query>
+```
+
+By construction, only project alpha rows come back. Even if the cedar policy somehow allowed a wider search, the data layer wouldn't return rows it can't match.
+
+## What's invisible
+
+To a peer with `project_id=alpha` access:
+
+- ✓ Memories stored with `--project alpha`
+- ✗ Memories stored with `--project beta` (different project)
+- ✗ Memories stored without `--project` (untagged)
+- ✗ Memories stored with `--classification confidential` if the connection's policy excludes it
+
+## Why this matters
+
+Most "AI privacy" stories rely on prompts ("don't share confidential information") or after-the-fact LLM-as-filter approaches. Both fail under stress — the LLM forgets, hallucinates, or gets reasoned into compliance.
+
+ARP's model is different: **the data layer is the source of truth**. If a row isn't tagged, it's not in the result set. The LLM can't accidentally leak it because it never sees it.
+
+This means tagging discipline matters. Stay narrow:
+
+- Only set `--project` when the user clearly named a project. Don't guess.
+- Use `--classification pii` for genuinely PII content (addresses, SSNs, health info). Default tier (`internal`) is fine for ordinary work info.
+- `--tag` is for cross-cutting themes the user actively uses, not categories you invent.
+
+## What to tell users
+
+If you're explaining ARP's privacy story to a non-technical user, this is the heart of it:
+
+> Your agent only shares what you've explicitly tagged for sharing. When you tell it about project alpha, you (or the agent) tag it as project alpha. Anyone you've paired with for project alpha sees those tagged memories — nothing else. Untagged memories stay private.
+
+## Related
+
+- [Tag memories for sharing](/docs/guides/tag-memories) — practical guide for KyberBot users
+- [Scopes & policies](/docs/concepts/scopes-and-policies) — how tags map to policy parameters
+- [Audit & verification](/docs/concepts/audit) — how to see what was actually shared

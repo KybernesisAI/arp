@@ -1,43 +1,100 @@
 export const metadata = {
   title: 'SDKs',
-  description: 'Public APIs for building ARP-native code — TypeScript SDK and (at launch) Python SDK.',
+  description: 'TypeScript packages that make up ARP, plus what each one is for and when to import it directly.',
 };
 
 # SDKs
 
-ARP ships two SDKs: a TypeScript SDK that powers the reference monorepo
-and a Python port that ships at Phase 9 launch.
+ARP is built as a layered set of TypeScript packages under the `@kybernesis/` scope. Most users never import any of them directly — the `arpc` CLI and the cloud-bridge handle the wire details. Developers building integrations or framework adapters import what they need.
 
-## TypeScript — `@kybernesis/arp-sdk`
+## Published packages
 
-```sh
+| Package | Purpose |
+|---|---|
+| **`@kybernesis/arp`** | The `arpc` CLI. Install globally to drive the bridge from the terminal. |
+| **`@kybernesis/arp-cloud-bridge`** | The bridge runtime that connects a local agent to the cloud gateway. Bundles the kyberbot + generic-http adapters. |
+| **`@kybernesis/arp-cloud-client`** | WebSocket client used by the bridge + any embedded SDK consumer. Handles auth, reconnect, queue-while-disconnected, server-shutdown handling. |
+| **`@kybernesis/arp-pairing`** | Pairing protocol primitives: proposal creation, countersignature, audience amendment, canonical signing bytes, verification. |
+| **`@kybernesis/arp-pdp`** | Cedar policy decision point — evaluates compiled policies against request entities. |
+| **`@kybernesis/arp-scope-catalog`** | The 50+ scope templates + bundle presets. Compile templates → Cedar at pairing time. |
+| **`@kybernesis/arp-spec`** | Pure data + Zod schemas. Shared by every other package. The single source of truth for ARP shapes (DID docs, agent cards, connection tokens, scope catalog manifest, AgentResourceMetadata). |
+| **`@kybernesis/arp-resolver`** | DID resolution: did:web (HTTPS), did:key (in-memory). Used by the gateway to verify peer signatures. |
+| **`@kybernesis/arp-runtime`** | Reference agent runtime. Mostly internal; useful for tests + the sidecar binary. |
+| **`@kybernesis/arp-cloud-runtime`** | Multi-tenant runtime that powers `cloud.arp.run`. Lives in the same monorepo so self-hosters can deploy it. |
+| **`@kybernesis/arp-cloud-db`** | Drizzle schema + tenant-scoped DB helpers used by the cloud-runtime. |
+| **`@kybernesis/arp-audit`** | Hash-chained audit primitives. JCS canonicalization + SHA-256. |
+| **`@kybernesis/arp-transport`** | Envelope signing/verification, base64url helpers. The `/browser` subpath is Node-free for client bundles. |
+| **`@kybernesis/arp-consent-ui`** | Renders a `PairingProposal` into the human-readable consent view (used by `cloud.arp.run/pair/accept`). |
+| **`@kybernesis/arp-tls`** | TLS pinning helpers. |
+| **`@kybernesis/arp-create-adapter`** | Scaffold for new framework adapters — `npx @kybernesis/arp-create-adapter` generates a starter package. |
+| **`@kybernesis/arp-adapter-skill`** | Skill-system adapter (used by KyberBot's `contact` skill, etc.). |
+| **`@kybernesis/arp-sdk`** | High-level SDK for embedding ARP directly into a Node agent (Mode C in the [install overview](/docs/install)). |
+| **`@kybernesis/arp-testkit`** | Conformance test harness for adapter authors. |
+
+## Common use cases
+
+### "I want to install ARP on my machine"
+
+You don't need to think about packages. Run:
+
+```bash
+npm i -g @kybernesis/arp
+```
+
+That brings the `arpc` CLI onto PATH. Everything else gets pulled in transitively as a dep.
+
+### "I'm writing a framework adapter"
+
+```bash
+npm install @kybernesis/arp-cloud-bridge @kybernesis/arp-spec
+```
+
+The `@kybernesis/arp-cloud-bridge` package exports the `Adapter` interface. Implement `init()` + `ask(ctx)`. See [Framework adapters](/docs/adapters) for the full contract.
+
+For a starter scaffold:
+
+```bash
+npx @kybernesis/arp-create-adapter my-framework
+```
+
+### "I'm embedding ARP directly in my Node agent (Mode C)"
+
+```bash
 npm install @kybernesis/arp-sdk
 ```
 
-Core building blocks:
+Skip the bridge process; the SDK manages the WebSocket connection in-process. Useful for greenfield agents where you control the lifecycle.
 
-- `createClient({ sidecar, principalDid })` — open a connection to the
-  sidecar admin API from a caller frame (a UI, an adapter, your own app).
-- `listConnections()` / `getConnection(cid)` — introspect the caller's
-  connection set.
-- `request({ to, scope, payload, obligations })` — issue a scoped request
-  over an existing connection. Returns a signed reply or a rejection with
-  the failing Cedar rule.
-- `audit({ cid, limit })` — fetch a slice of the audit chain, verify
-  the hash links locally.
+### "I'm running the cloud-runtime myself (self-host)"
 
-Full typings live in `packages/sdk/src/index.ts` in the monorepo.
+```bash
+git clone https://github.com/KybernesisAI/arp.git
+cd arp
+pnpm install
+pnpm --filter @kybernesis/arp-cloud-gateway build
+# Then deploy apps/cloud-gateway with DATABASE_URL pointing at your Neon (or self-hosted Postgres)
+```
 
-## Python — `arp-sdk` (coming at Phase 9)
+The cloud-gateway is the binary you ship; it composes the cloud-runtime + cloud-db packages. See [Cloud (self-host)](/docs/install/cloud).
 
-Mirrors the TypeScript public API. v0.1 stubs Cedar-WASM + DIDComm
-transport; the obligation engine and compliance testkit probes are full-
-fidelity on day one. Installed via `pip install arp-sdk`.
+### "I want to verify a connection token / pairing proposal"
 
-## Adapters
+```bash
+npm install @kybernesis/arp-pairing @kybernesis/arp-resolver
+```
 
-If you're using a framework (LangGraph, KyberBot, OpenClaw, Hermes-Agent,
-NanoClaw), prefer the [framework adapter](/docs/adapters) — it wraps the
-SDK with framework-native conventions so you don't rewrite your handlers.
+`verifyConnectionToken()` and `verifyPairingProposal()` both take a resolver. For most cases a `did:web` resolver suffices.
 
-*This page is a v0.1 placeholder. Full normative prose lands before v1.0.*
+## Python SDK
+
+A Python port of the SDK is on the roadmap, scoped to mirror the TypeScript public API. Not yet shipped. ARP itself is language-agnostic — any agent that can speak DIDComm + HTTPS can integrate without an SDK by building envelopes manually, but an SDK shortens that work to a few imports.
+
+## Spec compliance
+
+If you're claiming ARP compliance, the [conformance testkit](/docs/adapters#conformance) (`@kybernesis/arp-testkit`) is the canonical battery. An adapter passes when every test in the suite is green.
+
+## Related
+
+- [Framework adapters](/docs/adapters) — how to author one
+- [Architecture](/spec/v0.1/architecture) — where these packages fit in the system
+- [Install overview](/docs/install) — three deployment modes

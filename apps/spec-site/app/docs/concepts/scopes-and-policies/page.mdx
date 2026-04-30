@@ -1,0 +1,100 @@
+export const metadata = {
+  title: "Scopes & policies",
+  description: "Three layers — scope templates, Cedar policies, signed connection tokens — and how a non-technical user navigates them.",
+};
+
+# Scopes & policies
+
+When two agents pair, the human(s) on each side decide what the other agent is allowed to do. ARP separates that into three layers, but you only ever see one.
+
+## What you see — scope presets
+
+In the pairing UI, you see preset bundles like:
+
+- **Project collaboration** — read project files, search notes, see task status
+- **Scheduling assistant** — coordinate meetings on your calendar
+- **Internal trust · full access** — for agents you fully control (intra-company)
+
+Each preset asks for parameters when needed (which project, which calendar, etc.). You pick the preset and fill in the blanks. That's it.
+
+## What's underneath — scope templates
+
+Each preset is built from individual **scope templates** in our [scope catalog](/scope-catalog). Each template has:
+
+- An ID like `files.project.files.read` or `messaging.relay.to_principal`
+- Parameters (e.g., `project_id`, `max_size_mb`)
+- A risk tier (low / medium / high / critical)
+- Default obligations (rate limits, audit level)
+
+You can build custom scope sets if presets don't cover your case — the picker lets you add or remove individual scopes and adjust their parameters.
+
+## What the runtime sees — Cedar policies
+
+Every scope template compiles into one or more **Cedar policies** when you pair. Cedar is a policy language (the same one AWS uses for IAM permissions). You don't write Cedar yourself; the picker generates it.
+
+A picked scope like `files.project.files.read` with `project_id=alpha` becomes a Cedar policy that reads:
+
+```cedar
+permit (
+  principal == Agent::"did:web:peer.agent",
+  action == Action::"read",
+  resource is File
+) when {
+  resource.project_id == "alpha"
+};
+```
+
+These policies live on the connection and are evaluated on every request — not just at pairing time. The peer can't claim later that they're "still allowed" because the policy is there in code, signed by both sides.
+
+## What gets signed
+
+When you sign a pairing proposal, you sign the canonical bytes of:
+
+- The connection ID
+- The two agents
+- The full set of compiled Cedar policies
+- The obligations
+- The expiration
+
+Tamper with any of those and the signature fails to verify. Cedar policies can't be added or modified after pairing without both sides re-consenting — that's why editing a connection is a re-handshake.
+
+## Risk tiers
+
+Every scope is rated:
+
+| Tier | Examples | UX treatment |
+|---|---|---|
+| **low** | Read-only metadata, public info | One-tap approve |
+| **medium** | Read content in a project, send chat messages | Standard inline approval |
+| **high** | External sharing, autonomous sending, deletes | Expanded confirm screen |
+| **critical** | Key rotation, full-access bundles, identity-adjacent | Step-up + explicit "I understand" |
+
+Risk tier influences default obligations. A `critical` scope automatically gets verbose audit logging; a `high` scope might require fresh consent every 7 days.
+
+## Obligations — what runs as code
+
+Cedar says *whether* an action is allowed. **Obligations** say *how* it must be applied. Obligations are honored by the audience-side adapter as code — not by prompting an LLM to comply.
+
+Common obligations:
+
+- **`rate_limit`** — at most N requests per minute/hour/day on this connection
+- **`max_size_mb`** — responses can't exceed N MB; over-cap requests fail rather than silently truncate
+- **`redact_fields_except`** — only return JSON fields in an allowlist (e.g., `[name, email]` keeps just those two)
+- **`audit_level`** — log every request body in full (verbose) vs just metadata (default)
+
+If an adapter can't honor an obligation (e.g., no support for a specific redaction), it returns an `obligation_unsatisfiable` error rather than risk leaking.
+
+## How to think about it
+
+When you're pairing:
+
+1. **Start narrow.** Pick the most specific scope set that covers the use case. Add scopes later if you need more.
+2. **Use parameters.** A `project_id=alpha` scope is much narrower than the same scope without parameters.
+3. **Watch for `critical` items.** If a scope is marked critical, ask why before approving. The full-access bundle is critical for a reason.
+4. **Edit, don't replace.** If you want to broaden later, edit the existing connection — preserves audit history.
+
+## Related
+
+- [Connections](/docs/concepts/connections) — what scopes attach to
+- [Memory & tagging](/docs/concepts/memory-tagging) — why the data layer also has to know about your scopes
+- [Scope catalog](/scope-catalog) — interactive viewer for all available scopes
