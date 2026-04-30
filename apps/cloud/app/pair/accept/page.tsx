@@ -1,5 +1,4 @@
 import type * as React from 'react';
-import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { AppShell } from '@/components/app/AppShell';
 import { PlateHead } from '@/components/ui';
@@ -12,26 +11,19 @@ export const dynamic = 'force-dynamic';
  * /pair/accept — consume a pairing invitation URL.
  *
  * The signed proposal rides in the URL fragment (`#<b64url>`) so the server
- * cannot read it from `req.url`. A thin server component checks the session
- * and hands off to the `AcceptClient` component which:
- *   1. Reads `window.location.hash`.
- *   2. Decodes + renders the consent screen via
- *      `@kybernesis/arp-consent-ui::renderProposalConsent`.
- *   3. On approve, countersigns with the browser principal key + POSTs to
- *      `/api/pairing/accept`.
+ * cannot read it from `req.url`. CRITICAL: server-side `redirect()` STRIPS
+ * the fragment (browsers don't forward hashes through 3xx hops), so the
+ * auth gate has to live on the client. AcceptClient captures
+ * `window.location.hash` first, then bounces to /cloud/login with the
+ * hash baked into `?next=` if there's no session. After login, the user
+ * lands back here with the fragment intact.
+ *
+ * The server-rendered shell stays minimal so it works for both signed-in
+ * and signed-out visitors — AcceptClient handles all the conditional
+ * UI (consent screen, login bounce, onboarding bounce, error states).
  */
 export default async function AcceptInvitationPage(): Promise<React.JSX.Element> {
   const session = await getSession();
-  if (!session) {
-    // Preserve the URL fragment across the sign-in round-trip. Redirect to
-    // the cloud login page with `next=/pair/accept` so the fragment survives
-    // the redirect (hash persists across window.location changes within the
-    // same origin).
-    redirect('/cloud/login?next=/pair/accept');
-  }
-  if (!session.tenantId) {
-    redirect('/onboarding');
-  }
 
   return (
     <AppShell>
@@ -40,7 +32,10 @@ export default async function AcceptInvitationPage(): Promise<React.JSX.Element>
         kicker="// CONNECTION INVITE · REVIEW + ACCEPT"
         title="Review pairing invitation"
       />
-      <AcceptClient principalDid={session.principalDid} />
+      <AcceptClient
+        principalDid={session?.principalDid ?? null}
+        hasTenant={Boolean(session?.tenantId)}
+      />
     </AppShell>
   );
 }

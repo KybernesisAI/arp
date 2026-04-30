@@ -52,8 +52,10 @@ interface AcceptState {
  */
 export function AcceptClient({
   principalDid,
+  hasTenant,
 }: {
-  principalDid: string;
+  principalDid: string | null;
+  hasTenant: boolean;
 }): React.JSX.Element {
   const [state, setState] = useState<AcceptState>({ stage: 'loading' });
 
@@ -71,6 +73,18 @@ export function AcceptClient({
             error:
               'No invitation payload in URL. Open this page with the full #-suffixed URL you received.',
           });
+          return;
+        }
+
+        // Auth gate runs HERE on the client (not the server) so the URL
+        // fragment survives — server-side redirect() strips hashes.
+        // Build a `?next=` containing the full /pair/accept#<payload>
+        // URL so login/onboarding lands the user back here with the
+        // payload intact.
+        if (!principalDid || !hasTenant) {
+          const nextUrl = `/pair/accept#${hash}`;
+          const target = !principalDid ? '/cloud/login' : '/onboarding';
+          window.location.assign(`${target}?next=${encodeURIComponent(nextUrl)}`);
           return;
         }
         const json = atobUrl(hash);
