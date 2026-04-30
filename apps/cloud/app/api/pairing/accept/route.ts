@@ -288,7 +288,16 @@ export async function POST(req: Request): Promise<Response> {
           { status: 404 },
         );
       }
-      if (oldConn.agentDid !== acceptingAgentDid || oldConn.peerDid !== proposal.subject) {
+      // The old connection must involve the same two agents as the new
+      // proposal — orientation independent. Same-tenant pairings store
+      // BOTH orientations as separate rows ([agentDid=A, peerDid=B] and
+      // [agentDid=B, peerDid=A]); whichever row getConnection returns,
+      // the (agent, peer) pair is the same set of two DIDs.
+      const sameOrientation =
+        oldConn.agentDid === acceptingAgentDid && oldConn.peerDid === proposal.subject;
+      const flippedOrientation =
+        oldConn.agentDid === proposal.subject && oldConn.peerDid === acceptingAgentDid;
+      if (!sameOrientation && !flippedOrientation) {
         return NextResponse.json(
           {
             error: 'replaces_pair_mismatch',
