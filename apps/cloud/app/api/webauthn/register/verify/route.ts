@@ -13,6 +13,7 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import type { RegistrationResponseJSON } from '@simplewebauthn/server';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { consumeChallenge, insertCredential, webauthnConfig } from '@/lib/webauthn';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -81,6 +82,15 @@ export async function POST(req: Request): Promise<Response> {
         counter: credential.counter,
         transports: credential.transports ?? [],
         nickname: nickname ?? null,
+      });
+      posthog.capture({
+        distinctId: tenantDb.tenantId,
+        event: 'passkey_registered',
+        properties: {
+          tenant_id: tenantDb.tenantId,
+          has_nickname: !!nickname,
+          transports: credential.transports ?? [],
+        },
       });
       return NextResponse.json({
         ok: true,

@@ -33,6 +33,7 @@ import {
   base64urlDecode,
 } from '@kybernesis/arp-transport';
 import type { Adapter, BridgeOptions } from './types.js';
+import { PostHog } from 'posthog-node';
 
 interface HandoffBundle {
   agent_did: string;
@@ -137,6 +138,15 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
     await opts.adapter.init();
   }
 
+  const phKey = process.env['POSTHOG_KEY'] ?? process.env['NEXT_PUBLIC_POSTHOG_KEY'] ?? '';
+  const phHost = process.env['POSTHOG_HOST'] ?? process.env['NEXT_PUBLIC_POSTHOG_HOST'];
+  const ph = new PostHog(phKey || 'disabled', {
+    ...(phHost ? { host: phHost } : {}),
+    flushAt: 1,
+    flushInterval: 0,
+    disabled: !phKey,
+  });
+
   const pending = new Map<string, PendingReply>();
   let client: CloudClientHandle | null = null;
 
@@ -154,7 +164,7 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
       console.error(`[bridge] cloud-client error: ${err.message}`);
     },
     onIncoming: async (input) => {
-      await handleInbound(input, opts.adapter, client!, agentDid, privateKey, pending);
+      await handleInbound(input, opts.adapter, client!, agentDid, privateKey, pending, ph);
     },
   });
 
@@ -216,6 +226,19 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
       } catch {
         body = text;
       }
+      ph.capture({
+        distinctId: agentDid,
+        event: 'message_sent',
+        properties: {
+          agent_did: agentDid,
+          peer_did: params.to,
+          connection_id: params.connectionId ?? null,
+          has_action: !!params.action,
+          msg_type: msgType,
+          gateway_status: res.status,
+          ok: res.ok,
+        },
+      });
       return {
         msgId,
         thid,
@@ -247,6 +270,7 @@ async function handleInbound(
   agentDid: string,
   privateKey: Uint8Array,
   pending: Map<string, PendingReply>,
+  ph: PostHog,
 ): Promise<void> {
   if (input.decision !== 'allow') {
     // eslint-disable-next-line no-console
@@ -317,6 +341,18 @@ async function handleInbound(
     console.warn('[bridge] adapter returned empty reply; ack-ing without sending response');
     return;
   }
+
+  ph.capture({
+    distinctId: agentDid,
+    event: 'inbound_message_handled',
+    properties: {
+      agent_did: agentDid,
+      peer_did: peerDid,
+      connection_id: input.connectionId ?? null,
+      adapter: adapter.name,
+      msg_type: decoded.type ?? '',
+    },
+  });
 
   // eslint-disable-next-line no-console
   console.log(`[bridge] → ${peerDid}: ${truncate(reply, 80)}`);

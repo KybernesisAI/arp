@@ -25,6 +25,7 @@ import { getDb } from '@/lib/db';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { decodeDidKeyPublicKey } from '@/lib/principal-keys';
 import { setSession } from '@/lib/session';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -192,6 +193,15 @@ export async function POST(req: Request): Promise<Response> {
 
     const nonce = randomBytes(16).toString('base64url');
     const sessionOut = await setSession(newPrincipalDid, tenantId, nonce);
+    posthog.capture({
+      distinctId: newPrincipalDid,
+      event: 'principal_key_rotated',
+      properties: {
+        tenant_id: tenantId,
+        old_principal_did: oldPrincipalDid,
+        new_principal_did: newPrincipalDid,
+      },
+    });
     return NextResponse.json({
       ok: true,
       oldPrincipalDid,
@@ -203,6 +213,7 @@ export async function POST(req: Request): Promise<Response> {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
+    posthog.captureException(err);
     throw err;
   }
 }
