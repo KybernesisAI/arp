@@ -177,8 +177,9 @@ export async function dispatchInbound(
   // After PDP allow but BEFORE enqueue: refuse messages that would push
   // the tenant past their inbound-message cap for the current period.
   // The denial is recorded in the audit log with reason='quota_exceeded'
-  // so over-cap traffic stays auditable. We do NOT enqueue and we do NOT
-  // increment the usage counter (it's already at the cap by definition).
+  // so over-cap traffic is auditable. Sender sees a deny → 4xx; cloud
+  // does NOT enqueue and does NOT increment the usage counter (it's
+  // already at the cap by definition).
   const period = currentUsagePeriod(ctx.now());
   if (decisionVerdict === 'allow') {
     const tenantRow = await ctx.tenantDb.getTenant();

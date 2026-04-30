@@ -29,6 +29,7 @@ import { dispatchInbound } from './dispatch.js';
 import type { Pdp } from '@kybernesis/arp-pdp';
 import type { SessionRegistry } from './sessions.js';
 import type { CloudRuntimeLogger, TenantMetrics } from './types.js';
+import { verifyAgentBearer } from './bearer.js';
 
 export interface GatewayHonoOptions {
   db: CloudDbClient;
@@ -188,6 +189,62 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         reason: r.reason ?? undefined,
       })),
     });
+  });
+
+  /**
+   * GET /agent-connections — bearer-authenticated; lists the calling
+   * agent's active connections with peer DIDs + scope-selections so an
+   * arpc-driven contact skill can introspect what typed actions are
+   * available on each peer.
+   *
+   * Auth: same `<ts>.<sigB64>` bearer the WS uses. Pass `?did=<agent>`
+   * (or set `Authorization: Bearer <ts>.<sig> <did>`) so the server
+   * knows which agent is asking.
+   *
+   * Response shape:
+   *   {
+   *     agent_did: string,
+   *     connections: [{
+   *       connection_id, peer_did, status, purpose,
+   *       scope_selections: [{ id, params }],
+   *       expires_at,
+   *     }]
+   *   }
+   *
+   * Excludes revoked connections by default. Active + expiring are
+   * returned; the bridge filters for what the LLM should consider.
+   */
+  app.get('/agent-connections', async (c) => {
+    const did = c.req.query('did');
+    if (!did) return c.json({ error: 'missing_did' }, 400);
+    const authHeader = c.req.header('authorization') ?? '';
+    const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!bearer) return c.json({ error: 'missing_bearer' }, 401);
+
+    const auth = await verifyAgentBearer(did, bearer, { db: opts.db, now });
+    if (!auth.ok) {
+      return c.json({ error: auth.reason }, auth.status as 401 | 500);
+    }
+
+    const tenantDb = withTenant(opts.db, toTenantId(auth.tenantId));
+    const conns = await tenantDb.listConnections({ agentDid: auth.agentDid });
+    const out = conns
+      .filter((c) => c.status === 'active' || c.status === 'expiring')
+      .map((conn) => {
+        const token = conn.tokenJson as {
+          scope_selections?: Array<{ id: string; params?: Record<string, unknown> }>;
+          expires_at?: string;
+        } | null;
+        return {
+          connection_id: conn.connectionId,
+          peer_did: conn.peerDid,
+          status: conn.status,
+          purpose: conn.purpose,
+          scope_selections: token?.scope_selections ?? [],
+          expires_at: token?.expires_at ?? null,
+        };
+      });
+    return c.json({ agent_did: auth.agentDid, connections: out });
   });
 
   app.post('/didcomm', async (c) => {

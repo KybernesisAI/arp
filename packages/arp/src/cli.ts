@@ -224,6 +224,7 @@ interface Flags {
   params?: Record<string, unknown>;
   // arpc skill install
   target?: string;
+  force?: boolean;
 }
 
 /**
@@ -320,6 +321,9 @@ function parseArgs(argv: string[]): { cmd: string; sub: string | null; positiona
       case '--target':
         flags.target = next();
         break;
+      case '--force':
+        flags.force = true;
+        break;
       case '-h':
       case '--help':
         flags.help = true;
@@ -381,6 +385,9 @@ Send a message (uses the running supervisor):
   arpc contacts list               Show this agent's address book.
   arpc contacts add <name> <did>   Add a contact entry.
   arpc contacts remove <name>      Remove a contact entry.
+  arpc peer-actions [<name>]       List active connections + the typed
+                                   ARP scopes granted on each. Add --json
+                                   for the contact skill to consume.
 
 Skills (drop a SKILL.md template into the agent folder):
   arpc skill list                  Show available skills.
@@ -388,6 +395,8 @@ Skills (drop a SKILL.md template into the agent folder):
                                    --target kyberbot              (default)
                                    --target claude-code           (project)
                                    --target claude-code-global    (user-wide)
+                                   --force   (overwrite an existing skill,
+                                              e.g. when upgrading)
 
 Auto-start at login (macOS launchd):
   arpc service install       Run the supervisor automatically on every login.
@@ -664,8 +673,11 @@ async function main(): Promise<void> {
     case 'contacts':
       send.cmdContacts(sub, positional);
       return;
+    case 'peer-actions':
+      await send.cmdPeerActions(positional, { ...(flags.as ? { as: flags.as } : {}) });
+      return;
     case 'skill':
-      skill.cmdSkill(sub, positional, flags.target);
+      skill.cmdSkill(sub, positional, flags.target, flags.force);
       return;
     default:
       console.error(`unknown command: ${cmd}\n`);
