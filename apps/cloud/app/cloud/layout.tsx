@@ -1,21 +1,12 @@
 import type * as React from 'react';
 import type { ReactNode } from 'react';
-import { ButtonLink, Footer, Nav, Ticker } from '@/components/ui';
+import { ButtonLink, Footer, Nav } from '@/components/ui';
 
 export const metadata = {
   title: 'ARP Cloud — The secure network for AI agents',
   description:
     'Hosted ARP runtime. Give your agent a home, connect it to other agents, and stay in control. Free tier included.',
 };
-
-const tickerItems: Array<[string, string]> = [
-  ['AGENT', 'booking.yours ↔ hotel.brand · ok'],
-  ['APPROVAL', 'granted · scope=book · 1 use'],
-  ['AUDIT', '3,412 events indexed today [TBD]'],
-  ['AGENT', 'procurement.co ↔ supplier.inc'],
-  ['NETWORK', '14,280 agents online [TBD]'],
-  ['POLICY', 'scope=read · auto-approved'],
-];
 
 export default function CloudMarketingLayout({
   children,
@@ -26,7 +17,6 @@ export default function CloudMarketingLayout({
     <div className="flex min-h-screen flex-col bg-paper">
       <Nav
         brandSub="// cloud.arp.run"
-        ticker={<Ticker items={tickerItems} />}
         links={[
           { label: 'Platform', href: '/features' },
           { label: 'Use cases', href: '/#use-cases' },
@@ -55,8 +45,8 @@ export default function CloudMarketingLayout({
               { label: 'Overview', href: '/' },
               { label: 'Features', href: '/features' },
               { label: 'Controls', href: '/features#controls' },
-              { label: 'Changelog [TBD]', href: '#' },
-              { label: 'Status [TBD]', href: '#' },
+              { label: 'Changelog', href: 'https://github.com/KybernesisAI/arp/releases', external: true },
+              { label: 'Status', href: 'https://status.arp.run', external: true },
             ],
           },
           {
@@ -65,15 +55,15 @@ export default function CloudMarketingLayout({
               { label: 'Developers', href: '/features#developers' },
               { label: 'Teams', href: '/#use-cases' },
               { label: 'Assistants', href: '/#use-cases' },
-              { label: 'Agentic commerce [TBD]', href: '#' },
+              { label: 'Agentic commerce', href: '/#use-cases' },
             ],
           },
           {
             title: 'Developers',
             links: [
-              { label: 'Documentation [TBD]', href: '#' },
-              { label: 'SDKs [TBD]', href: '#' },
-              { label: 'CLI [TBD]', href: '#' },
+              { label: 'Documentation', href: 'https://docs.arp.run', external: true },
+              { label: 'SDKs', href: 'https://docs.arp.run/docs/sdks', external: true },
+              { label: 'CLI', href: 'https://docs.arp.run/docs/install', external: true },
               { label: 'Open source', href: 'https://github.com/KybernesisAI/arp', external: true },
             ],
           },
@@ -81,7 +71,7 @@ export default function CloudMarketingLayout({
             title: 'Company',
             links: [
               { label: 'About', href: 'https://arp.run/about', external: true },
-              { label: 'Blog [TBD]', href: '#' },
+              { label: 'Roadmap', href: 'https://docs.arp.run/rfcs', external: true },
               { label: 'Support', href: '/support' },
             ],
           },
@@ -89,7 +79,7 @@ export default function CloudMarketingLayout({
             title: 'Resources',
             links: [
               { label: 'Pricing', href: '/pricing' },
-              { label: 'Security', href: '/support' },
+              { label: 'Security', href: 'https://docs.arp.run/docs/policies-and-cedar', external: true },
               { label: 'Support', href: '/support' },
               { label: 'Community', href: 'https://github.com/KybernesisAI/arp/discussions', external: true },
             ],

@@ -36,7 +36,7 @@ export default function CloudLandingPage(): React.JSX.Element {
             ]}
           />
           <div className="grid grid-cols-12 gap-6 pb-12">
-            <div className="col-span-12 lg:col-span-7 flex flex-col">
+            <div className="col-span-12 lg:col-span-6 flex flex-col">
               <EyebrowTag className="mb-7">ARP · NOW IN EARLY ACCESS</EyebrowTag>
               <HeroTitle>
                 <HeroLine>The secure</HeroLine>
@@ -77,7 +77,7 @@ export default function CloudLandingPage(): React.JSX.Element {
                 ]}
               />
             </div>
-            <div className="col-span-12 lg:col-span-5">
+            <div className="col-span-12 lg:col-span-6">
               <HeroDiagram />
             </div>
           </div>
@@ -628,7 +628,7 @@ export default function CloudLandingPage(): React.JSX.Element {
 
 function HeroDiagram(): React.JSX.Element {
   return (
-    <div className="relative w-full h-full min-h-[520px] bg-paper-2 border border-rule flex flex-col">
+    <div className="relative w-full h-full min-h-[440px] bg-paper-2 border border-rule flex flex-col">
       <div className="flex justify-between items-center px-3.5 py-2.5 border-b border-rule bg-paper font-mono text-kicker uppercase text-muted">
         <span>
           <b className="text-ink font-medium">FIG&nbsp;1</b> · AGENT-TO-AGENT
@@ -636,7 +636,7 @@ function HeroDiagram(): React.JSX.Element {
         <span>ARP.RUN / LIVE</span>
       </div>
       <svg
-        viewBox="0 0 420 620"
+        viewBox="0 0 800 360"
         preserveAspectRatio="xMidYMid meet"
         className="flex-1 w-full min-h-0"
         aria-hidden="true"
@@ -655,160 +655,172 @@ function HeroDiagram(): React.JSX.Element {
           </marker>
         </defs>
         <g stroke="var(--arp-grid)" strokeWidth="1">
-          <line x1="30" y1="70" x2="390" y2="70" />
-          <line x1="30" y1="560" x2="390" y2="560" />
-          <line x1="210" y1="70" x2="210" y2="560" strokeDasharray="2 5" />
+          <line x1="20" y1="36" x2="780" y2="36" />
+          <line x1="20" y1="320" x2="780" y2="320" />
         </g>
         <g
           fontFamily="JetBrains Mono, monospace"
-          fontSize="9"
+          fontSize="8"
           letterSpacing="1.5"
           fill="var(--arp-muted)"
         >
-          <text x="30" y="92">{'› 01 · PLACE'}</text>
-          <text x="30" y="262">{'› 02 · CONNECT'}</text>
-          <text x="30" y="472">{'› 03 · CONTROL'}</text>
+          <text x="20" y="56">{'› 01 PLACE'}</text>
+          <text x="400" y="56" textAnchor="middle">{'› 02 CONNECT'}</text>
+          <text x="780" y="56" textAnchor="end">{'› 03 CONTROL'}</text>
         </g>
+        {/* YOUR AGENT (left) */}
         <g>
-          <rect x="50" y="100" width="140" height="70" fill="#1536e6" />
+          <rect x="40" y="92" width="140" height="56" fill="#1536e6" />
           <text
-            x="120"
-            y="132"
+            x="110"
+            y="117"
             textAnchor="middle"
             fontFamily="Space Grotesk, sans-serif"
             fontWeight={500}
-            fontSize="17"
+            fontSize="13"
             fill="#fff"
           >
             YOUR AGENT
           </text>
           <text
-            x="120"
-            y="152"
+            x="110"
+            y="134"
             textAnchor="middle"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="10"
-            letterSpacing="1.5"
+            fontSize="8"
+            letterSpacing="1.2"
             fill="rgba(255,255,255,0.85)"
           >
             yours
           </text>
-          <circle cx="180" cy="110" r="4" fill="#f2c14b">
+          <circle cx="170" cy="100" r="3" fill="#f2c14b">
             <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" />
           </circle>
         </g>
+        {/* ARP HUB (center) */}
         <g>
-          <rect x="230" y="100" width="140" height="70" fill="#e8371f" />
+          <rect x="290" y="78" width="220" height="84" fill="var(--arp-ink)" />
           <text
-            x="300"
-            y="132"
+            x="400"
+            y="108"
             textAnchor="middle"
             fontFamily="Space Grotesk, sans-serif"
             fontWeight={500}
-            fontSize="17"
-            fill="#fff"
-          >
-            THEIR AGENT
-          </text>
-          <text
-            x="300"
-            y="152"
-            textAnchor="middle"
-            fontFamily="JetBrains Mono, monospace"
-            fontSize="10"
-            letterSpacing="1.5"
-            fill="rgba(255,255,255,0.85)"
-          >
-            anyone on ARP
-          </text>
-          <circle cx="360" cy="110" r="4" fill="#f2c14b">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" />
-          </circle>
-        </g>
-        <g>
-          <rect x="60" y="280" width="300" height="100" fill="var(--arp-ink)" />
-          <text
-            x="210"
-            y="316"
-            textAnchor="middle"
-            fontFamily="Space Grotesk, sans-serif"
-            fontWeight={500}
-            fontSize="26"
+            fontSize="20"
             fill="var(--arp-paper)"
           >
             ARP
           </text>
           <text
-            x="210"
-            y="342"
+            x="400"
+            y="128"
             textAnchor="middle"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="10"
-            letterSpacing="2"
+            fontSize="8"
+            letterSpacing="1.6"
             fill="#f2c14b"
           >
             CONSENT · AUDIT · CONTROL
           </text>
           <text
-            x="210"
-            y="362"
+            x="400"
+            y="144"
             textAnchor="middle"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="9"
+            fontSize="7"
             letterSpacing="1"
             fill="rgba(241,237,228,0.6)"
           >
             the mediated layer
           </text>
         </g>
+        {/* THEIR AGENT (right) */}
         <g>
-          <rect x="140" y="490" width="140" height="40" fill="#f2c14b" stroke="var(--arp-ink)" strokeWidth="1" />
+          <rect x="620" y="92" width="140" height="56" fill="#e8371f" />
           <text
-            x="210"
-            y="515"
+            x="690"
+            y="117"
+            textAnchor="middle"
+            fontFamily="Space Grotesk, sans-serif"
+            fontWeight={500}
+            fontSize="13"
+            fill="#fff"
+          >
+            THEIR AGENT
+          </text>
+          <text
+            x="690"
+            y="134"
             textAnchor="middle"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="11"
-            letterSpacing="1.8"
+            fontSize="8"
+            letterSpacing="1.2"
+            fill="rgba(255,255,255,0.85)"
+          >
+            anyone on ARP
+          </text>
+          <circle cx="750" cy="100" r="3" fill="#f2c14b">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+        </g>
+        {/* horizontal connectors + center→bottom */}
+        <g stroke="var(--arp-ink)" strokeWidth="1.2" fill="none">
+          <line x1="180" y1="120" x2="288" y2="120" markerEnd="url(#arpHeroArrow)" />
+          <line x1="510" y1="120" x2="618" y2="120" markerEnd="url(#arpHeroArrow)" />
+          <line x1="400" y1="162" x2="400" y2="234" markerEnd="url(#arpHeroArrow)" />
+        </g>
+        <g
+          fontFamily="JetBrains Mono, monospace"
+          fontSize="7"
+          letterSpacing="1.4"
+          fill="var(--arp-muted)"
+        >
+          <text x="234" y="112" textAnchor="middle">‹ REQ ›</text>
+          <text x="564" y="112" textAnchor="middle">‹ RESP ›</text>
+        </g>
+        {/* YOU APPROVE */}
+        <g>
+          <rect
+            x="330"
+            y="234"
+            width="140"
+            height="34"
+            fill="#f2c14b"
+            stroke="var(--arp-ink)"
+            strokeWidth="1"
+          />
+          <text
+            x="400"
+            y="255"
+            textAnchor="middle"
+            fontFamily="JetBrains Mono, monospace"
+            fontSize="9"
+            letterSpacing="1.6"
             fill="var(--arp-ink)"
           >
             YOU · APPROVE
           </text>
         </g>
-        <g stroke="var(--arp-ink)" strokeWidth="1.4" fill="none">
-          <line x1="120" y1="170" x2="120" y2="278" markerEnd="url(#arpHeroArrow)" />
-          <line x1="300" y1="170" x2="300" y2="278" markerEnd="url(#arpHeroArrow)" />
-          <line x1="210" y1="380" x2="210" y2="488" markerEnd="url(#arpHeroArrow)" />
-        </g>
-        <g
-          fontFamily="JetBrains Mono, monospace"
-          fontSize="9"
-          letterSpacing="1.5"
-          fill="var(--arp-muted)"
-        >
-          <text x="210" y="215" textAnchor="middle">
-            ‹ REQUEST · RESPONSE ›
-          </text>
-        </g>
+        {/* footer telemetry */}
         <g>
-          <line x1="30" y1="580" x2="390" y2="580" stroke="var(--arp-ink)" strokeWidth="1" />
+          <line x1="20" y1="338" x2="780" y2="338" stroke="var(--arp-ink)" strokeWidth="1" />
           <text
-            x="30"
-            y="600"
+            x="20"
+            y="354"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="9"
-            letterSpacing="1.5"
+            fontSize="8"
+            letterSpacing="1.4"
             fill="var(--arp-muted)"
           >
             REQ_ID · 0x8F2A
           </text>
           <text
-            x="390"
-            y="600"
+            x="780"
+            y="354"
             textAnchor="end"
             fontFamily="JetBrains Mono, monospace"
-            fontSize="9"
-            letterSpacing="1.5"
+            fontSize="8"
+            letterSpacing="1.4"
             fill="var(--arp-muted)"
           >
             LATENCY · 42MS [TBD]
