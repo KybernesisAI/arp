@@ -73,6 +73,10 @@ export const tenants = pgTable(
     stripeSubscriptionId: text('stripe_subscription_id'),
     plan: text('plan').notNull().default('free'),
     status: text('status').notNull().default('active'),
+    // Phase-10: mirrors the Stripe subscription `quantity` for the
+    // per-agent line item. Free tenants stay at 1; Pro tenants scale
+    // with provisioned agent count.
+    subscriptionQuantity: integer('subscription_quantity').notNull().default(1),
     messageQuotaCents: integer('message_quota_cents'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

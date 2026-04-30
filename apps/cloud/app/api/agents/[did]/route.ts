@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
+import { getBillingContext, updateSubscriptionQuantity } from '@/lib/billing';
 
 export const runtime = 'nodejs';
 
@@ -50,6 +51,31 @@ export async function DELETE(
     const agent = await tenantDb.getAgent(target);
     if (!agent) return NextResponse.json({ error: 'not_found' }, { status: 404 });
     await tenantDb.deleteAgent(target);
+
+    // Phase-10 billing: decrement Stripe subscription quantity. Floor at 1
+    // (Stripe rejects qty=0). Failures are logged; the webhook reconciles
+    // on the next subscription.updated event.
+    const tenant = await tenantDb.getTenant();
+    if (tenant?.plan === 'pro' && tenant.stripeSubscriptionId) {
+      const remaining = (await tenantDb.listAgents()).length;
+      const newQty = Math.max(1, remaining);
+      try {
+        const stripeQty = await updateSubscriptionQuantity(
+          getBillingContext(),
+          tenant.stripeSubscriptionId,
+          newQty,
+        );
+        await tenantDb.updateTenant({
+          subscriptionQuantity: stripeQty ?? newQty,
+        });
+      } catch (err) {
+        console.error('stripe_quantity_decrement_failed', {
+          tenantId: tenant.id,
+          error: (err as Error).message,
+        });
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthError) {

@@ -15,14 +15,28 @@ export function toTenantId(raw: string): TenantId {
   return raw as TenantId;
 }
 
+/**
+ * Pricing tiers (Phase-10 rewrite).
+ *
+ * Two plans only:
+ *  - free: 1 agent, 100 inbound msgs/mo, $0
+ *  - pro:  N agents (Stripe subscription `quantity`), 10_000 inbound msgs/mo
+ *          *shared* across all agents on the tenant, $5 per agent / month.
+ *
+ * The "team" tier from v0 was collapsed into pro-with-quantity. The Stripe
+ * subscription carries one line item priced at $5/mo with a per-tenant
+ * `quantity` matching the number of provisioned agents on that tenant.
+ */
 export interface PlanLimits {
-  plan: 'free' | 'pro' | 'team';
-  /** Inclusive agent count cap. `null` = unlimited. */
+  plan: 'free' | 'pro';
+  /** Inclusive agent count cap when subscription quantity is fixed (free).
+   *  `null` = "scaled by subscription quantity" (pro). */
   maxAgents: number | null;
-  /** Inclusive monthly inbound-message cap. `null` = unlimited. */
+  /** Inclusive monthly inbound-message cap shared across all agents on
+   *  the tenant. `null` = unlimited. */
   maxInboundMessagesPerMonth: number | null;
-  /** Monthly price cents (informational). */
-  monthlyPriceCents: number;
+  /** Per-agent price cents (informational; the bill is qty * this). */
+  perAgentPriceCents: number;
 }
 
 export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
@@ -30,21 +44,56 @@ export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
     plan: 'free',
     maxAgents: 1,
     maxInboundMessagesPerMonth: 100,
-    monthlyPriceCents: 0,
+    perAgentPriceCents: 0,
   },
   pro: {
     plan: 'pro',
-    maxAgents: 1,
+    maxAgents: null,
     maxInboundMessagesPerMonth: 10_000,
-    monthlyPriceCents: 900,
-  },
-  team: {
-    plan: 'team',
-    maxAgents: 5,
-    maxInboundMessagesPerMonth: 100_000,
-    monthlyPriceCents: 2900,
+    perAgentPriceCents: 500,
   },
 };
+
+/**
+ * Effective per-tenant agent cap. Free tenants are hard-capped at
+ * PLAN_LIMITS.free.maxAgents; Pro tenants are capped at the Stripe
+ * subscription `quantity` (auto-synced on agent create + archive).
+ */
+export function effectiveMaxAgents(
+  plan: string,
+  subscriptionQuantity: number,
+): number | null {
+  if (plan === 'free') return PLAN_LIMITS.free.maxAgents;
+  if (plan === 'pro') return Math.max(1, subscriptionQuantity);
+  return null;
+}
+
+/** Monthly bill in cents for the given plan + quantity. */
+export function monthlyBillCents(plan: string, subscriptionQuantity: number): number {
+  if (plan === 'free') return 0;
+  if (plan === 'pro') {
+    return PLAN_LIMITS.pro.perAgentPriceCents * Math.max(1, subscriptionQuantity);
+  }
+  return 0;
+}
+
+/**
+ * Quota check for inbound messages. Returns null when the tenant is within
+ * cap; returns the plan limits when the next message WOULD exceed the cap.
+ *
+ * Pure function so both the cloud HTTP layer and the cloud-runtime dispatch
+ * path can call it. Cap is shared across all of the tenant's agents.
+ */
+export function checkQuota(
+  plan: string,
+  inboundThisMonth: number,
+): PlanLimits | null {
+  const limits = (PLAN_LIMITS as Record<string, PlanLimits | undefined>)[plan];
+  if (!limits) return null;
+  if (limits.maxInboundMessagesPerMonth === null) return null;
+  if (inboundThisMonth < limits.maxInboundMessagesPerMonth) return null;
+  return limits;
+}
 
 export interface CloudObligation {
   type: string;

@@ -1,14 +1,23 @@
 /**
- * Stripe billing helpers — Phase-7 Task 8.
+ * Stripe billing helpers — Phase-10 per-agent rewrite.
  *
- * Test keys only in v0 (see phase brief rule #3). Production flip lands
- * at Phase 9. All Stripe API calls gate on env().STRIPE_SECRET_KEY being
- * set; when unset (dev w/o stripe creds) the helpers stub out so the
- * app remains runnable.
+ * Pricing model:
+ *  - free: $0, 1 agent, 100 inbound msgs/mo
+ *  - pro:  $5/mo per agent, 10_000 inbound msgs/mo SHARED across the
+ *          tenant's agents. The Stripe subscription carries one line item
+ *          (price = STRIPE_PRICE_PRO_PER_AGENT) with `quantity` matching
+ *          the number of provisioned agents on the tenant.
  *
- * Webhook dedup: every Stripe event id is written to `stripe_events`
- * inside the same transaction that updates the tenant row. The primary
- * key conflict makes replays safe.
+ * Quantity sync runs in two directions:
+ *  - Cloud → Stripe: `updateSubscriptionQuantity()` is called from the
+ *    agent-create + agent-archive routes, with proration enabled so the
+ *    user is charged/credited for the time-pro-rated delta.
+ *  - Stripe → Cloud: `customer.subscription.updated` carries the new
+ *    quantity (e.g. when the user adjusts via Stripe's customer portal),
+ *    and the webhook mirrors it into `tenants.subscription_quantity`.
+ *
+ * Webhook dedup: every Stripe event id is recorded in `stripe_events`.
+ * The PK conflict makes replays idempotent.
  */
 
 import { eq } from 'drizzle-orm';
@@ -17,6 +26,9 @@ import {
   PLAN_LIMITS,
   tenants,
   stripeEvents,
+  effectiveMaxAgents,
+  monthlyBillCents,
+  checkQuota,
   type CloudDbClient,
   type PlanLimits,
 } from '@kybernesis/arp-cloud-db';
@@ -28,7 +40,8 @@ export interface BillingContext {
   /** null when STRIPE_SECRET_KEY isn't configured; caller should gate UI. */
   stripe: Stripe | null;
   webhookSecret: string | null;
-  priceIds: Record<'pro' | 'team', string | null>;
+  /** Single per-agent price id. null when not configured (dev w/o Stripe). */
+  proPerAgentPriceId: string | null;
 }
 
 export function getBillingContext(): BillingContext {
@@ -39,14 +52,15 @@ export function getBillingContext(): BillingContext {
   return {
     stripe,
     webhookSecret: e.STRIPE_WEBHOOK_SECRET,
-    priceIds: { pro: e.STRIPE_PRICE_PRO, team: e.STRIPE_PRICE_TEAM },
+    proPerAgentPriceId: e.STRIPE_PRICE_PRO_PER_AGENT,
   };
 }
 
 export interface CreateCheckoutInput {
   tenantId: string;
   principalDid: string;
-  plan: 'pro' | 'team';
+  /** Number of agent units to start the subscription with. Min 1. */
+  quantity: number;
   successUrl: string;
   cancelUrl: string;
 }
@@ -56,19 +70,26 @@ export async function createCheckoutSession(
   input: CreateCheckoutInput,
 ): Promise<{ url: string | null }> {
   if (!ctx.stripe) return { url: null };
-  const priceId = ctx.priceIds[input.plan];
-  if (!priceId) {
-    throw new Error(`stripe_price_not_configured:${input.plan}`);
+  if (!ctx.proPerAgentPriceId) {
+    throw new Error('stripe_price_not_configured');
   }
+  const qty = Math.max(1, Math.floor(input.quantity));
   const session = await ctx.stripe.checkout.sessions.create({
     mode: 'subscription',
     client_reference_id: input.tenantId,
     metadata: {
       tenant_id: input.tenantId,
       principal_did: input.principalDid,
-      plan: input.plan,
+      plan: 'pro',
     },
-    line_items: [{ price: priceId, quantity: 1 }],
+    subscription_data: {
+      metadata: {
+        tenant_id: input.tenantId,
+        principal_did: input.principalDid,
+        plan: 'pro',
+      },
+    },
+    line_items: [{ price: ctx.proPerAgentPriceId, quantity: qty }],
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   });
@@ -80,12 +101,6 @@ export interface CreatePortalInput {
   returnUrl: string;
 }
 
-/**
- * Stripe customer-portal session. Used for "Manage subscription" — gives the
- * tenant a self-serve page for updating payment methods, switching plans,
- * downloading invoices, and cancelling. Returns null when Stripe isn't
- * configured so the caller can surface a dev-mode hint instead of crashing.
- */
 export async function createPortalSession(
   ctx: BillingContext,
   input: CreatePortalInput,
@@ -96,6 +111,34 @@ export async function createPortalSession(
     return_url: input.returnUrl,
   });
   return { url: session.url };
+}
+
+/**
+ * Set the Stripe subscription line-item quantity. Called when an agent is
+ * created or archived on a Pro tenant so billing always matches the actual
+ * agent count. Returns the canonical Stripe-side quantity after the update
+ * (write that back into `tenants.subscription_quantity`); returns null when
+ * Stripe isn't configured (dev). Proration is enabled — Stripe pro-rates
+ * the delta on the next invoice.
+ */
+export async function updateSubscriptionQuantity(
+  ctx: BillingContext,
+  subscriptionId: string,
+  quantity: number,
+): Promise<number | null> {
+  if (!ctx.stripe) return null;
+  const qty = Math.max(1, Math.floor(quantity));
+  const sub = await ctx.stripe.subscriptions.retrieve(subscriptionId);
+  const item = sub.items.data[0];
+  if (!item) {
+    throw new Error('stripe_subscription_no_items');
+  }
+  const updated = await ctx.stripe.subscriptions.update(subscriptionId, {
+    items: [{ id: item.id, quantity: qty }],
+    proration_behavior: 'create_prorations',
+  });
+  const updatedItem = updated.items.data[0];
+  return updatedItem?.quantity ?? qty;
 }
 
 export interface WebhookHandleResult {
@@ -130,7 +173,7 @@ export async function handleStripeWebhook(
     return { ok: true, processed: false, reason: 'dedup' };
   }
 
-  const tenantId = extractTenantId(event);
+  const tenantId = await extractTenantId(db, event);
   await applyEvent(db, event, tenantId);
 
   await db.insert(stripeEvents).values({
@@ -143,16 +186,39 @@ export async function handleStripeWebhook(
   return { ok: true, processed: true };
 }
 
-function extractTenantId(event: Stripe.Event): string | null {
+/**
+ * Extract the tenant id for an event. Tries metadata.tenant_id, then
+ * client_reference_id, then a lookup by `customer` against
+ * tenants.stripe_customer_id (handles portal-driven events where Stripe
+ * does not propagate the metadata blob).
+ */
+async function extractTenantId(
+  db: CloudDbClient,
+  event: Stripe.Event,
+): Promise<string | null> {
   const data = event.data?.object as unknown as {
     metadata?: Record<string, string>;
     client_reference_id?: string;
-    customer?: string;
-    subscription?: string;
+    customer?: string | { id?: string };
   };
-  return (
-    data?.metadata?.['tenant_id'] ?? data?.client_reference_id ?? null
-  );
+
+  const metaId = data?.metadata?.['tenant_id'];
+  if (metaId) return metaId;
+  const refId = data?.client_reference_id;
+  if (refId) return refId;
+  const customerId =
+    typeof data?.customer === 'string'
+      ? data.customer
+      : data?.customer?.id ?? null;
+  if (customerId) {
+    const rows = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.stripeCustomerId, customerId))
+      .limit(1);
+    if (rows[0]) return rows[0].id;
+  }
+  return null;
 }
 
 async function applyEvent(
@@ -164,11 +230,12 @@ async function applyEvent(
   switch (event.type) {
     case 'checkout.session.completed': {
       const obj = event.data.object as Stripe.Checkout.Session;
-      const plan = (obj.metadata?.['plan'] ?? 'pro') as Plan;
+      // Plan is always 'pro' under the new model — the legacy 'team' tier
+      // was collapsed into pro-with-quantity.
       await db
         .update(tenants)
         .set({
-          plan,
+          plan: 'pro',
           status: 'active',
           ...(obj.customer && typeof obj.customer === 'string'
             ? { stripeCustomerId: obj.customer }
@@ -185,20 +252,33 @@ async function applyEvent(
     case 'customer.subscription.created': {
       const sub = event.data.object as Stripe.Subscription;
       const status = normalizeSubscriptionStatus(sub.status);
+      const quantity = extractSubscriptionQuantity(sub);
       await db
         .update(tenants)
         .set({
+          plan: 'pro',
           status,
           stripeSubscriptionId: sub.id,
+          ...(quantity !== null ? { subscriptionQuantity: quantity } : {}),
           updatedAt: new Date(),
         })
         .where(eq(tenants.id, tenantId));
       return;
     }
     case 'customer.subscription.deleted': {
+      // Cancellation drops the tenant back to free + resets the qty. Existing
+      // agents survive the downgrade; the agent-create gate refuses new ones
+      // while the message-quota gate naturally throttles them into upgrading
+      // or archiving extras.
       await db
         .update(tenants)
-        .set({ plan: 'free', status: 'canceled', updatedAt: new Date() })
+        .set({
+          plan: 'free',
+          status: 'canceled',
+          subscriptionQuantity: 1,
+          stripeSubscriptionId: null,
+          updatedAt: new Date(),
+        })
         .where(eq(tenants.id, tenantId));
       return;
     }
@@ -212,6 +292,12 @@ async function applyEvent(
     default:
       return;
   }
+}
+
+function extractSubscriptionQuantity(sub: Stripe.Subscription): number | null {
+  const item = sub.items?.data?.[0];
+  if (!item || typeof item.quantity !== 'number') return null;
+  return Math.max(1, Math.floor(item.quantity));
 }
 
 function normalizeSubscriptionStatus(s: Stripe.Subscription.Status): 'active' | 'past_due' | 'canceled' {
@@ -230,16 +316,14 @@ function normalizeSubscriptionStatus(s: Stripe.Subscription.Status): 'active' | 
   }
 }
 
-/**
- * Check if a tenant is within plan quota. Returns null when under cap,
- * or the plan limits if the cap is exceeded (so callers can render a
- * helpful error).
- */
-export function checkQuota(plan: Plan, inboundThisMonth: number): PlanLimits | null {
-  const limits = PLAN_LIMITS[plan];
-  if (limits.maxInboundMessagesPerMonth === null) return null;
-  if (inboundThisMonth < limits.maxInboundMessagesPerMonth) return null;
-  return limits;
-}
+export { PLAN_LIMITS, effectiveMaxAgents, monthlyBillCents, checkQuota };
 
-export { PLAN_LIMITS };
+/**
+ * Current usage period in `YYYY-MM` form (UTC). Matches the period key
+ * the cloud-runtime uses when writing inbound message increments.
+ */
+export function currentUsagePeriod(now: Date = new Date()): string {
+  const y = now.getUTCFullYear();
+  const m = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+  return `${y}-${m}`;
+}
