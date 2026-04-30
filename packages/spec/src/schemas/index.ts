@@ -7,3 +7,4 @@ export * from './connection-token.js';
 export * from './handoff-bundle.js';
 export * from './scope-catalog.js';
 export * from './cedar-schema.js';
+export * from './agent-resource-metadata.js';
