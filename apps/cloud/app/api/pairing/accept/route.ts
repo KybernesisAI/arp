@@ -468,7 +468,16 @@ async function insertConnection(
     label: input.proposal.purpose,
     purpose: input.proposal.purpose,
     tokenJws: '',
-    tokenJson: input.token as unknown as Record<string, unknown>,
+    // Persist scope_selections inside tokenJson too. The cloud-runtime's
+    // /agent-connections endpoint, the connection-edit UI, and any future
+    // consumer should be able to read scope_selections from one place
+    // without reaching into metadata. metadata still carries it for
+    // backwards compatibility with rows that were inserted before this
+    // change landed.
+    tokenJson: {
+      ...(input.token as unknown as Record<string, unknown>),
+      scope_selections: input.proposal.scope_selections,
+    } as Record<string, unknown>,
     cedarPolicies: input.token.cedar_policies as unknown as Record<string, unknown>,
     obligations: input.token.obligations as unknown as Record<string, unknown>,
     scopeCatalogVersion: input.token.scope_catalog_version,

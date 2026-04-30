@@ -28,9 +28,10 @@ export function toTenantId(raw: string): TenantId {
  * `quantity` matching the number of provisioned agents on that tenant.
  */
 export interface PlanLimits {
-  plan: 'free' | 'pro';
+  plan: 'free' | 'pro' | 'internal';
   /** Inclusive agent count cap when subscription quantity is fixed (free).
-   *  `null` = "scaled by subscription quantity" (pro). */
+   *  `null` = "scaled by subscription quantity" (pro) or "unlimited"
+   *  (internal). */
   maxAgents: number | null;
   /** Inclusive monthly inbound-message cap shared across all agents on
    *  the tenant. `null` = unlimited. */
@@ -43,7 +44,10 @@ export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
   free: {
     plan: 'free',
     maxAgents: 1,
-    maxInboundMessagesPerMonth: 100,
+    // 1,000 inbound msgs/mo — gives room for real testing without
+    // hitting quota on the second day. Pro stays at 10k for paying
+    // tenants; the gap is meaningful but the floor isn't punitive.
+    maxInboundMessagesPerMonth: 1_000,
     perAgentPriceCents: 0,
   },
   pro: {
@@ -51,6 +55,14 @@ export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
     maxAgents: null,
     maxInboundMessagesPerMonth: 10_000,
     perAgentPriceCents: 500,
+  },
+  // Internal accounts (ARP team, integration tests, design partners
+  // we explicitly comp). Bypasses every quota; never billed.
+  internal: {
+    plan: 'internal',
+    maxAgents: null,
+    maxInboundMessagesPerMonth: null,
+    perAgentPriceCents: 0,
   },
 };
 
