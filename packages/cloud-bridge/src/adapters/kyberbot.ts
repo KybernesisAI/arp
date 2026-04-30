@@ -109,18 +109,39 @@ export function createKyberBotAdapter(opts: KyberBotAdapterOptions): Adapter {
       if (!baseUrl || !apiToken) {
         throw new Error('KyberBot adapter not initialised; call init() first');
       }
-      // Scope the kyberbot session id to (peer, connection) so a
-      // re-pair (revoke + new connection_id) gets a fresh Claude
-      // session — without this, a pre-existing session can carry
-      // hundreds of garbage messages from a prior loop or mid-debug
-      // exchange and the LLM short-circuits ("No response requested.").
-      // peerDid alone is too coarse — the conversation outlives the
-      // pairing. Falling back to peer-only when connectionId is null
-      // (legacy / direct-test paths).
+
+      // ── Phase B/C — typed action dispatch ──────────────────────────
+      // When the inbound carries a structured `action` (e.g. notes.search,
+      // knowledge.query), route to /api/arp/<action> instead of the
+      // free-form chat endpoint. KyberBot's typed handler filters by
+      // project_id at the data layer + applies obligations as code, so
+      // policy enforcement stops being LLM-prompted ("please comply")
+      // and becomes deterministic.
+      const action = typeof ctx.body?.['action'] === 'string' ? (ctx.body['action'] as string) : null;
+      if (action && isTypedArpAction(action)) {
+        return await callTypedArp({
+          baseUrl,
+          apiToken,
+          action,
+          body: ctx.body!,
+          obligations: ctx.obligations,
+          connectionId: ctx.connectionId,
+          peerDid: ctx.peerDid,
+          timeoutMs,
+        });
+      }
+
+      // ── Free-form chat fall-through ────────────────────────────────
+      // Plain-text messages (action=relay_to_principal or unset) still
+      // go through /api/web/chat. We augment the prompt with connection
+      // context so the LLM knows who's asking + what scopes apply, but
+      // obligations honored by the LLM are best-effort. For
+      // deterministic enforcement, callers should use typed actions.
       const sessionId = ctx.connectionId
         ? `arp:${ctx.peerDid}:${ctx.connectionId}`
         : `arp:${ctx.peerDid}`;
-      const body = JSON.stringify({ prompt: ctx.text, sessionId });
+      const promptWithContext = augmentPromptWithConnectionContext(ctx);
+      const body = JSON.stringify({ prompt: promptWithContext, sessionId });
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
@@ -209,6 +230,114 @@ function parseSSEChunk(chunk: string): { event: string; data: unknown } | null {
   } catch {
     return { event, data: raw };
   }
+}
+
+// ── Phase B/C — typed ARP action dispatch ───────────────────────────────
+
+/**
+ * Allowlist of structured actions kyberbot's /api/arp/* surface
+ * implements. Anything not in this list falls through to the
+ * free-form chat path even if `action` is set, so a peer asking for
+ * a future action that hasn't shipped yet doesn't 400 — it just gets
+ * a polite LLM-mediated response.
+ *
+ * Keep in sync with packages/cli/src/server/arp/router.ts and
+ * @kybernesis/arp-scope-catalog. The router exposes a /health
+ * endpoint that lists currently-mounted actions; consumers SHOULD
+ * probe that at startup rather than hard-coding this list. For now
+ * it's static + matches PR-AC-3 (PR-AC-4 will expand).
+ */
+const TYPED_ARP_ACTIONS = new Set<string>([
+  'notes.search',
+  'notes.read',
+  'knowledge.query',
+]);
+
+function isTypedArpAction(action: string): boolean {
+  return TYPED_ARP_ACTIONS.has(action);
+}
+
+interface CallTypedArpInput {
+  baseUrl: string;
+  apiToken: string;
+  action: string;
+  body: Record<string, unknown>;
+  obligations?: Array<{ type: string; params: Record<string, unknown> }>;
+  connectionId: string | null;
+  peerDid: string;
+  timeoutMs: number;
+}
+
+/**
+ * POST /api/arp/<action> on the local kyberbot. Forwards the inbound
+ * body + obligations + connection_id (which kyberbot uses for rate-
+ * limit scoping + audit attribution). Returns the JSON response
+ * stringified — the bridge ships that as the reply text in the
+ * outbound DIDComm envelope back to the peer.
+ *
+ * Errors propagate as exceptions; the bridge's outer try/catch logs
+ * + the cloud requeues per the existing protocol (better than
+ * shipping a malformed reply).
+ */
+async function callTypedArp(input: CallTypedArpInput): Promise<string> {
+  const { baseUrl, apiToken, action, body, obligations, connectionId, peerDid, timeoutMs } = input;
+
+  // Build the request payload our server-side handler expects. The
+  // handler validates required fields (connection_id, action params)
+  // and returns 4xx on missing inputs — that 4xx becomes an error
+  // string the LLM-mediated peer can interpret on the other end.
+  const payload: Record<string, unknown> = {
+    ...body,
+    connection_id: connectionId ?? '',
+    source_did: peerDid,
+    obligations: obligations ?? [],
+  };
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${baseUrl}/api/arp/${action}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiToken}`,
+      },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      // Bubble the structured error through to the peer; the JSON
+      // body already has shape { ok: false, error, reason }.
+      return text || JSON.stringify({ ok: false, error: 'internal', status: res.status });
+    }
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Augment a free-form chat prompt with connection context so the LLM
+ * has the social signal it needs (who's asking, on what connection)
+ * to compose a useful reply. Doesn't try to prompt-enforce
+ * obligations — those should use the typed surface; this is just a
+ * courtesy nudge for the chat fall-through.
+ */
+function augmentPromptWithConnectionContext(ctx: InboundContext): string {
+  const lines: string[] = [];
+  if (ctx.connectionId) {
+    lines.push(`[ARP context: peer=${ctx.peerDid}, connection=${ctx.connectionId}]`);
+  } else {
+    lines.push(`[ARP context: peer=${ctx.peerDid}]`);
+  }
+  if (ctx.obligations && ctx.obligations.length > 0) {
+    const obligationNames = ctx.obligations.map((o) => o.type).join(', ');
+    lines.push(`[Obligations the cloud attached: ${obligationNames}]`);
+  }
+  lines.push('');
+  lines.push(ctx.text);
+  return lines.join('\n');
 }
 
 function parseDotenv(text: string): Record<string, string> {

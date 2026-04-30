@@ -281,6 +281,8 @@ async function handleInbound(
       thid,
       connectionId: input.connectionId,
       text,
+      body: decoded.body ?? {},
+      obligations: input.obligations,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
