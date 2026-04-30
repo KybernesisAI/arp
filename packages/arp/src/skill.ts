@@ -43,13 +43,19 @@ function describeTargetPath(target: SkillTarget): string {
   }
 }
 
-export function cmdSkill(sub: string | null, positional: string[], targetFlag?: string): void {
+export function cmdSkill(
+  sub: string | null,
+  positional: string[],
+  targetFlag?: string,
+  forceFlag?: boolean,
+): void {
   if (!sub || sub === 'list') {
     console.log('available skills:');
     for (const name of listSkillNames()) {
       console.log(`  ${name}`);
     }
-    console.log(`\nInstall: arpc skill install <name> [--target ${KNOWN_TARGETS.join('|')}]`);
+    console.log(`\nInstall: arpc skill install <name> [--target ${KNOWN_TARGETS.join('|')}] [--force]`);
+    console.log(`Update:  arpc skill install <name> --force   (overwrites existing SKILL.md)`);
     return;
   }
   if (sub !== 'install') {
@@ -58,7 +64,7 @@ export function cmdSkill(sub: string | null, positional: string[], targetFlag?: 
   }
   const name = positional[2];
   if (!name) {
-    console.error('usage: arpc skill install <name> [--target kyberbot|claude-code|claude-code-global]');
+    console.error('usage: arpc skill install <name> [--target kyberbot|claude-code|claude-code-global] [--force]');
     console.error(`  available: ${listSkillNames().join(', ')}`);
     process.exit(2);
   }
@@ -80,14 +86,17 @@ export function cmdSkill(sub: string | null, positional: string[], targetFlag?: 
   const cwd = process.cwd();
   const path = skillInstallPath(name, target, cwd, homedir());
 
-  if (existsSync(path)) {
-    console.error(`arpc skill install: ${path} already exists. Delete it first if you want to overwrite.`);
+  if (existsSync(path) && !forceFlag) {
+    console.error(
+      `arpc skill install: ${path} already exists. Pass --force to overwrite ` +
+        `(useful when upgrading to a newer version of the skill).`,
+    );
     process.exit(1);
   }
 
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, template.content, 'utf-8');
-  console.log(`Installed "${name}" at ${path}`);
+  console.log(`${forceFlag && existsSync(path) ? 'Updated' : 'Installed'} "${name}" at ${path}`);
   console.log(`  target:    ${target}`);
   console.log(`  pattern:   ${describeTargetPath(target)}`);
   switch (target) {

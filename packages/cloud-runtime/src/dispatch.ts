@@ -21,7 +21,7 @@ import { verifyEnvelope, multibaseEd25519ToRaw } from '@kybernesis/arp-transport
 import type { DidCommMessage } from '@kybernesis/arp-transport';
 import { createPdp, type Entity, type Pdp, type PdpDecision } from '@kybernesis/arp-pdp';
 import type { ConnectionToken, DidDocument, Obligation } from '@kybernesis/arp-spec';
-import type { ConnectionRow, TenantDb } from '@kybernesis/arp-cloud-db';
+import { checkQuota, type ConnectionRow, type TenantDb } from '@kybernesis/arp-cloud-db';
 import type { PostgresAudit } from './audit.js';
 import type { SessionRegistry } from './sessions.js';
 import type { CloudRuntimeLogger, TenantMetrics, WsServerEvent } from './types.js';
@@ -173,6 +173,28 @@ export async function dispatchInbound(
     reasons = ['auto_allow_response'];
   }
 
+  // ---- quota gate (Phase-10 billing) -------------------------------
+  // After PDP allow but BEFORE enqueue: refuse messages that would push
+  // the tenant past their inbound-message cap for the current period.
+  // The denial is recorded in the audit log with reason='quota_exceeded'
+  // so over-cap traffic is auditable. Sender sees a deny → 4xx; cloud
+  // does NOT enqueue and does NOT increment the usage counter (it's
+  // already at the cap by definition).
+  const period = currentUsagePeriod(ctx.now());
+  if (decisionVerdict === 'allow') {
+    const tenantRow = await ctx.tenantDb.getTenant();
+    const usage = await ctx.tenantDb.getUsage(period);
+    const plan = tenantRow?.plan ?? 'free';
+    const inboundSoFar = usage?.inboundMessages ?? 0;
+    const overCap = checkQuota(plan, inboundSoFar);
+    if (overCap !== null) {
+      decisionVerdict = 'deny';
+      reasons = [
+        `quota_exceeded:${plan}:${inboundSoFar}/${overCap.maxInboundMessagesPerMonth}`,
+      ];
+    }
+  }
+
   await ctx.audit.append({
     agentDid: ctx.agentDid,
     connectionId,
@@ -185,8 +207,16 @@ export async function dispatchInbound(
   await ctx.tenantDb.touchConnection(connectionId);
 
   if (decisionVerdict === 'deny') {
-    log.info({ msgId: msg.id, connectionId, policies: policiesFired }, 'pdp_deny');
-    return { ok: true, decision: 'deny', reason: 'policy_denied' };
+    const isQuota = reasons[0]?.startsWith('quota_exceeded') ?? false;
+    log.info(
+      { msgId: msg.id, connectionId, policies: policiesFired, reason: reasons[0] },
+      isQuota ? 'quota_exceeded' : 'pdp_deny',
+    );
+    return {
+      ok: true,
+      decision: 'deny',
+      reason: isQuota ? 'quota_exceeded' : 'policy_denied',
+    };
   }
 
   // ---- persist the envelope ----------------------------------------
@@ -203,7 +233,7 @@ export async function dispatchInbound(
     expiresAt,
   });
   ctx.metrics.inbound(ctx.tenantId);
-  await ctx.tenantDb.incrementUsage(currentUsagePeriod(ctx.now()), { inbound: 1 });
+  await ctx.tenantDb.incrementUsage(period, { inbound: 1 });
 
   // ---- deliver if a session is live, else leave queued --------------
   const session = ctx.sessions.getByAgent(ctx.agentDid);
