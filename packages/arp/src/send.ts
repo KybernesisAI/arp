@@ -184,6 +184,16 @@ export async function cmdSend(positional: string[], flags: SendFlags): Promise<v
     console.log(reply.text);
     return;
   }
+  if (res.status === 403 && body['error'] === 'denied') {
+    console.error(
+      `\ndenied by audience policy (msgId=${body['msgId']})\n` +
+        `reason: ${body['reason'] ?? 'policy_denied'}\n` +
+        `the audience never saw your message — the cedar policy on this connection ` +
+        `doesn't permit this action. Edit the connection at cloud.arp.run/connections ` +
+        `to grant the scope you need.`,
+    );
+    process.exit(3);
+  }
   if (res.status === 504 && body['error'] === 'reply_timeout') {
     console.error(
       `\ngateway accepted the message (msgId=${body['msgId']}) but no reply within ${timeoutMs / 1000}s.`,
@@ -293,6 +303,15 @@ export async function cmdRequest(positional: string[], flags: RequestFlags): Pro
     console.log(`\nreply from ${reply.peerDid}:`);
     console.log(reply.text);
     return;
+  }
+  if (res.status === 403 && body['error'] === 'denied') {
+    console.error(
+      `\ndenied by audience policy (msgId=${body['msgId']})\n` +
+        `reason: ${body['reason'] ?? 'policy_denied'}\n` +
+        `the connection's cedar policy doesn't permit this action. ` +
+        `Edit the connection at cloud.arp.run/connections to grant the scope.`,
+    );
+    process.exit(3);
   }
   if (res.status === 504 && body['error'] === 'reply_timeout') {
     console.error(

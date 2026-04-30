@@ -216,7 +216,17 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       return c.json({ ok: false, error: result.reason }, 400);
     }
     return c.json(
-      { ok: true, decision: result.decision, queued: result.queued ?? false, messageId: result.messageId },
+      {
+        ok: true,
+        decision: result.decision,
+        queued: result.queued ?? false,
+        messageId: result.messageId,
+        // Surface the deny reason so senders' CLI can print something
+        // actionable instead of timing out on awaitReply. PDP denies set
+        // reason='policy_denied'; transport-layer denies (revoked,
+        // suspended) carry their own reason strings.
+        ...(result.reason ? { reason: result.reason } : {}),
+      },
       202,
     );
   });

@@ -229,6 +229,24 @@ async function handleSend(req: IncomingMessage, res: ServerResponse, opts: IpcSe
     });
   }
 
+  // Cloud accepted the message but PDP denied at the audience side.
+  // Don't enter awaitReply — there's no reply coming, the audience never
+  // saw the request. Surface the deny immediately so the CLI prints a
+  // clear "policy_denied" instead of timing out.
+  const gwBody = send.gatewayResponse.body as
+    | { decision?: 'allow' | 'deny'; reason?: string }
+    | null
+    | undefined;
+  if (gwBody && gwBody.decision === 'deny') {
+    return json(res, 403, {
+      msgId: send.msgId,
+      thid: send.thid,
+      gatewayResponse: send.gatewayResponse,
+      error: 'denied',
+      reason: gwBody.reason ?? 'policy_denied',
+    });
+  }
+
   const timeoutMs = body.syncTimeoutMs ?? 30_000;
   if (timeoutMs <= 0) {
     return json(res, 202, { msgId: send.msgId, thid: send.thid, gatewayResponse: send.gatewayResponse });
