@@ -48,7 +48,12 @@ import { base64urlEncode } from '@kybernesis/arp-transport/browser';
 type AutoStage = 'checking' | 'auto-signing' | 'auto-failed' | 'no-tenant' | 'no-auto';
 type PasskeyStage = 'idle' | 'pending' | 'success' | 'error';
 
-export default function LoginForm(): React.JSX.Element {
+export default function LoginForm({
+  nextUrl,
+}: {
+  nextUrl?: string | null;
+} = {}): React.JSX.Element {
+  const successHref = nextUrl ?? '/dashboard';
   const [auto, setAuto] = useState<AutoStage>('checking');
   const [autoError, setAutoError] = useState<string | null>(null);
   const [autoDid, setAutoDid] = useState<string | null>(null);
@@ -64,6 +69,7 @@ export default function LoginForm(): React.JSX.Element {
         if (has) {
           setAuto('auto-signing');
           await signInExisting();
+          window.location.assign(successHref);
           return;
         }
       } catch (err) {
@@ -94,7 +100,7 @@ export default function LoginForm(): React.JSX.Element {
     try {
       await signInWithPasskey();
       setPasskeyStage('success');
-      window.location.assign('/dashboard');
+      window.location.assign(successHref);
     } catch (err) {
       setPasskeyError((err as Error).message);
       setPasskeyStage('error');
@@ -193,7 +199,7 @@ export default function LoginForm(): React.JSX.Element {
             Use this when your passkey isn&apos;t on this device — for example,
             you&apos;re signing in to localhost or a fresh install.
           </p>
-          <RecoveryPhraseSignIn />
+          <RecoveryPhraseSignIn successHref={successHref} />
         </div>
       </div>
 
@@ -208,7 +214,7 @@ export default function LoginForm(): React.JSX.Element {
         </button>
         {advancedOpen && (
           <div className="border border-rule bg-paper p-7 mt-3">
-            <ExternalSignerSignIn />
+            <ExternalSignerSignIn successHref={successHref} />
           </div>
         )}
       </div>
@@ -229,7 +235,11 @@ async function signInExisting(): Promise<void> {
 
 /* ---------------- Path 3a: 12-word recovery phrase, in-browser signing ---------------- */
 
-function RecoveryPhraseSignIn(): React.JSX.Element {
+function RecoveryPhraseSignIn({
+  successHref,
+}: {
+  successHref: string;
+}): React.JSX.Element {
   const [phrase, setPhrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -255,9 +265,9 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
       // Attempt v2 first — that's the post-9d default.
       try {
         await runChallengeVerify(v2.key);
-        // Success: persist v2 to localStorage and let runChallengeVerify
-        // do the redirect.
+        // Success: persist v2 to localStorage and redirect.
         persistDerivedKey(v2.stored, canonicalPhrase, 'v2');
+        window.location.assign(successHref);
         return;
       } catch (errV2) {
         if (!(errV2 instanceof NoTenantError)) {
@@ -269,6 +279,7 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
       try {
         await runChallengeVerify(v1.key);
         persistDerivedKey(v1.stored, canonicalPhrase, 'v1');
+        window.location.assign(successHref);
         return;
       } catch (errV1) {
         if (errV1 instanceof NoTenantError) {
@@ -315,7 +326,11 @@ function RecoveryPhraseSignIn(): React.JSX.Element {
 
 /* ---------------- Path 3b: bare DID + externally-signed nonce (CLI users) ---------------- */
 
-function ExternalSignerSignIn(): React.JSX.Element {
+function ExternalSignerSignIn({
+  successHref,
+}: {
+  successHref: string;
+}): React.JSX.Element {
   const [principalDid, setPrincipalDid] = useState('');
   const [nonce, setNonce] = useState<string | null>(null);
   const [signature, setSignature] = useState('');
@@ -358,7 +373,7 @@ function ExternalSignerSignIn(): React.JSX.Element {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `verify_failed_${res.status}`);
       }
-      window.location.assign('/dashboard');
+      window.location.assign(successHref);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -494,7 +509,6 @@ async function runChallengeVerify(key: PrincipalKey): Promise<void> {
   if (!vBody.session?.tenantId) {
     throw new NoTenantError(key.did);
   }
-  window.location.assign('/dashboard');
 }
 
 export { NoTenantError };

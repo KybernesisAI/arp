@@ -25,12 +25,26 @@ export const dynamic = 'force-dynamic';
  *   - POST to /api/pairing/invitations;
  *   - rendering the fragment-bearing share URL + copy-to-clipboard.
  */
-export default async function PairPage(): Promise<React.JSX.Element> {
+export default async function PairPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const sp = await props.searchParams;
   let state: Awaited<ReturnType<typeof loadState>>;
   try {
     state = await loadState();
   } catch (err) {
-    if (err instanceof AuthError) redirect('/onboarding');
+    if (err instanceof AuthError) {
+      // Preserve the original URL (including ?peer=, ?from=) so deep links
+      // from external sites survive the auth bounce. Onboarding sends the
+      // user to /cloud/login if they already have an account.
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(sp)) {
+        if (typeof v === 'string') qs.set(k, v);
+      }
+      const search = qs.toString();
+      const next = `/pair${search ? `?${search}` : ''}`;
+      redirect(`/onboarding?next=${encodeURIComponent(next)}`);
+    }
     throw err;
   }
   const { agents, catalog, bundles, principalDid } = state;

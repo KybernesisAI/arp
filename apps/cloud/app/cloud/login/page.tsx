@@ -1,4 +1,5 @@
 import type * as React from 'react';
+import { redirect } from 'next/navigation';
 import {
   Container,
   EyebrowTag,
@@ -9,12 +10,27 @@ import {
   Section,
 } from '@/components/ui';
 import LoginForm from './LoginForm';
+import { getSession } from '@/lib/session';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Log in · ARP Cloud',
 };
 
-export default function LoginPage(): React.JSX.Element {
+export default async function LoginPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const sp = await props.searchParams;
+  const nextRaw = sp['next'];
+  const nextUrl = typeof nextRaw === 'string' && nextRaw.startsWith('/') ? nextRaw : null;
+
+  // If already logged in with a complete account, skip the login form.
+  const session = await getSession();
+  if (session?.tenantId) {
+    redirect(nextUrl ?? '/dashboard');
+  }
+
   return (
     <>
       <Section tone="paper" spacing="hero" rule={false} as="header">
@@ -43,7 +59,7 @@ export default function LoginPage(): React.JSX.Element {
               </HeroSub>
             </div>
             <div className="col-span-12 lg:col-span-5 flex flex-col">
-              <LoginForm />
+              <LoginForm nextUrl={nextUrl} />
             </div>
           </div>
         </Container>
