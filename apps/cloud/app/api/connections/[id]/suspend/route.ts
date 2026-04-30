@@ -22,6 +22,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -122,6 +123,17 @@ export async function POST(
       { prevHash, selfHash, seq },
     );
 
+    posthog.capture({
+      distinctId: tenantDb.tenantId,
+      event: 'connection_suspended',
+      properties: {
+        tenant_id: tenantDb.tenantId,
+        connection_id: id,
+        peer_did: conn.peerDid,
+        agent_did: conn.agentDid,
+        reason,
+      },
+    });
     return NextResponse.json({
       ok: true,
       alreadySuspended: false,

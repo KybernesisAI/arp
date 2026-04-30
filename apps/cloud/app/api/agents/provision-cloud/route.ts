@@ -40,6 +40,7 @@ import {
 import { ed25519RawToMultibase, base64urlEncode } from '@kybernesis/arp-transport';
 import { getDb } from '@/lib/db';
 import { getSession } from '@/lib/session';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -195,6 +196,18 @@ export async function POST(req: Request): Promise<NextResponse> {
     wellKnownArp: arpJson as Record<string, unknown>,
     scopeCatalogVersion: 'v1',
     tlsFingerprint: 'cloud-hosted',
+  });
+
+  posthog.capture({
+    distinctId: session.principalDid,
+    event: 'agent_provisioned',
+    properties: {
+      tenant_id: session.tenantId,
+      agent_did: agentDid,
+      domain: lowerDomain,
+      agent_name: agentName,
+      forced: force ?? false,
+    },
   });
 
   // 7. Return everything the user needs. The private key is shown ONCE

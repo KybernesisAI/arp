@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { createCheckoutSession, getBillingContext } from '@/lib/billing';
 import { env } from '@/lib/env';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -38,11 +39,17 @@ export async function POST(req: Request): Promise<NextResponse> {
       successUrl: `https://${host}/billing?status=success`,
       cancelUrl: `https://${host}/billing?status=cancel`,
     });
+    posthog.capture({
+      distinctId: session.principalDid,
+      event: 'billing_checkout_started',
+      properties: { tenant_id: tenant.id, current_plan: tenant.plan, quantity },
+    });
     return NextResponse.json({ url });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
+    posthog.captureException(err);
     throw err;
   }
 }

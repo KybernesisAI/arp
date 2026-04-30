@@ -26,6 +26,7 @@ import { PairingProposalSchema } from '@kybernesis/arp-pairing';
 import { pairingInvitations } from '@kybernesis/arp-cloud-db';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -113,6 +114,18 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'insert_failed' }, { status: 500 });
     }
 
+    posthog.capture({
+      distinctId: session.principalDid,
+      event: 'pairing_invitation_created',
+      properties: {
+        tenant_id: tenantDb.tenantId,
+        invitation_id: row.id,
+        issuer_agent_did: proposal.subject,
+        audience_did: proposal.audience,
+        scope_count: proposal.scope_selections.length,
+        expires_at: row.expiresAt.toISOString(),
+      },
+    });
     return NextResponse.json({
       invitationId: row.id,
       invitationUrl: buildInvitationUrl(baseUrl, payload),

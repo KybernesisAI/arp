@@ -49,6 +49,7 @@ import * as host from './host.js';
 import * as service from './service.js';
 import * as send from './send.js';
 import * as skill from './skill.js';
+import { posthog, shutdownPosthog } from './posthog.js';
 
 // Read version from the published package.json so `arpc version` always
 // matches `npm view @kybernesis/arp version`. Walks up from the dist
@@ -457,6 +458,19 @@ async function cmdConnect(flags: Flags): Promise<void> {
   console.log(`handoff:     ${cfg.handoffPath}`);
   console.log('─────────────────────────────────────────────');
   console.log(`Connected. Ctrl-C to stop.`);
+
+  posthog.capture({
+    distinctId: bridge.agentDid,
+    event: 'agent_connected',
+    properties: {
+      agent_did: bridge.agentDid,
+      framework: cfg.framework,
+      source: cfg.source,
+      adapter: bridge.adapterName,
+      version: VERSION,
+    },
+  });
+  void shutdownPosthog();
 
   const shutdown = async (sig: string) => {
     console.log(`\n${sig} received, shutting down`);

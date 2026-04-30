@@ -37,7 +37,8 @@
   "dependencies": {
     "@kybernesis/arp-cloud-client": "^0.2.0",
     "@kybernesis/arp-transport": "^0.3.2",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "posthog-node": "^5.32.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

@@ -21,6 +21,7 @@ import { getDb } from '@/lib/db';
 import { setSession } from '@/lib/session';
 import { decodeDidKeyPublicKey } from '@/lib/principal-keys';
 import { multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -87,6 +88,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     .where(eq(tenants.principalDid, principalDid))
     .limit(1);
   let tenantId: string | null = existing[0]?.id ?? null;
+  const isNewTenant = !tenantId;
 
   if (!tenantId) {
     const inserted = await db
@@ -105,6 +107,21 @@ export async function POST(req: Request): Promise<NextResponse> {
   // outside the challenge/verify flow.
   const nonce = randomBytes(16).toString('base64url');
   await setSession(principalDid, tenantId, nonce);
+
+  if (isNewTenant) {
+    posthog.identify({
+      distinctId: principalDid,
+      properties: {
+        $set: { tenant_id: tenantId, plan: 'free' },
+        $set_once: { first_seen: new Date().toISOString() },
+      },
+    });
+    posthog.capture({
+      distinctId: principalDid,
+      event: 'tenant_signed_up',
+      properties: { tenant_id: tenantId },
+    });
+  }
 
   return NextResponse.json({ ok: true, tenantId, principalDid });
 }

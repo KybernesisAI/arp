@@ -48,6 +48,7 @@ import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 import { createPairingResolver } from '@/lib/pairing-resolver';
 import { getScopeCatalog } from '@/lib/catalog';
+import { posthog } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -414,6 +415,20 @@ export async function POST(req: Request): Promise<Response> {
           ),
         );
     }
+    posthog.capture({
+      distinctId: tenantDb.tenantId,
+      event: 'pairing_accepted',
+      properties: {
+        tenant_id: tenantDb.tenantId,
+        connection_id: proposal.connection_id,
+        accepting_agent_did: acceptingAgentDid,
+        issuer_did: proposal.issuer,
+        peer_agent_did: proposal.subject,
+        scope_count: proposal.scope_selections.length,
+        has_amendment: !!proposal.audience_amendment,
+        replaces: proposal.replaces ?? null,
+      },
+    });
     return NextResponse.json({
       ok: true,
       connectionId: proposal.connection_id,
@@ -425,6 +440,7 @@ export async function POST(req: Request): Promise<Response> {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
+    posthog.captureException(err);
     throw err;
   }
 }
