@@ -231,17 +231,31 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     const out = conns
       .filter((c) => c.status === 'active' || c.status === 'expiring')
       .map((conn) => {
-        const token = conn.tokenJson as {
-          scope_selections?: Array<{ id: string; params?: Record<string, unknown> }>;
-          expires_at?: string;
-        } | null;
+        // scope_selections live in `metadata.scopeSelections` on each
+        // connection row (accept route stores them there explicitly so
+        // the connection-edit UI can pre-fill the picker). Fall back to
+        // `tokenJson.scope_selections` for legacy rows from earlier
+        // builds where the field was on the token. Both shapes use the
+        // same `[{id, params?}]` payload.
+        const meta = conn.metadata as
+          | { scopeSelections?: Array<{ id: string; params?: Record<string, unknown> }> }
+          | null;
+        const token = conn.tokenJson as
+          | {
+              scope_selections?: Array<{ id: string; params?: Record<string, unknown> }>;
+              expires_at?: string;
+              expires?: string;
+            }
+          | null;
+        const scopeSelections =
+          meta?.scopeSelections ?? token?.scope_selections ?? [];
         return {
           connection_id: conn.connectionId,
           peer_did: conn.peerDid,
           status: conn.status,
           purpose: conn.purpose,
-          scope_selections: token?.scope_selections ?? [],
-          expires_at: token?.expires_at ?? null,
+          scope_selections: scopeSelections,
+          expires_at: token?.expires_at ?? token?.expires ?? null,
         };
       });
     return c.json({ agent_did: auth.agentDid, connections: out });
