@@ -1,11 +1,30 @@
 import type * as React from 'react';
+import { redirect } from 'next/navigation';
 import OnboardingForm from './OnboardingForm';
-import { PlateHead } from '@/components/ui';
+import { Link, PlateHead } from '@/components/ui';
 import { AppShell } from '@/components/app/AppShell';
+import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export default function OnboardingPage(): React.JSX.Element {
+export default async function OnboardingPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const sp = await props.searchParams;
+  const nextRaw = sp['next'];
+  const nextUrl = typeof nextRaw === 'string' && nextRaw.startsWith('/') ? nextRaw : null;
+
+  // If the user is already logged in with a complete account, skip onboarding
+  // entirely. Carry the deep-link `?next=` if present.
+  const session = await getSession();
+  if (session?.tenantId) {
+    redirect(nextUrl ?? '/dashboard');
+  }
+
+  const loginHref = nextUrl
+    ? `/cloud/login?next=${encodeURIComponent(nextUrl)}`
+    : '/cloud/login';
+
   return (
     <AppShell showMainActions={false}>
       <PlateHead
@@ -14,12 +33,16 @@ export default function OnboardingPage(): React.JSX.Element {
         title="Get started with ARP Cloud."
       />
       <div className="max-w-[720px]">
-        <p className="text-body-lg text-ink-2 mb-8">
+        <p className="text-body-lg text-ink-2 mb-4">
           Create your account. Your browser generates your identity locally — we never see your
           private key. When you write down your recovery phrase, keep it somewhere safe. It is
           the only way to get your account back if this browser is lost.
         </p>
-        <OnboardingForm />
+        <p className="text-body text-ink-2 mb-8">
+          Already have an account?{' '}
+          <Link href={loginHref}>Sign in instead →</Link>
+        </p>
+        <OnboardingForm nextUrl={nextUrl} />
       </div>
     </AppShell>
   );

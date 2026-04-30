@@ -43,7 +43,13 @@ type Stage =
   | 'creating_agent'
   | 'done';
 
-export default function OnboardingForm(): React.JSX.Element {
+export default function OnboardingForm({
+  nextUrl,
+}: {
+  nextUrl?: string | null;
+} = {}): React.JSX.Element {
+  const successHref = nextUrl ?? '/dashboard';
+  const successLabel = nextUrl ? 'Continue' : 'Go to dashboard';
   const [stage, setStage] = useState<Stage>('idle');
   const [principal, setPrincipal] = useState<PrincipalKey | null>(null);
   const [phrase, setPhrase] = useState<string | null>(null);
@@ -142,8 +148,8 @@ export default function OnboardingForm(): React.JSX.Element {
           </p>
         )}
         <div className="mt-6">
-          <ButtonLink href="/dashboard" variant="primary" arrow>
-            Go to dashboard
+          <ButtonLink href={successHref} variant="primary" arrow>
+            {successLabel}
           </ButtonLink>
         </div>
       </div>
@@ -290,7 +296,11 @@ export default function OnboardingForm(): React.JSX.Element {
         </button>
         {advancedOpen && (
           <div className="border border-rule bg-paper p-7 mt-3">
-            <AdvancedHandoffFlow onReset={() => void clearPrincipalKey()} />
+            <AdvancedHandoffFlow
+              onReset={() => void clearPrincipalKey()}
+              successHref={successHref}
+              successLabel={successLabel}
+            />
           </div>
         )}
       </div>
@@ -298,7 +308,15 @@ export default function OnboardingForm(): React.JSX.Element {
   );
 }
 
-function AdvancedHandoffFlow({ onReset: _onReset }: { onReset: () => void }): React.JSX.Element {
+function AdvancedHandoffFlow({
+  onReset: _onReset,
+  successHref,
+  successLabel,
+}: {
+  onReset: () => void;
+  successHref: string;
+  successLabel: string;
+}): React.JSX.Element {
   const [step, setStep] = useState<'signin' | 'handoff' | 'complete'>('signin');
   const [principalDid, setPrincipalDid] = useState('');
   const [nonce, setNonce] = useState<string | null>(null);
@@ -377,8 +395,8 @@ function AdvancedHandoffFlow({ onReset: _onReset }: { onReset: () => void }): Re
           Agent <Code>{agentDid}</Code> is now connected to ARP Cloud.
         </p>
         <div className="mt-4">
-          <ButtonLink href="/dashboard" variant="primary" arrow>
-            Go to dashboard
+          <ButtonLink href={successHref} variant="primary" arrow>
+            {successLabel}
           </ButtonLink>
         </div>
       </div>
