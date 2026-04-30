@@ -44,6 +44,7 @@ export const DOCS_NAV: DocNavGroup[] = [
     kicker: 'START',
     items: [
       { title: 'Getting started', href: '/docs/getting-started' },
+      { title: 'Example setup', href: '/docs/example-setup' },
       { title: 'HNS resolution', href: '/docs/hns-resolution' },
     ],
   },
