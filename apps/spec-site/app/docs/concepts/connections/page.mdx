@@ -1,0 +1,90 @@
+export const metadata = {
+  title: "Connections",
+  description: "What a connection is, how pairing works, and why both sides sign.",
+};
+
+# Connections
+
+A **connection** is a signed agreement between two agents that lets them talk to each other under specific rules. It's the thing pairing creates.
+
+## What's in a connection
+
+Every connection has:
+
+- A unique ID (`conn_…`)
+- The two agents involved (their DIDs)
+- The two principals who signed off (one human per side, usually)
+- A purpose label ("Project alpha collaboration")
+- A set of cedar policies that define what each side is allowed to do
+- Obligations — rate limits, redactions, audit verbosity — that the runtime enforces
+- An expiration time
+- A signature from each principal proving they consented
+
+Connections live forever (until expiration or revocation). They survive agent restarts, key rotations, and host migrations. They're the unit of "this agent can do these specific things."
+
+## Pairing — how a connection is born
+
+Pairing happens in the browser at `cloud.arp.run/pair`. The flow:
+
+1. **Issuer drafts the proposal.** One side picks the peer DID, declares what they're granting (via the scope picker), sets an expiration. The proposal is signed by the issuer's principal in the browser.
+2. **Issuer shares the URL.** A `cloud.arp.run/pair/accept#…` link with the signed proposal in the URL fragment (so the cloud server never sees it, only the recipient's browser).
+3. **Audience reviews.** Their browser shows what's being granted in plain language.
+4. **Audience may declare grants in return.** The accept screen has a second scope picker for "what *you* grant *them*." This is how connections become bidirectional.
+5. **Audience countersigns.** Their principal key signs the proposal (and any return-direction grants). The cloud writes the connection row on both sides.
+
+Both signatures are required. If only one side signed, the connection wouldn't exist — both have to consent.
+
+## Bidirectional by default
+
+A connection isn't directional. Whichever side wants to act, the same connection backs it. What's directional is the **policy** — what each side allows the other to do.
+
+If Anna grants Mythos the right to search project alpha notes, that's *one* policy on the shared connection. If Bob also grants Atlas the right to search project beta notes, that's *another* policy. Both live on the same connection.
+
+The PDP evaluates each inbound message against whichever policy matches the principal making the request.
+
+## Lifecycle states
+
+| Status | What it means |
+|---|---|
+| **Active** | Connection is live; messages flow under policy |
+| **Suspended** | Temporarily paused — either side can pause without losing the connection |
+| **Revoked** | Permanently ended; cannot be resumed (re-pair to start fresh) |
+| **Expired** | Hit the expiration date set during pairing; treat as revoked |
+| **Superseded** | Replaced by a new connection (e.g., after a re-pair to change scopes) |
+
+Either side can revoke at any time. The other side learns immediately via a revocation event pushed over the gateway.
+
+## Editing a connection
+
+You can change scopes on an existing connection by re-issuing it:
+
+1. The original issuer (or audience) edits scopes in the dashboard
+2. A new connection proposal is generated, carrying `replaces=<old_connection_id>`
+3. The peer countersigns
+4. The cloud atomically: marks the old connection `revoked` (with reason `superseded_by:<new>`), inserts the new one, both sides switch to the new policy
+
+Until the peer accepts, the old policies stay in effect. There's no permission gap.
+
+## What's signed and verified
+
+Every wire-level message includes:
+
+- Sender DID (who's sending)
+- Connection ID (which agreement applies)
+- The action and resource being requested
+- A signature from the sender's agent key
+
+The cloud verifies:
+
+- The signature matches the public key on the sender's `.agent` DID document
+- The connection exists and is active
+- The Cedar policies on the connection permit this action on this resource
+- All declared obligations can be applied (rate limit, size cap, redaction)
+
+If any check fails, the message is denied. Every decision — allow or deny — is recorded in the audit chain.
+
+## Related
+
+- [Scopes & policies](/docs/concepts/scopes-and-policies) — how the rules on a connection are written
+- [Audit & verification](/docs/concepts/audit) — how to verify a connection's history is intact
+- [Pair with another agent](/docs/guides/pair) — step-by-step pairing walkthrough

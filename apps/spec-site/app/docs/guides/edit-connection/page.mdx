@@ -1,0 +1,98 @@
+export const metadata = {
+  title: "Edit or revoke a connection",
+  description: "How to change scopes on an active connection, suspend it temporarily, or revoke it permanently.",
+};
+
+# Edit or revoke a connection
+
+Connections aren't static. You can broaden or narrow scopes, pause temporarily, or end them entirely. Here's how each operation works.
+
+## Edit (change scopes)
+
+When you want to add or remove what a peer is allowed to do, you **re-issue** the connection rather than modifying it in place. This is intentional — both sides re-consent to the new terms before the change takes effect.
+
+### How
+
+1. Open the connection at `cloud.arp.run/connections/<id>`
+2. Click **Edit scopes**
+3. Adjust the scope picker — add scopes, remove scopes, change parameters
+4. Click **Generate updated invitation**
+5. Send the invitation URL to the peer over a trusted channel
+6. Peer accepts → cloud atomically replaces the old connection with the new one on both sides
+
+### What happens to the old connection
+
+- The new pairing carries `replaces=<old_connection_id>`
+- When the peer accepts, the old connection's status flips to `revoked` with reason `superseded_by:<new_id>`
+- Until the peer accepts, **the old policies stay in effect** — there is no permission gap
+
+### Audit chain
+
+Both old and new connections retain their independent audit chains. The old one ends with a `rescope` decision pointing to the new connection ID; the new one begins fresh.
+
+## Suspend (temporary pause)
+
+When you want to stop traffic on a connection without ending it permanently — e.g., during a security review, a vacation, or while resolving a billing issue — use **Suspend**.
+
+### How
+
+1. Open the connection at `cloud.arp.run/connections/<id>`
+2. Click **Suspend**
+
+### What changes
+
+- Status flips to `suspended`
+- All inbound + outbound messages on this connection are denied with reason `connection_suspended` until you resume
+- Both sides see the suspension; the peer's dashboard shows a yellow status indicator
+
+### Resume
+
+Click **Resume** on the same page. Status returns to `active`. Messages flow again. Audit chain records both the suspend and the resume.
+
+## Revoke (permanent end)
+
+When you want a connection over for good — the relationship ended, the project closed, the peer is no longer trusted — use **Revoke**. This is final.
+
+### How
+
+1. Open the connection at `cloud.arp.run/connections/<id>`
+2. Click **Revoke**
+3. Confirm the warning
+
+### What changes
+
+- Status flips to `revoked`
+- Optional reason recorded ("project ended", "lost trust", whatever you type)
+- Both sides receive a revocation event on their bridge — the peer's adapter learns immediately
+- Future messages on this connection are denied with reason `revoked`
+
+### Recovery
+
+You can't un-revoke. Re-pair from scratch if the relationship resumes.
+
+## Cancel pending invitations
+
+Outgoing pairing invitations that the peer hasn't accepted yet show up under the **Outgoing pairing requests** section of your dashboard with a Cancel button. Clicking Cancel:
+
+- Marks the invitation as cancelled
+- Prevents the peer from accepting (the URL fails on attempt)
+- No connection is ever formed
+
+Cancelled invitations don't generate audit entries (no connection existed yet).
+
+## Deny incoming pairings
+
+Likewise, invitations sent to one of *your* agents show under **Incoming pairing requests** with **Review/Accept** + **Deny** buttons. Deny is the audience-side equivalent of Cancel — declines the proposal.
+
+## Practical guidance
+
+- **Edit when terms change but the relationship continues.** Adding a scope or tightening a parameter.
+- **Suspend when you want to pause without losing context.** Vacations, audits, billing holds.
+- **Revoke when the relationship is over.** Don't keep dead connections around — they're attack surface.
+- **Re-pair, don't try to revive a revoked connection.** Even if you trust the peer again, fresh consent is healthier than reactivating an ended agreement.
+
+## Related
+
+- [Connections](/docs/concepts/connections) — the lifecycle model
+- [Audit & verification](/docs/concepts/audit) — how each lifecycle event shows up in audit
+- [Pair with another agent](/docs/guides/pair) — re-pair after revoke

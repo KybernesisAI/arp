@@ -4,10 +4,10 @@ import { loadCatalog } from '@/lib/scope-catalog';
 import { SCHEMA_INDEX, allSchemas, getSchema } from '@/lib/schemas';
 
 describe('bundled scope catalog', () => {
-  it('ships exactly 50 scopes', () => {
+  it('ships exactly 51 scopes (50 user-facing + system.trusted.full_access)', () => {
     const { scopes, manifest } = loadCatalog();
-    expect(scopes.length).toBe(50);
-    expect(manifest.scope_count).toBe(50);
+    expect(scopes.length).toBe(51);
+    expect(manifest.scope_count).toBe(51);
   });
 
   it('manifest checksum + updated_at are populated', () => {

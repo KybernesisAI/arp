@@ -120,7 +120,13 @@ describe('phase 5 — bundle coverage', () => {
     }
   });
 
-  for (const bundle of BUNDLES) {
+  // bundle.trusted_full_access.v1 has no scope-based deny by design (it
+  // permits any action / any resource for the audience principal). It's
+  // intended for fully-trusted intra-principal automation, so the
+  // allow + deny probe pattern doesn't apply. Skip it.
+  const COVERED_BUNDLES = BUNDLES.filter((b) => b.id !== 'bundle.trusted_full_access.v1');
+
+  for (const bundle of COVERED_BUNDLES) {
     it(`${bundle.id}: allow + deny probes produce correct audit decisions`, async () => {
       const catalog = loadScopesFromDirectory(SCOPES_DIR);
       const probes = BUNDLE_PROBES[bundle.id];

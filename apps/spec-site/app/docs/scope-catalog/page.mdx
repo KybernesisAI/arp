@@ -7,10 +7,11 @@ export const metadata = {
 
 **Purpose:** the canonical set of ~50 scope templates that compile into Cedar policies. This is the UX surface humans interact with when approving an agent connection — they never write Cedar, they pick scopes from this catalog.
 
-**Relationship to other docs:**
-- `ARP-policy-examples.md` — shows Cedar at the policy layer
-- `ARP-our-codebase.md` — `arp-scope-catalog` is one of our packages
-- `ARP-tld-integration-spec-v2.md` — catalog is served at `/.well-known/scope-catalog.json`
+**What ships today:** `@kybernesis/arp-scope-catalog` (source: `packages/scope-catalog/scopes/*.yaml`) plus a small HTTP service that serves the compiled JSON at `/.well-known/scope-catalog.json`. The dashboard renders the human consent UI from this catalog at pairing time.
+
+**Related:**
+- [Policies & Cedar](/docs/policies-and-cedar) — the policy layer the templates compile into
+- [Scopes & policies (concept)](/docs/concepts/scopes-and-policies) — the user-facing model
 
 ---
 
@@ -82,6 +83,8 @@ health        — health data (v0.2+)
 ---
 
 ## 4. The full catalog (50 scopes)
+
+The catalog also ships one special scope outside the human-facing categories: `system.trusted.full_access` — used by the `bundle.trusted_full_access.v1` bundle to grant blanket access between agents under the same principal (intra-company / same-owner automation). Human consent UI calls this out explicitly so it can never be granted accidentally.
 
 | # | Scope ID | Label | Cat | Risk | Params |
 |---|---|---|---|---|---|
@@ -662,7 +665,7 @@ payments.authorize.capped           ⊥  payments.authorize.unlimited   (v0 has 
 - Breaking changes to a scope require a new major version; old connections keep the pinned version
 - Adding a scope: minor catalog bump
 - Removing a scope: requires deprecation period (≥180 days) and migration mapping
-- Catalog source of truth lives in `packages/arp-scope-catalog` in our repo
+- Catalog source of truth lives in `packages/scope-catalog/scopes/*.yaml` in the monorepo
 
 ---
 
@@ -720,11 +723,11 @@ These are deferred because they raise regulatory, privacy, or technical design q
 
 ## 13. Governance
 
-- Source of truth: `packages/arp-scope-catalog/scopes/*.yaml` in our repo
+- Source of truth: `packages/scope-catalog/scopes/*.yaml` in the monorepo
 - Additions: PR to the repo, minor catalog bump
 - Deprecations: RFC + 180-day notice
 - Breaking changes per scope: new major version; old versions frozen but still usable
-- Any implementer (our runtime, a third-party runtime, the TLD registrar templates) reads the compiled JSON from `arp.spec/scope-catalog/v1/manifest.json` — never hand-maintained copies
+- Any implementer (the gateway, third-party runtimes, registrar templates) reads the compiled JSON from `https://gateway.arp.run/.well-known/scope-catalog.json` (managed) or your self-hosted equivalent — never hand-maintained copies
 
 
 ---

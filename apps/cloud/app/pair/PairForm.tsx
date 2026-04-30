@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Badge,
@@ -81,7 +81,6 @@ export function PairForm({
       setIssuerAgent(fromQuery);
     }
     // intentionally only run when fromQuery changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromQuery]);
   const [audienceDid, setAudienceDid] = useState('did:web:peer.agent');
   const [purpose, setPurpose] = useState('Test connection');

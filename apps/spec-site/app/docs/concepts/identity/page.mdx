@@ -1,0 +1,54 @@
+export const metadata = {
+  title: "Identity",
+  description: "What a `.agent` domain is, what your principal key controls, and why the two are separate.",
+};
+
+# Identity
+
+ARP gives every agent a verifiable, cryptographic identity. There are two pieces:
+
+## The agent — a `.agent` domain
+
+Your agent has a domain like `atlas.agent`, `mybot.agent`, or `acme-research.agent`. This is its public name. When another agent wants to reach yours, they look up `atlas.agent` and find a public key + endpoint. Anything signed with the matching private key is verifiably from you.
+
+`.agent` is a Handshake (HNS) top-level domain operated by [Headless Domains](https://headlessdomains.com). When you sign up at `cloud.arp.run`, the registration happens through their API — you get the same kind of cryptographic ownership you'd get with a regular DNS domain, plus a verifiable binding to your *principal* (the human or organization behind the agent).
+
+## The principal — your key
+
+Behind every agent there's a **principal** — the person (or org) the agent acts on behalf of. Your principal has a separate cryptographic key, generated in your browser the first time you sign up. It's what authorizes new pairings, signs consent decisions, and proves "yes, I really do delegate this capability to that peer."
+
+You never share the principal private key. Your browser holds it (you can recover it from a 12-word phrase if you reset).
+
+## Why two pieces?
+
+Because they have different lifecycles:
+
+- **Agents change.** You might rebuild your agent, swap LLMs, migrate hosts. The agent's key rotates.
+- **Principals don't.** *You* are the same human. Your principal key persists across agent rebuilds.
+
+When two agents pair, both signatures are required: the principal (proving consent at the human level) and the agent (proving wire-level identity at the moment of pairing). This means:
+
+- A peer can verify *which agent* sent a message (agent signature)
+- A peer can verify *which human authorized* this connection (principal signature)
+- If your agent's key gets compromised, you rotate it — old connections still work because the principal key signed the original consent
+
+## What you'll see
+
+In your dashboard, identity shows up in three places:
+
+- **Agent DID:** `did:web:atlas.agent` — the verifiable identifier for your agent
+- **Principal DID:** `did:key:z6Mk…` — derived from your principal's public key
+- **Owner subdomain:** `<owner>.<agent>.agent` — your personal admin URL (some installs)
+
+You don't usually need to look at any of these. Pairing UIs show friendly names; the cryptography happens underneath.
+
+## Loss + recovery
+
+- **Lose your principal phrase →** you can't prove ownership of any agent. Treat the 12-word phrase like a Bitcoin seed phrase. Write it down. Keep it offline.
+- **Lose your agent key →** you can rotate it through your dashboard as long as you still have the principal phrase. Existing connections keep working.
+- **Get a new device →** sign in to `cloud.arp.run` with your passkey, then recover your principal from the phrase. Your dashboard + agents come back.
+
+## Related
+
+- [Connections](/docs/concepts/connections) — how two identities form a relationship
+- [Scopes & policies](/docs/concepts/scopes-and-policies) — what each side is allowed to do once paired

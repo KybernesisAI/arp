@@ -1,0 +1,101 @@
+export const metadata = {
+  title: "Tag memories for sharing",
+  description: "How to tag memories so peer agents can see exactly what you've scoped to them — and nothing else.",
+};
+
+# Tag memories for sharing
+
+This guide is specific to **KyberBot**. Other ARP-aware agent frameworks have similar concepts; consult their docs for the exact commands.
+
+## Why tag at all
+
+ARP scope policies say *"peer can read project alpha notes."* But the peer's agent needs your data layer to actually know which notes are project alpha. That's what tagging does.
+
+Untagged memories are private — they don't match any project-scoped query. Tagged memories are shareable through scopes that name the same project.
+
+**Tagging discipline = your privacy story.**
+
+## What to tag
+
+| Flag | Use it when | Example |
+|---|---|---|
+| `--project <slug>` | Memory is about a named project | `--project alpha`, `--project q2-launch` |
+| `--tag <name>` (repeatable) | Cross-cutting theme | `--tag launch --tag draft` |
+| `--classification <tier>` | Content is sensitive | `--classification pii`, `--classification confidential` |
+
+Slugs (`--project alpha`) should be lowercase with dashes/underscores. They need to match what's typed in the ARP scope picker on the cloud side. *"Project Alpha"* → `alpha`. *"Q2 Launch"* → `q2-launch`.
+
+## Three ways to tag
+
+### 1. Manually, when you remember something
+
+```bash
+kyberbot remember "Sarah Chen joined as ML lead" --project alpha --tag hiring
+```
+
+The flags flow into your agent's brain — facts, timeline, sessions, ChromaDB metadata all get the columns set.
+
+### 2. Through the LLM via the `remember` skill
+
+The `remember` skill (shipped with KyberBot agents) tells the LLM to add tags whenever the user clearly names a project, sensitivity context, or theme. So if you say *"For project alpha, Sarah just joined as ML lead,"* the LLM picks up the project mention and runs:
+
+```bash
+kyberbot remember "Sarah Chen joined as ML lead" --project alpha
+```
+
+You don't have to think about flags — just talk normally and mention projects when relevant.
+
+### 3. Auto-stamped by the ARP bridge
+
+When a peer's agent tells your agent something over an ARP connection, the resulting memory automatically gets `connection_id` + `source_did` stamped. So you can later search for *"everything Mythos told us"* or *"forget everything from the alpha connection."*
+
+## Sensitivity tiers
+
+`--classification` has four levels:
+
+- **`public`** — already public info, no concern (rare)
+- **`internal`** — default for company info; internal teams can see
+- **`confidential`** — sensitive business info; needs explicit grant
+- **`pii`** — personal data (addresses, SSNs, health); strictest gate
+
+If a connection's policy doesn't grant a specific classification, memories at that level are excluded. So a peer with `internal`-only access never sees `confidential` rows even when both are tagged with the same project.
+
+Default classification when unset: `internal`.
+
+## Verify what's tagged
+
+The `recall` skill (also shipped with KyberBot) lets the LLM look up what's stored:
+
+> *"What does Atlas know about project alpha?"*
+
+The agent runs `kyberbot recall "alpha"` (and friends) and shows you the matching memories. You'll see the project tags as part of the output.
+
+To inspect the database directly:
+
+```bash
+sqlite3 ~/atlas/data/timeline.db \
+  "SELECT title, project_id, classification FROM timeline_events WHERE project_id IS NOT NULL ORDER BY timestamp DESC LIMIT 20"
+```
+
+## Re-tagging existing memories
+
+For now, re-tagging happens by:
+
+1. Asking the LLM to look up the memory (`kyberbot recall`)
+2. Re-running `kyberbot remember` with the corrected tags
+
+The contradiction-detection system will supersede the old fact with the new one. (The CLI doesn't yet have a `kyberbot retag <id> --project new-project` command — coming later.)
+
+For bulk re-tagging, you can write SQL directly against `~/<agent>/data/timeline.db` and `messages.db`. Be careful — this bypasses the contradiction-detection system.
+
+## Tagging discipline (the privacy rules)
+
+- **Don't make up tags.** Only set `--project` when the user explicitly named a project. Guessing causes both leaks (peer sees memories they shouldn't) and gaps (peer misses memories they should).
+- **Default to narrow.** If the user says "team meeting today," that's `internal` and untagged. Only escalate to `--classification confidential` or `--classification pii` when the content actually warrants.
+- **Re-pair with wider scopes when needed.** Don't auto-broaden tags retroactively — re-pair with broader scopes if the relationship justifies wider sharing.
+
+## Related
+
+- [Memory & tagging](/docs/concepts/memory-tagging) — the conceptual model
+- [Scopes & policies](/docs/concepts/scopes-and-policies) — what tags map to in policies
+- [Pair with another agent](/docs/guides/pair) — how to set scopes that match your tags

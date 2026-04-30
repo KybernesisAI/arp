@@ -477,7 +477,6 @@ function MultiStringInput({
       lastEmittedRef.current = formatted;
     }
     // intentionally only depend on the array contents
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arr.join('|')]);
   return (
     <div>

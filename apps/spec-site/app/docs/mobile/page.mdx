@@ -1,32 +1,50 @@
 export const metadata = {
-  title: 'Mobile (iOS + Android)',
-  description: 'ARP owner apps for iOS and Android. Principal key in Secure Enclave / Keystore, biometric gates for critical scopes.',
+  title: "Mobile (iOS + Android)",
+  description: "Status of the ARP owner mobile apps — private repo, scaffold shipped, public stores TBD.",
 };
 
 # Mobile
 
-The ARP mobile owner app runs on iOS and Android via Expo. It lives in the
-separate private repo [github.com/KybernesisAI/arp-mobile](https://github.com/KybernesisAI/arp-mobile)
-and mirrors the desktop owner app's features — pairing, consent screens,
-audit viewer, revocation — with two platform-native additions:
+The ARP mobile owner app runs on iOS and Android via Expo. **It is not in the App Store or Play Store yet.** Source lives in a private repo at `github.com/KybernesisAI/arp-mobile` with a working scaffold; public submission and TestFlight/Play Internal builds are scheduled but not shipped.
 
-1. **Principal key in hardware.** The browser-held `did:key` from the
-   desktop flow moves to iOS Secure Enclave / Android Keystore on first
-   mobile login. Recovery is still via the 12-word phrase (Phase 8.5).
-2. **Biometric gates per risk tier.** Scopes tagged `critical` in the
-   catalog require Face ID / Touch ID / Android Biometric before the
-   signed request leaves the device.
+This page is a developer-facing status note. End users today manage agents through the dashboard at [`cloud.arp.run`](https://cloud.arp.run) — fully responsive on mobile browsers.
 
-## Phase status
+## What it does (when it ships)
 
-Phase 8 shipped the scaffold: Expo SDK 52, RN 0.76.3, all routes from the
-phase brief, 18/18 jest tests, `expo prebuild` clean on both platforms.
-**App Store and Play Store submissions are Phase 10** — public launch is
-explicitly after Phase 9 (this site, cloud-side endpoints, WebAuthn).
+The mobile app mirrors the dashboard's owner UI with two platform-native additions:
+
+1. **Principal key in hardware.** The browser-held `did:key` from the dashboard flow can be moved to iOS Secure Enclave / Android Keystore on first mobile login. Recovery still uses the 12-word phrase.
+2. **Biometric gates per risk tier.** Scopes the catalog tags as `critical` (key rotation, re-delegation, identity changes) require Face ID / Touch ID / Android Biometric before the signed request leaves the device.
+3. **Push notifications.** Pairing requests, re-consent prompts, and audit alerts arrive as push instead of email/in-app. Cuts the consent loop from minutes to seconds.
+
+Otherwise the feature surface matches the dashboard: pair, view connections, edit/suspend/revoke, audit log, recover.
 
 ## Architecture
 
-Same seven-layer stack as the sidecar; only the client surface + the
-principal-key storage differ. DIDComm isolation + obligation-merge
-invariants hold — mobile imports `@kybernesis/arp-sdk` the same way
-desktop adapters do, and the transport boundary is `@kybernesis/arp-transport`.
+Same architecture as the dashboard: it talks to the same managed gateway (`gateway.arp.run`) over the same authenticated APIs. The mobile app is a client of the gateway just like the dashboard is. No special mobile-only protocol surface.
+
+It imports `@kybernesis/arp-sdk` for envelope signing in cases where the device acts as the principal directly (e.g., pairing approvals signed on-device with the Secure Enclave key). DIDComm transport is via `@kybernesis/arp-transport`.
+
+## Status
+
+| | Shipped | Pending |
+|---|---|---|
+| Expo SDK 52 / RN 0.76.3 scaffold | ✓ | |
+| Routes for pair / consent / connections / audit / settings | ✓ | |
+| Jest unit tests | ✓ (18/18) | |
+| Secure Enclave / Keystore principal key | partial | hardening |
+| Biometric gating | partial | full risk-tier coverage |
+| Push notifications | | infra |
+| TestFlight / Play Internal | | submission |
+| Public App Store / Play Store | | post-submission |
+
+Public launch follows after the gateway endpoints, dashboard parity, and WebAuthn plumbing land — those are the dependencies, not the app itself.
+
+## Getting access early
+
+The repo is private. If you have a reason to want early access (you're building an integration that needs mobile-side signing, you're a design partner, etc.) — open a GitHub issue at [github.com/KybernesisAI/arp/issues](https://github.com/KybernesisAI/arp/issues) describing the use case.
+
+## Related
+
+- [Identity (concept)](/docs/concepts/identity) — what the mobile app holds in hardware
+- [Architecture](/spec/v0.1/architecture) — where the mobile client fits in the stack

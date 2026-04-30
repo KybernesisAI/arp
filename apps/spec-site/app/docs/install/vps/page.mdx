@@ -1,185 +1,72 @@
 export const metadata = {
   title: "Install — VPS",
-  description: "Run the sidecar on a sovereign VPS you control.",
+  description: "Run the ARP bridge alongside an agent on a Linux VPS (DigitalOcean, Hetzner, Fly, Railway, etc.).",
 };
 
 # Install — VPS
 
-**Audience:** non-technical-ish. Copy-paste the commands.
-**Scenario:** you're running KyberBot (or any agent) on a VPS — DigitalOcean, Hetzner, AWS, Fly, Railway, whatever. The VPS has a public IP. No tunnel is needed because the server is already reachable from the internet.
+The bridge install on a Linux VPS is identical to the local Mac flow — `arpc` is the same CLI, the bridge dials outbound to `gateway.arp.run`. The only difference is the service unit (systemd instead of launchd).
 
-This is actually the **easiest** ARP setup — no ngrok, no Cloudflare Tunnel, no "keep your Mac awake" problem.
+## Prerequisites
 
----
+- A VPS with Node.js 24+
+- An agent (KyberBot, custom, etc.) already running locally
+- A `.agent` domain + handoff bundle from [`cloud.arp.run`](https://cloud.arp.run), placed in your agent folder
 
-## What you're actually adding
-
-A small **gatekeeper program** (the "ARP sidecar") that sits in front of Atlas on the same VPS. Atlas itself doesn't change. The sidecar handles the outside world and checks permissions before anything reaches Atlas.
-
-Since the VPS has a public IP, the sidecar can bind directly to port 443 — no tunnel in the middle.
-
----
-
-## The 5 steps
-
-### Step 1 — Buy the domain
-
-1. Go to Headless Domains.
-2. Register `atlas.agent`.
-3. Tick "Set up as ARP agent" at checkout.
-4. Download the `handoff.json` it gives you.
-
-### Step 2 — Upload `handoff.json` to your VPS
-
-From your Mac:
+## Steps
 
 ```bash
-scp ~/Downloads/handoff.json you@your-vps-ip:/home/you/atlas/handoff.json
+# 1. Install the CLI
+npm i -g @kybernesis/arp@latest
+
+# 2. Initialize ARP in the agent folder
+cd ~/agent-folder
+arpc init --framework kyberbot
+
+# 3. Install the bridge service (systemd unit)
+arpc service install
+
+# 4. Verify
+arpc service status
+arpc host status
 ```
 
-Or drag-drop in your VPS provider's web console. Put it in your agent's folder, next to Atlas's files.
+The systemd unit lives at `~/.config/systemd/user/arpc-host.service` (user-mode) or `/etc/systemd/system/arpc-host.service` (system-mode, if you ran with sudo).
 
-### Step 3 — Point the domain at your VPS
+## Differences from the Mac install
 
-At Headless Domains, set the A record:
+- **No tunnel needed.** The bridge already dials outbound; a public IP isn't required for inbound peer traffic.
+- **systemd, not launchd.** Same logical model (auto-restart on crash + on boot).
+- **Larger logs.** systemd's journal can be queried via `journalctl --user -u arpc-host -f`.
 
-```
-Name:  atlas.agent
-Type:  A
-Value: <your VPS public IP>
-TTL:   300
-```
-
-Wait a minute or two for DNS to propagate.
-
-### Step 4 — Start the ARP sidecar on the VPS
-
-SSH in and run:
+## Auto-start on reboot
 
 ```bash
-ssh you@your-vps-ip
-cd ~/atlas
-
-docker run -d --name atlas-arp \
-  --restart=always \
-  -v $(pwd)/handoff.json:/config/handoff.json:ro \
-  -v atlas-arp-data:/data \
-  -e AGENT_API_URL=http://host.docker.internal:3874 \
-  -p 443:443 \
-  -p 80:80 \
-  ghcr.io/kybernesisai/sidecar:0.1
+# user-mode systemd
+loginctl enable-linger $USER
+systemctl --user enable arpc-host
 ```
 
-`--restart=always` means it comes back automatically if the VPS reboots. Port 80 is for the Let's Encrypt cert challenge; port 443 is the real agent endpoint.
+Without `enable-linger`, user services stop when you log out. With it, they keep running.
 
-The sidecar automatically generates a TLS cert on first start and publishes its fingerprint in the Atlas DID document. Peer agents validate the cert against that fingerprint — no Let's Encrypt needed, no CA involvement. This works because `.agent` is a Handshake TLD and web PKI doesn't apply; trust comes from the DID, not a certificate authority. See `ARP-hns-resolution.md` for the full TLS story.
+## Common operations
 
-### Step 5 — Manage Atlas from your browser
+| What | Command |
+|---|---|
+| Stop the bridge | `systemctl --user stop arpc-host` |
+| Start the bridge | `systemctl --user start arpc-host` |
+| Restart | `systemctl --user restart arpc-host` |
+| Tail logs | `journalctl --user -u arpc-host -f` |
+| Uninstall | `arpc service uninstall` |
 
-`.agent` is a Handshake TLD and doesn't resolve in a vanilla browser. Use **one** of these to open the owner UI:
+## Troubleshooting
 
-- **ARP mobile app** *(recommended)* — has HNS resolution built in.
-- **Any browser, via the HNS gateway:** `https://ian.atlas.agent.hns.to`
-- **Any browser, via our fallback SaaS:** `https://app.arp.spec`
+See [Troubleshooting](/docs/troubleshooting). VPS-specific things:
 
-More detail: `ARP-hns-resolution.md`.
+- **Outbound HTTPS blocked** — some hosting environments restrict outbound to whitelisted IPs. The bridge needs reach to `gateway.arp.run` (Railway-hosted; resolves to a few IPs).
+- **clock drift** — the bridge signs envelopes with timestamps; a few minutes of drift causes signature failures. `timedatectl set-ntp true`.
 
-Once open, you'll see your control panel:
+## Related
 
-- **Pending pairing requests** — "Ghost wants to connect with Atlas about Project Alpha..."
-- **Active connections** — one row per peer/purpose (Dave · Orion, Nick · Alpha, ...)
-- **Scope checkboxes** — what each connection is allowed to do
-- **Revoke buttons** — kill any connection with one tap
-- **Audit log** — every action taken under every connection
-
-Optional: install the ARP mobile app for QR pairing + push approvals on your phone.
-
----
-
-## What's running on your VPS after all this
-
-```
-┌─ Your VPS (public IP) ───────────────────────────────┐
-│                                                       │
-│  KyberBot / Atlas   ← still running the same way      │
-│       ▲                                               │
-│       │ localhost                                     │
-│  ARP sidecar        ← bound directly to :443          │
-│                                                       │
-└───────────────────────────────────────────────────────┘
-                              ▲
-                              │ HTTPS directly to VPS IP
-                              │
-                   [Outside agents + your browser]
-```
-
-When Ghost's agent messages Atlas, it resolves `atlas.agent` → your VPS IP → sidecar on :443. Sidecar checks the Cedar policy for that connection and only forwards to Atlas if allowed.
-
----
-
-## Why VPS is easier than running it on your Mac
-
-| | **Mac + tunnel** | **VPS (this doc)** |
-|---|---|---|
-| Always online | ❌ (sleeps) | ✅ |
-| Needs tunnel | ✅ (ngrok / Cloudflare) | ❌ |
-| Public IP | ❌ | ✅ (built in) |
-| Survives reboots | Manual restart | `--restart=always` |
-| Setup steps | 5 | 5 (but simpler) |
-| Cost | Free-ish | $5–10/month |
-
-If Atlas is a serious everyday agent (answers messages from peers, accepts tasks, handles payments), move it to a VPS. If it's a personal/experimental agent, running locally on your Mac is fine.
-
----
-
-## What you DON'T have to do
-
-- ❌ Change any KyberBot code
-- ❌ Run a tunnel (ngrok / Cloudflare)
-- ❌ Keep your Mac awake
-- ❌ Manage TLS certs (auto from Let's Encrypt)
-- ❌ Open weird firewall ports (just 80 and 443)
-- ❌ Learn Cedar, DIDComm, or protocol internals
-
----
-
-## Gotchas
-
-**1. Your VPS firewall must allow ports 80 and 443 inbound.** Most providers have a "firewall" or "security group" UI. Open those two ports. Everything else can stay closed.
-
-**2. Docker needs to be installed on the VPS.** One-time setup:
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER    # so you don't need sudo for docker
-```
-Log out and back in after the second command.
-
-**3. If Atlas isn't already on the VPS**, you need to move it there — the sidecar talks to Atlas over localhost, so they must be on the same machine. (Or in the same Docker network, if you prefer containers.)
-
-**4. DNS propagation can take up to an hour** the first time. Usually a minute. If `atlas.agent` doesn't resolve right away, grab a coffee and try again.
-
----
-
-## Total time
-
-About **15 minutes** after buying the domain, assuming Docker is already installed. ~25 minutes if you're also installing Docker.
-
----
-
-## Quick recap
-
-1. Buy `atlas.agent` → download `handoff.json`
-2. `scp` it to your VPS, into the Atlas folder
-3. Point the domain's A record at your VPS IP
-4. `docker run` the sidecar on the VPS (one command)
-5. Open `https://ian.atlas.agent` to manage it
-
-That's the whole thing. Atlas keeps running as KyberBot. The sidecar is the only new piece. The VPS is online 24/7, so Atlas is reachable 24/7.
-
-
----
-
-<div className="mt-16 border-t border-rule pt-6 font-mono text-kicker uppercase tracking-[0.14em] text-muted">
-  Source: <a href="https://github.com/KybernesisAI/arp/blob/main/docs/ARP-example-atlas-vps.md">docs/ARP-example-atlas-vps.md</a>
-  {' · '}Ported 2026-04-23
-</div>
+- [Local (Mac)](/docs/install/local-mac) — same flow with launchd
+- [Cloud (self-host)](/docs/install/cloud) — running your own gateway instead of `gateway.arp.run`

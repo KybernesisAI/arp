@@ -1,0 +1,148 @@
+export const metadata = {
+  title: "Troubleshooting",
+  description: "Common issues with ARP installs, pairing, and message delivery — and how to fix them.",
+};
+
+# Troubleshooting
+
+Quick reference for things that typically go wrong, in roughly the order you'd hit them during install + first use.
+
+## Install issues
+
+### `npm i -g @kybernesis/arp` fails with `EACCES`
+
+Your global node-modules path is owned by root. Two fixes:
+
+```bash
+# A. Use sudo (works but not recommended long-term)
+sudo npm i -g @kybernesis/arp@latest
+
+# B. Switch your global prefix to your home dir (preferred)
+mkdir -p ~/.npm-global
+npm config set prefix ~/.npm-global
+echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.zshrc
+source ~/.zshrc
+npm i -g @kybernesis/arp@latest
+```
+
+### `arpc version` shows the wrong version after install
+
+Two `arpc` binaries on your PATH — the system one wins over the user-prefix one. Find and remove:
+
+```bash
+which -a arpc                 # → multiple paths means there's a conflict
+ls -l "$(which arpc)"          # see where the resolved one points
+sudo rm -rf /usr/local/lib/node_modules/@kybernesis/arp /usr/local/bin/arpc
+hash -r
+arpc version                   # should now print the right version
+```
+
+### `arpc init` doesn't find my agent folder
+
+The CLI looks for `identity.yaml` or `arp.json` in the current directory. Make sure you're inside your agent folder:
+
+```bash
+cd ~/<your-agent>
+ls identity.yaml arp.json     # one of these should exist
+```
+
+If neither exists, you haven't fully provisioned the agent yet — go back to [Quick start](/docs/quickstart).
+
+## Service / daemon issues
+
+### `arpc host status` says stopped, but `arpc service status` says running
+
+Cosmetic bug fixed in arpc 0.9.6+. Upgrade:
+
+```bash
+npm i -g @kybernesis/arp@latest
+arpc version
+```
+
+If you're on 0.9.5 or earlier, the `arpc host status` command has a parser bug that doesn't recognize launchd-managed daemons. Both *do* show running status — it's just a CLI display issue.
+
+### `arpc host status` is stuck on the wrong session after reinstall
+
+Force-reload the daemon:
+
+```bash
+arpc service uninstall
+arpc service install
+arpc host status
+```
+
+### Bridge is in a reconnect loop
+
+Two daemons fighting for the same agent identity (a launchd-managed service AND a foreground `arpc host`). One supersedes the other; the other reconnects; loop. Resolve by ensuring only one is running:
+
+```bash
+launchctl unload -w ~/Library/LaunchAgents/com.kybernesis.arpc-host.plist
+ps aux | grep internal-supervisor    # confirm none running
+launchctl load -w ~/Library/LaunchAgents/com.kybernesis.arpc-host.plist
+```
+
+## Pairing issues
+
+### "INVALID INVITATION · no audience signer on proposal"
+
+Fixed in cloud-app deploy from 2026-04-30+. Refresh the invitation URL on the peer's browser and try Accept again. If it persists, the cloud is on an older deploy — contact support.
+
+### Browser principal does not match session
+
+You're signed in as one principal but trying to accept as another. Sign out, sign back in to the right account, or recover from your 12-word phrase if you're on a fresh device.
+
+### Peer DID is not a valid DID URI
+
+You typed the peer name with periods instead of colons. The CLI auto-corrects `did.web.foo.agent` → `did:web:foo.agent`, but the inline error catches anything else. Double-check the peer's domain spelling.
+
+### Pairing succeeded but invitations still show as pending
+
+Refresh the dashboard — pending invitations clear from the list when consumed but you might be looking at a stale page.
+
+## Message delivery issues
+
+### "Gateway accepted but no reply within 30s"
+
+Common causes, in order of likelihood:
+
+1. **The peer's adapter is slow.** A KyberBot LLM reply can take 30–90 seconds. Use `--timeout 180` on `arpc send` / `arpc request`.
+2. **Peer's bridge is in a half-open state.** Their daemon thinks it's connected but isn't responding. Have them run `arpc service uninstall && arpc service install`.
+3. **Recent Railway redeploy left their TCP pinned to the old container.** Same fix as above — reload their daemon.
+
+### "missing_connection_id" deny
+
+Either:
+- The connection isn't active (revoked, suspended, expired) — check the dashboard
+- The bridge can't resolve which connection this peer pair maps to — run `arpc host status` to confirm the bridge is up
+- The peer's adapter shipped a message without `connection_id` and there's more than one active pair — re-pair to a single connection
+
+### "policy_denied" deny
+
+The cedar policies on the connection don't permit the action being requested. Check the connection's scopes at `cloud.arp.run/connections/<id>` and verify they cover the action. If not, edit the connection to add the needed scopes.
+
+### Mythos's reply is "No response requested" or generic refusals
+
+The peer's LLM session has been polluted (often from a prior loop or stuck context). Have them clear that session:
+
+```bash
+sqlite3 ~/<peer-agent>/data/messages.db \
+  "DELETE FROM messages WHERE session_id = 'arp:did:web:<your-agent>.agent:<connection_id>'; \
+   DELETE FROM sessions  WHERE id = 'arp:did:web:<your-agent>.agent:<connection_id>';"
+```
+
+Next inbound creates a fresh session.
+
+## Audit issues
+
+### "Verify integrity" fails
+
+The chain has a break. Take a screenshot of the failure point and contact support. The audit is meant to make tampering detectable, so this finding is worth investigating.
+
+### Audit page is empty after a successful round-trip
+
+Refresh — there's a small lag (1–2 seconds) between the cloud's ack and the audit row landing. If still empty after 30 seconds, the request may not have reached the cloud (check `arpc host status`).
+
+## Still stuck?
+
+- Check the [Example setup](/docs/example-setup) walkthrough — has you running through every step in order.
+- Open an issue at [github.com/KybernesisAI/arp/issues](https://github.com/KybernesisAI/arp/issues).

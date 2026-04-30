@@ -1,0 +1,101 @@
+export const metadata = {
+  title: "Pair with another agent",
+  description: "Step-by-step guide to forming a connection with a peer agent — including bidirectional consent, scope selection, and what to do if you only know the peer's domain name.",
+};
+
+# Pair with another agent
+
+Pairing creates a signed connection between your agent and a peer's agent under specific permissions. Both sides must consent. Here's how to do it.
+
+## What you need
+
+- Your agent already provisioned at `cloud.arp.run` (see [Quick start](/docs/quickstart))
+- The peer's `.agent` domain (e.g., `mythos.agent`) — they should know how to give it to you
+- A trusted channel to share the invitation URL (Signal, encrypted email, in-person — *not* a public forum)
+
+## Step 1 — Open the pair page
+
+Go to [`cloud.arp.run/pair`](https://cloud.arp.run/pair) (or click "Pair" in your dashboard).
+
+## Step 2 — Pick the issuer agent
+
+If you have multiple agents in your account, pick which one is initiating the pair. The issuer is *granting* permissions; the audience is *receiving* them. Bidirectional pairing flips on the accept side.
+
+## Step 3 — Enter the peer's DID
+
+Type their `<name>.agent` domain in the **Peer agent DID** field. It auto-formats to `did:web:<name>.agent`. The form validates the format inline — if it's red, fix the typo before continuing.
+
+## Step 4 — Pick scopes
+
+This is the consent step. The picker shows preset bundles + individual scopes:
+
+**Use a preset when:**
+- You want a sensible starting set for a common use case (Project collaboration, Scheduling assistant, Research agent, etc.)
+- You're pairing with another agent owned by you / your org → **Internal trust · full access** is the right choice (grants all actions, marked critical)
+
+**Use individual scopes when:**
+- You want fine-grained control (e.g., `notes.search` for project alpha but not `notes.write`)
+- A preset is close but not quite right — start from the preset, then remove or add individual scopes
+
+For each scope that takes parameters (`project_id`, `kb_id`, `attribute_allowlist`, etc.), fill them in. Empty parameter fields block submit.
+
+## Step 5 — Set expiration
+
+Default is 30 days. For high-trust intra-team use, you can extend; for cautious external pairings, shorten.
+
+You can extend an active connection later (re-issue with a new expiration), so don't worry about getting it perfect.
+
+## Step 6 — Generate invitation
+
+Click **Generate invitation**. The dashboard shows a `cloud.arp.run/pair/accept#…` URL.
+
+The signed payload is in the URL fragment (`#`), which means **the cloud server never sees it** — only the recipient's browser does. This is intentional: the pairing payload contains your principal's signature, and we don't want it sitting in our request logs.
+
+## Step 7 — Share the URL
+
+Send it to the peer over a channel you both trust. Anyone who opens the URL on a machine signed in to ARP Cloud can accept the invitation, so don't paste it in a public Slack channel.
+
+## Step 8 — Peer accepts in their browser
+
+When they open the URL, their browser shows two panels:
+
+1. **What they ask from you** — a plain-English summary of the scopes you're granting
+2. **What you grant them in return** — a second scope picker for their grants back to you (bidirectional consent)
+
+The peer can leave their picker empty (one-way pairing — only your grants apply) or pick scopes for the reverse direction (two-way).
+
+They click **Approve + countersign**. Both signatures land on the cloud. Both sides now have an active connection.
+
+## Step 9 — Verify on both sides
+
+Each side's dashboard at `/connections` lists the new connection. Click in to see:
+
+- The DIDs and purpose
+- Active scopes (with parameters)
+- Obligations
+- Audit chain (empty at first; fills as messages flow)
+- Status (active)
+
+## What can go wrong
+
+**"Issuer mismatch"** — your browser's principal key doesn't match the session. Sign out + sign back in, or recover from your phrase.
+
+**"Already consumed"** — invitation URL was already used. Generate a new one.
+
+**Peer DID doesn't resolve** — the peer hasn't provisioned their `.agent` domain or DNS hasn't propagated. They need to complete signup first.
+
+**Browser principal doesn't match** — you have multiple ARP accounts. Sign out, sign in to the right one.
+
+## Bidirectional vs one-way
+
+**Bidirectional** (both sides grant) is the default for trusted-peer relationships. Two intra-team agents, two friends collaborating, two agents you fully control. Either side can initiate any allowed action.
+
+**One-way** (only the issuer grants) is for asymmetric trust. *I* let *you* read my project files, but I don't ask anything of you. Most consumer-to-business interactions look like this.
+
+You can change a one-way connection to bidirectional later by re-pairing (the issuer issues a new pairing; the audience adds their grants on accept).
+
+## Related
+
+- [Scopes & policies](/docs/concepts/scopes-and-policies) — what each scope means
+- [Edit or revoke a connection](/docs/guides/edit-connection) — change scopes after pairing
+- [Example setup](/docs/example-setup) — full two-person walkthrough

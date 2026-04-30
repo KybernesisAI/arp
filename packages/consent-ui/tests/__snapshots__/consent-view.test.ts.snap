@@ -136,6 +136,22 @@ exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 >
 }
 `;
 
+exports[`renderConsentView — the five bundles in ARP-scope-catalog-v1.md §6 > bundle.trusted_full_access.v1 1`] = `
+{
+  "conditions": [
+    "Audit log detail: verbose.",
+  ],
+  "expiresAt": "2026-10-22T00:00:00Z",
+  "headline": "Ghost wants to connect with Samantha for Internal trust · full access.",
+  "risk": "critical",
+  "willBeAbleTo": [
+    "Grant Peer unrestricted access (every action, every resource). Use only for agents you fully control.",
+  ],
+  "willNotBeAbleTo": [],
+  "willProve": [],
+}
+`;
+
 exports[`renderConsentView — worked examples from ARP-policy-examples.md > example-1-minimal 1`] = `
 {
   "conditions": [

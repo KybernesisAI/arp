@@ -1,218 +1,146 @@
 export const metadata = {
-  title: "Install — Cloud",
-  description: "Delegate operation to ARP Cloud. Principal keys stay browser-held.",
+  title: "Install — Self-host gateway",
+  description: "Deploy your own ARP gateway and Postgres instead of using gateway.arp.run.",
 };
 
-# Install — Cloud
+# Install — Self-host gateway
 
-**Audience:** non-technical-ish. Copy-paste, or click, or both.
-**Scenario:** you don't want to run infrastructure. You built Atlas (KyberBot) on your Mac, and you want `atlas.agent` to "just work" — 24/7, from anywhere, no tunnels, no VPS, no Docker on your laptop (beyond what KyberBot already uses).
+This is **Mode B** from the [install overview](/docs/install). You run your own gateway, your own database, and point your bridges at it. We ship the same code we run in production at `gateway.arp.run`; you deploy it on infra you control.
 
-ARP Cloud is our hosted service that runs the entire ARP layer for you. Atlas stays on your Mac. Everything internet-facing happens on our side.
+**When to pick this:** privacy-strict orgs, regulated industries, or anyone who wants connection metadata + audit chains to stay on infrastructure they control. The managed cloud doesn't see encrypted message bodies, but it does see who-talks-to-whom — Mode B keeps that on your side too.
 
----
+## What you're deploying
 
-## What you're actually adding
+```
+┌─ Your infrastructure ───────────────────────────────────┐
+│                                                         │
+│   apps/cloud-gateway          (stateless Node service)  │
+│        │                                                │
+│        ├── Postgres            (your DB)                │
+│        ├── scope-catalog       (HTTP service)           │
+│        └── audit storage       (in same Postgres)       │
+│                                                         │
+│   gateway.<your-domain>        (TLS termination)        │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+              ▲                                ▲
+              │ outbound WS                    │ HTTPS
+              │                                │
+        bridges (arpc)                  owner dashboard
+                                        (you also self-host
+                                         apps/cloud-app)
+```
 
-A tiny "phone-home" client that runs next to Atlas. It opens an outbound connection to ARP Cloud. Peers send messages to `atlas.agent`, those hit ARP Cloud, Cloud runs all the permission checks, and forwards approved requests down the outbound channel to Atlas.
+The two services you operate:
 
-Your Mac never needs a public IP, a tunnel, or an open port. Atlas just makes outgoing HTTPS to ARP Cloud.
+- **`apps/cloud-gateway`** — DIDComm fanout, PDP integration, audit chain. Stateless, scales horizontally, talks to Postgres.
+- **`apps/cloud-app`** — Next.js owner dashboard (sign-in, pairing UX, connection management). Also stateless.
 
-Think of it like a Slack client — Slack's servers do all the hard work; the app on your laptop just opens a connection and listens.
+Plus Postgres (any Postgres works; we use Neon at the managed cloud).
 
----
+## Prerequisites
 
-## The 5 steps
+- A Linux host or container platform (Railway, Fly, Render, your own VPS / Kubernetes)
+- A Postgres database (≥14)
+- A domain you control with TLS (e.g., `gateway.example.com` and `app.example.com`)
+- Node.js 24+ on the deploy target
+- The ARP monorepo cloned locally
 
-### Step 1 — Buy the domain
+## Steps
 
-1. Go to Headless Domains.
-2. Register `atlas.agent`.
-3. Tick "Set up as ARP agent, hosted on ARP Cloud" at checkout.
-4. You'll be redirected to the ARP Cloud onboarding page.
-
-### Step 2 — Connect ARP Cloud
-
-At `https://app.arp.spec`:
-
-1. Sign in with your browser-held identity (did:key). New users: click Get Started, save your 12-word recovery phrase.
-2. Paste the `handoff.json` (or it's pre-filled if you came from Headless).
-3. Confirm the agent name and owner binding.
-4. Click "Provision."
-
-ARP Cloud automatically:
-- Hosts `/.well-known/did.json`, `agent-card.json`, `arp.json`
-- Issues the TLS cert for `atlas.agent`
-- Points DNS at our servers
-- Sets up the mailbox, PDP, audit log
-
-About 60 seconds total.
-
-### Step 3 — Install the cloud client locally
-
-On your Mac, paste into Terminal:
+### 1. Clone and build
 
 ```bash
-cd ~/atlas
-npx @kybernesis/arp-cloud-client init
+git clone https://github.com/KybernesisAI/arp
+cd arp
+pnpm install
+pnpm --filter @kybernesis/arp-cloud-gateway build
+pnpm --filter @kybernesis/arp-cloud-app build
 ```
 
-This walks you through a short wizard:
-- Login with your ARP Cloud account (browser pops open)
-- Confirms which agent this Mac serves (Atlas)
-- Tells it the local port Atlas is listening on (KyberBot's messaging port)
-
-It creates a small config file at `~/atlas/.arp-cloud.json`.
-
-### Step 4 — Start the cloud client
+### 2. Provision Postgres + run migrations
 
 ```bash
-cd ~/atlas
-npx @kybernesis/arp-cloud-client start
+export DATABASE_URL=postgres://…
+pnpm --filter @kybernesis/arp-cloud-db migrate
 ```
 
-This opens a persistent outbound connection to ARP Cloud. Leave the terminal running.
+Schema includes connections, audit chain rows, pairing state, scope catalog cache.
 
-Alternative: install as a background service so it starts with your Mac:
+### 3. Deploy the gateway
+
+Minimum env vars:
 
 ```bash
-npx @kybernesis/arp-cloud-client install-service
+DATABASE_URL=postgres://…
+GATEWAY_WS_URL=wss://gateway.example.com
+SCOPE_CATALOG_URL=https://gateway.example.com/scope-catalog
+SIGNING_KEY=<base58 ed25519 secret>   # gateway's own signing identity
+PORT=8080
 ```
 
-Now it runs in the background forever, restarting automatically.
+Deploy `apps/cloud-gateway` as a long-running Node service. The container or platform should give it a persistent WebSocket-friendly endpoint with TLS termination in front of it.
 
-### Step 5 — Manage Atlas from your browser
+### 4. Deploy the dashboard
 
-`.agent` is a Handshake TLD, so it doesn't resolve in a vanilla browser — but in Cloud mode this is mostly invisible to you. The ARP Cloud owner app sits on a normal domain and knows how to load the right agent for you. Pick whichever is easiest:
-
-- **ARP mobile app** *(recommended)* — has HNS resolution built in; native notifications + biometrics.
-- **Any browser:** `https://app.arp.spec` — log in with your principal DID; loads your Atlas owner UI directly.
-- **Any browser, via HNS gateway:** `https://ian.atlas.agent.hns.to` (works but slower).
-
-More detail on HNS resolution: `ARP-hns-resolution.md`.
-
-Same control panel as every other install mode:
-- Pending pairing requests
-- Active connections + scope checkboxes
-- Revoke buttons
-- Audit log
-
-Optional: install the ARP mobile app for QR pairing + push approvals on your phone.
-
----
-
-## What's running where after all this
-
-```
-┌─ Your Mac ───────────┐         ┌─ ARP Cloud ─────────────┐
-│                      │         │                          │
-│  KyberBot / Atlas    │         │  Well-known endpoints    │
-│       ▲              │         │  DIDComm mailbox         │
-│       │ localhost    │         │  Cedar PDP               │
-│  Cloud client    ───────outbound──▶  Audit log            │
-│       │              │  HTTPS   │  Owner web app          │
-│       └──────────────┘          │         ▲               │
-│                                 │         │               │
-└──────────────────────┘          └─────────┼───────────────┘
-                                            │
-                                            │ HTTPS
-                                            │
-                                 [Outside agents + your browser]
+```bash
+GATEWAY_API_URL=https://gateway.example.com
+DATABASE_URL=postgres://…
+NEXTAUTH_SECRET=…
+PORT=3000
 ```
 
-When Ghost's agent messages Atlas:
-1. Resolves `atlas.agent` → ARP Cloud
-2. Cloud accepts the DIDComm envelope
-3. Cloud runs PDP against the Cedar policy for that connection
-4. If allowed, Cloud pushes the request down the outbound channel to your Mac
-5. Your Mac's cloud client hands it to Atlas
-6. Atlas responds; the response travels back through the same channel
+Deploy `apps/cloud-app` as a Next.js app. Owners sign in here, pair agents, manage connections, view audit.
 
-Your Mac never accepts inbound connections.
+### 5. Point bridges at your gateway
 
----
+On any agent host running `arpc`, edit the agent folder's `arp.json` to override the gateway URL:
 
-## Why you'd pick this mode
+```json
+{
+  "gateway_ws_url": "wss://gateway.example.com",
+  "scope_catalog_url": "https://gateway.example.com/scope-catalog"
+}
+```
 
-| | **Mac + tunnel** | **VPS** | **ARP Cloud (this doc)** |
-|---|---|---|---|
-| Steps to set up | 5 | 5 | 5, but simpler |
-| Runs 24/7 | ❌ | ✅ | ✅ (your Mac is online when *you're* online; messages queue when not) |
-| Public IP needed | ❌ (tunnel) | ✅ | ❌ |
-| Cost | ngrok paid plan | $5–10/mo VPS | ARP Cloud subscription |
-| TLS / certs | Handled by tunnel | Handled by sidecar | Handled by us |
-| Server ops | Minimal | Some (Linux, Docker) | None |
-| Data residency | Your Mac | Your VPS | Our servers |
-| Best for | Tinkering | Serious always-on | Set-and-forget, non-technical |
+Restart the bridge:
 
----
+```bash
+arpc service restart
+arpc host status   # confirms it's connected to your gateway
+```
 
-## What happens when your Mac is asleep / offline
+## Differences from the managed cloud
 
-Messages queue in the Cloud mailbox. When your Mac wakes up and the cloud client reconnects, queued messages are delivered in order. Your peers see the same behavior as email — you might respond in 30 seconds or 30 minutes, but nothing is lost.
+| | Managed (`gateway.arp.run`) | Self-host (this guide) |
+|---|---|---|
+| You operate | Bridge only | Gateway, Postgres, dashboard, bridge |
+| TLS / certs | We handle | You handle (Let's Encrypt, your CA) |
+| Postgres | Multi-tenant Neon, ours | Yours |
+| Audit storage | Our DB | Your DB |
+| Dashboard URL | `cloud.arp.run` | `app.example.com` |
+| Connection metadata visibility | We see it | Only you |
+| Updates | Auto | You pull + redeploy |
 
-Urgent messages: ARP Cloud can fire a push notification to your mobile app when something needs your attention (re-consent prompts, high-risk approvals, etc.).
+## Operating notes
 
----
+- **Stateless gateway.** Run multiple instances behind a load balancer; they coordinate via Postgres + signed envelopes. No sticky sessions required for HTTP, but WebSocket connections from bridges should be sticky to the same gateway pod (most platforms handle this by default).
+- **Postgres backups.** Audit chains are append-only and signed, so corruption is detectable — but a dropped DB still loses recent state. Daily backups are the floor.
+- **Scope catalog.** Bridges fetch templates from `scope_catalog_url`. The gateway serves the same JSON the managed cloud does, compiled from `packages/arp-scope-catalog/scopes/*.yaml`. Pin a version in your deploys so policy compilation stays deterministic.
+- **Migration to/from managed cloud.** The handoff bundle is portable. Switching is a `gateway_ws_url` change in `arp.json` and a `service restart`. Existing connections keep working because they bind to the agent's DID, not the gateway URL.
 
-## What you DON'T have to do
+## Hardening checklist
 
-- ❌ Change any KyberBot code
-- ❌ Run a tunnel (ngrok / Cloudflare)
-- ❌ Open firewall ports
-- ❌ Get a VPS
-- ❌ Manage TLS certs
-- ❌ Keep your Mac on 24/7
-- ❌ Learn Cedar, DIDComm, or protocol internals
+- [ ] Postgres on a private network, not public
+- [ ] Gateway behind a real TLS terminator (Caddy, Nginx, your platform's edge)
+- [ ] `SIGNING_KEY` stored in a secret manager, not env file in repo
+- [ ] Audit chain export job (e.g., daily snapshot to S3) for forensic preservation
+- [ ] Monitoring: gateway WS connection count, Postgres connection pool, audit-write latency
+- [ ] Rate-limiting on the public WS endpoint (the bridge protocol allows reasonable abuse without it)
 
-The tradeoff: **you trust ARP Cloud to run the permission layer.** The cloud never sees the *contents* of your encrypted messages (E2E encrypted between agents), but it does see *metadata* — who talks to whom, when, how much.
+## Related
 
-If that's a problem, use VPS mode instead. For most people, it's fine.
-
----
-
-## Gotchas
-
-**1. The cloud client needs to be running for Atlas to receive live messages.** If it crashes or you close the terminal without installing as a service, messages queue in the Cloud until it reconnects. Use `install-service` for real-world use.
-
-**2. If you cancel your ARP Cloud subscription**, your connections don't die — they're signed tokens. But `atlas.agent` stops resolving because we stop serving it. Point the DNS elsewhere (VPS, local tunnel) to migrate. Your Connection Tokens carry forward; just re-host the well-known files and restart DIDComm on the new endpoint.
-
-**3. First-time login needs a browser.** Mostly a one-time thing. After that the cloud client uses a stored refresh token.
-
----
-
-## Switching modes later
-
-You're not locked in. Your agent DID, your connections, your policies — all portable. If you outgrow Cloud mode and want to self-host on a VPS, just:
-
-1. Spin up the VPS + install the sidecar (see `ARP-example-atlas-vps.md`)
-2. Point DNS from ARP Cloud to the VPS IP
-3. Cancel your ARP Cloud subscription
-
-Connections keep working. Peers don't notice. Takes ~20 minutes.
-
----
-
-## Total time
-
-About **5 minutes** after buying the domain. This is by far the fastest setup — it's designed so that anyone who can install a Mac app can set it up.
-
----
-
-## Quick recap
-
-1. Buy `atlas.agent` → redirect to ARP Cloud
-2. Sign in + provision (60 seconds of clicking)
-3. `npx @kybernesis/arp-cloud-client init` on your Mac (one command)
-4. `npx @kybernesis/arp-cloud-client install-service` so it runs in the background forever
-5. Open `https://ian.atlas.agent` to manage it
-
-That's the whole thing. Atlas stays on your Mac, we host the internet-facing layer, and you never touch a tunnel or a VPS.
-
-
----
-
-<div className="mt-16 border-t border-rule pt-6 font-mono text-kicker uppercase tracking-[0.14em] text-muted">
-  Source: <a href="https://github.com/KybernesisAI/arp/blob/main/docs/ARP-example-atlas-cloud.md">docs/ARP-example-atlas-cloud.md</a>
-  {' · '}Ported 2026-04-23
-</div>
+- [Install overview](/docs/install) — picking a deployment mode
+- [Local (Mac)](/docs/install/local-mac) — Mode A install on macOS
+- [VPS](/docs/install/vps) — Mode A install on a Linux VPS
+- [SDKs](/docs/sdks) — package reference, including `apps/cloud-gateway`

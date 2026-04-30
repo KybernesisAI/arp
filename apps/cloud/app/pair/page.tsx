@@ -91,7 +91,8 @@ async function loadState() {
     })),
     needsParams: b.scopes.some(
       (s) =>
-        s.params != null &&
+        s.params !== null &&
+        s.params !== undefined &&
         Object.values(s.params).some((v) => v === '<user-picks>'),
     ),
   }));
