@@ -10,8 +10,9 @@ interface EnvShape {
   ARP_CLOUD_REGISTRAR_PSK: string | null;
   STRIPE_SECRET_KEY: string | null;
   STRIPE_WEBHOOK_SECRET: string | null;
-  STRIPE_PRICE_PRO: string | null;
-  STRIPE_PRICE_TEAM: string | null;
+  /** Phase-10: single $5/mo licensed price; subscription `quantity` carries
+   *  the per-tenant agent count. Replaces the v0 STRIPE_PRICE_PRO + _TEAM split. */
+  STRIPE_PRICE_PRO_PER_AGENT: string | null;
   DATABASE_URL: string | null;
   APP_ARP_SPEC_HOST: string;
   WEBAUTHN_RP_ID: string;
@@ -32,8 +33,10 @@ export function env(): EnvShape {
     ARP_CLOUD_REGISTRAR_PSK: process.env['ARP_CLOUD_REGISTRAR_PSK'] ?? null,
     STRIPE_SECRET_KEY: process.env['STRIPE_SECRET_KEY'] ?? null,
     STRIPE_WEBHOOK_SECRET: process.env['STRIPE_WEBHOOK_SECRET'] ?? null,
-    STRIPE_PRICE_PRO: process.env['STRIPE_PRICE_PRO'] ?? null,
-    STRIPE_PRICE_TEAM: process.env['STRIPE_PRICE_TEAM'] ?? null,
+    // Falls back to STRIPE_PRICE_PRO so deployments that haven't rotated
+    // the env var name yet still work.
+    STRIPE_PRICE_PRO_PER_AGENT:
+      process.env['STRIPE_PRICE_PRO_PER_AGENT'] ?? process.env['STRIPE_PRICE_PRO'] ?? null,
     DATABASE_URL: process.env['DATABASE_URL'] ?? null,
     APP_ARP_SPEC_HOST: process.env['APP_ARP_SPEC_HOST'] ?? 'app.arp.spec',
     // Phase 9d WebAuthn: rp.id is the apex domain so passkeys registered on

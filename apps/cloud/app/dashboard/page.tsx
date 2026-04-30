@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { and, asc, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { monthlyBillCents, currentUsagePeriod } from '@/lib/billing';
 import { listCredentialsForTenant } from '@/lib/webauthn';
 import {
   Badge,
@@ -46,8 +47,9 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     recentActivity,
     totalActiveConnections,
     domains,
+    usage,
   } = state;
-  const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS];
+  const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
   const outgoingCount = outgoingInvitations.length;
   const incomingCount = incomingInvitations.length;
 
@@ -262,24 +264,31 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
       <section>
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">Plan quotas</h2>
+          <h2 className="font-display font-medium text-h3">Usage this month</h2>
           <div className="flex items-center gap-3">
             <span className="font-mono text-kicker uppercase text-muted">
-              // Q · {tenant.plan.toUpperCase()}
+              // {usage.period} · {tenant.plan.toUpperCase()}
             </span>
-            <Badge tone="blue">{tenant.plan.toUpperCase()}</Badge>
+            <Link href="/billing" variant="mono">
+              Billing →
+            </Link>
           </div>
         </header>
-        <CardMatrix className="grid-cols-1 md:grid-cols-3">
-          <QuotaCell
-            tone="paper"
+        <CardMatrix className="grid-cols-1 md:grid-cols-4">
+          <UsageQuotaCell
+            label="INBOUND MSGS"
+            used={usage.inboundMessages}
+            cap={limits.maxInboundMessagesPerMonth}
+          />
+          <UsageQuotaCell
             label="AGENTS"
-            value={`${agents.length} / ${limits.maxAgents ?? '∞'}`}
+            used={agents.length}
+            cap={tenant.plan === 'free' ? PLAN_LIMITS.free.maxAgents : null}
           />
           <QuotaCell
             tone="paper-2"
-            label="INBOUND MSGS / MONTH"
-            value={limits.maxInboundMessagesPerMonth?.toLocaleString() ?? '∞'}
+            label="MONTHLY BILL"
+            value={`$${(usage.monthlyBillCents / 100).toFixed(2)}`}
           />
           <QuotaCell
             tone={tenant.status === 'active' ? 'blue' : 'yellow'}
@@ -473,6 +482,35 @@ function QuotaCell({
   );
 }
 
+function UsageQuotaCell({
+  label,
+  used,
+  cap,
+}: {
+  label: string;
+  used: number;
+  cap: number | null;
+}): React.JSX.Element {
+  const pct = cap === null ? 0 : Math.min(100, Math.round((used / cap) * 100));
+  const tone = cap !== null && pct >= 80 ? 'yellow' : 'paper';
+  return (
+    <Card tone={tone}>
+      <div className="font-mono text-kicker uppercase text-muted">{label}</div>
+      <div className="mt-2 font-display font-medium text-h3">
+        {used.toLocaleString()}
+        <span className="ml-1 font-mono text-body-sm text-muted">
+          / {cap === null ? '∞' : cap.toLocaleString()}
+        </span>
+      </div>
+      {cap !== null && (
+        <div className="mt-2 w-full bg-paper/30 h-1">
+          <div className="h-1 bg-ink" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 interface DashboardAgent {
   did: string;
   name: string;
@@ -528,11 +566,17 @@ async function loadState(): Promise<{
   recentActivity: ActivityEntry[];
   totalActiveConnections: number;
   domains: DashboardDomain[];
+  usage: {
+    period: string;
+    inboundMessages: number;
+    monthlyBillCents: number;
+  };
 }> {
   const { tenantDb } = await requireTenantDb();
   const tenant = await tenantDb.getTenant();
   if (!tenant) throw new AuthError(404, 'no_tenant');
-  const [agentRows, summary, passkeys, recent, bindingRows] = await Promise.all([
+  const period = currentUsagePeriod();
+  const [agentRows, summary, passkeys, recent, bindingRows, usageRow] = await Promise.all([
     tenantDb.listAgents(),
     tenantDb.getAgentActivitySummary(),
     listCredentialsForTenant(tenantDb.tenantId),
@@ -551,6 +595,7 @@ async function loadState(): Promise<{
       .from(registrarBindings)
       .where(eq(registrarBindings.tenantId, tenantDb.tenantId))
       .orderBy(asc(registrarBindings.createdAt)),
+    tenantDb.getUsage(period),
   ]);
 
   const now = new Date();
@@ -701,6 +746,11 @@ async function loadState(): Promise<{
     recentActivity,
     totalActiveConnections,
     domains,
+    usage: {
+      period,
+      inboundMessages: usageRow?.inboundMessages ?? 0,
+      monthlyBillCents: monthlyBillCents(tenant.plan, tenant.subscriptionQuantity ?? 1),
+    },
   };
 }
 

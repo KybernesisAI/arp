@@ -10,11 +10,12 @@ import {
   tenants,
   toTenantId,
   withTenant,
-  PLAN_LIMITS,
+  effectiveMaxAgents,
 } from '@kybernesis/arp-cloud-db';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { setSession, getSession } from '@/lib/session';
+import { getBillingContext, updateSubscriptionQuantity } from '@/lib/billing';
 
 export const runtime = 'nodejs';
 
@@ -81,11 +82,30 @@ export async function POST(req: Request): Promise<NextResponse> {
   const tenantDb = withTenant(db, toTenantId(tenantId));
   const tenantRow = await tenantDb.getTenant();
   const plan = tenantRow?.plan ?? 'free';
-  const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
-  const agents = await tenantDb.listAgents();
-  if (limits.maxAgents !== null && agents.length >= limits.maxAgents) {
+  const subQty = tenantRow?.subscriptionQuantity ?? 1;
+  const existingAgents = await tenantDb.listAgents();
+
+  // Free tier hard-cap: refuse the second agent. Upgrade to Pro to provision
+  // more — Pro auto-scales subscription quantity per agent.
+  if (plan === 'free') {
+    const cap = effectiveMaxAgents('free', subQty);
+    if (cap !== null && existingAgents.length >= cap) {
+      return NextResponse.json(
+        {
+          error: 'plan_agent_limit_reached',
+          plan,
+          max: cap,
+          hint: 'upgrade_to_pro',
+        },
+        { status: 402 },
+      );
+    }
+  }
+  // Pro tier: no hard cap; we bump Stripe quantity post-insert. Refuse Pro
+  // tenants that haven't completed checkout (no subscription = no billing).
+  if (plan === 'pro' && !tenantRow?.stripeSubscriptionId) {
     return NextResponse.json(
-      { error: 'plan_agent_limit_reached', plan, max: limits.maxAgents },
+      { error: 'pro_subscription_required', hint: 'complete_checkout_first' },
       { status: 402 },
     );
   }
@@ -151,6 +171,35 @@ export async function POST(req: Request): Promise<NextResponse> {
     scopeCatalogVersion: 'v1',
     tlsFingerprint: 'cloud-hosted',
   });
+
+  // Pro tier: keep the Stripe subscription quantity in sync with the
+  // provisioned agent count. The user is auto-charged the pro-rated $5
+  // for the new slot. If Stripe isn't configured (dev), we still bump
+  // the column so dev UX matches.
+  if (plan === 'pro') {
+    const newQty = existingAgents.length + 1;
+    if (tenantRow?.stripeSubscriptionId) {
+      try {
+        const stripeQty = await updateSubscriptionQuantity(
+          getBillingContext(),
+          tenantRow.stripeSubscriptionId,
+          newQty,
+        );
+        await tenantDb.updateTenant({
+          subscriptionQuantity: stripeQty ?? newQty,
+        });
+      } catch (err) {
+        // Don't block the agent insert on a Stripe failure — the webhook
+        // reconciles on the next subscription.updated event.
+        console.error('stripe_quantity_bump_failed', {
+          tenantId,
+          error: (err as Error).message,
+        });
+      }
+    } else {
+      await tenantDb.updateTenant({ subscriptionQuantity: newQty });
+    }
+  }
 
   // Refresh session cookie with the tenantId.
   await setSession(session.principalDid, tenantId, session.nonce);

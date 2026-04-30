@@ -7,21 +7,26 @@ import { Button, FieldError } from '@/components/ui';
 export default function BillingButtons({
   currentPlan,
   canManage,
+  agentCount,
 }: {
-  currentPlan: string;
+  currentPlan: 'free' | 'pro';
   canManage: boolean;
+  agentCount: number;
 }): React.JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function checkout(plan: 'pro' | 'team'): Promise<void> {
-    setBusy(plan);
+  async function checkout(): Promise<void> {
+    setBusy('checkout');
     setError(null);
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        // Initial Stripe quantity defaults to current agent count so the
+        // first invoice matches what they have provisioned. Server clamps
+        // to >= 1.
+        body: JSON.stringify({ quantity: Math.max(1, agentCount) }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { error: string; hint?: string };
@@ -58,17 +63,16 @@ export default function BillingButtons({
 
   return (
     <div className="mt-8 flex flex-wrap items-center gap-3">
-      {(['pro', 'team'] as const).map((plan) => (
+      {currentPlan === 'free' && (
         <Button
-          key={plan}
-          variant={currentPlan === plan ? 'ghost' : 'primary'}
+          variant="primary"
           arrow
-          onClick={() => void checkout(plan)}
-          disabled={busy !== null || currentPlan === plan}
+          onClick={() => void checkout()}
+          disabled={busy !== null}
         >
-          {busy === plan ? 'Redirecting…' : `Upgrade to ${plan}`}
+          {busy === 'checkout' ? 'Redirecting…' : 'Upgrade to Pro'}
         </Button>
-      ))}
+      )}
       {canManage && (
         <Button
           variant="default"
@@ -77,6 +81,11 @@ export default function BillingButtons({
         >
           {busy === 'portal' ? 'Redirecting…' : 'Manage subscription'}
         </Button>
+      )}
+      {currentPlan === 'pro' && (
+        <p className="text-body-sm text-ink-2 m-0">
+          Need more agents? Provision one — billing auto-scales by $5/mo per agent.
+        </p>
       )}
       {error && <FieldError className="m-0">{error}</FieldError>}
     </div>

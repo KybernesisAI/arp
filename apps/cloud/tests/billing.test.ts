@@ -14,8 +14,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   checkQuota,
+  effectiveMaxAgents,
   getBillingContext,
   handleStripeWebhook,
+  monthlyBillCents,
   PLAN_LIMITS,
 } from '../lib/billing';
 import { createPgliteDb, tenants, stripeEvents } from '@kybernesis/arp-cloud-db';
@@ -40,7 +42,9 @@ describe('billing (phase-7 task 8)', () => {
     expect(checkQuota('free', 100)?.plan).toBe('free');
     expect(checkQuota('pro', 9999)).toBeNull();
     expect(checkQuota('pro', 10_000)?.plan).toBe('pro');
-    expect(checkQuota('team', PLAN_LIMITS.team.maxInboundMessagesPerMonth! - 1)).toBeNull();
+    // Pro cap is shared across the tenant's agents; even with many seats
+    // billed, the per-month inbound budget stays at 10_000.
+    expect(PLAN_LIMITS.pro.maxInboundMessagesPerMonth).toBe(10_000);
   });
 
   it('handleStripeWebhook gates on Stripe creds being configured', async () => {
@@ -85,5 +89,35 @@ describe('billing (phase-7 task 8)', () => {
       .from(stripeEvents)
       .where(eq(stripeEvents.eventId, 'evt_123'));
     expect(stored).toHaveLength(1);
+  });
+
+  // ----------------------- Phase-10 billing helpers -----------------------
+
+  it('PLAN_LIMITS shape: only free + pro, no team', () => {
+    expect(Object.keys(PLAN_LIMITS).sort()).toEqual(['free', 'pro']);
+    expect(PLAN_LIMITS.free.maxAgents).toBe(1);
+    expect(PLAN_LIMITS.free.maxInboundMessagesPerMonth).toBe(100);
+    expect(PLAN_LIMITS.free.perAgentPriceCents).toBe(0);
+    // Pro is variable-quantity — no fixed agent cap on the plan record.
+    expect(PLAN_LIMITS.pro.maxAgents).toBeNull();
+    expect(PLAN_LIMITS.pro.maxInboundMessagesPerMonth).toBe(10_000);
+    expect(PLAN_LIMITS.pro.perAgentPriceCents).toBe(500);
+  });
+
+  it('effectiveMaxAgents: free hard-capped at 1; pro scales with quantity', () => {
+    expect(effectiveMaxAgents('free', 1)).toBe(1);
+    expect(effectiveMaxAgents('free', 99)).toBe(1); // qty ignored on free
+    expect(effectiveMaxAgents('pro', 1)).toBe(1);
+    expect(effectiveMaxAgents('pro', 5)).toBe(5);
+    expect(effectiveMaxAgents('pro', 0)).toBe(1); // floor at 1
+    expect(effectiveMaxAgents('unknown', 1)).toBeNull();
+  });
+
+  it('monthlyBillCents: free=$0, pro=$5*qty', () => {
+    expect(monthlyBillCents('free', 1)).toBe(0);
+    expect(monthlyBillCents('free', 5)).toBe(0); // qty meaningless on free
+    expect(monthlyBillCents('pro', 1)).toBe(500);
+    expect(monthlyBillCents('pro', 4)).toBe(2000);
+    expect(monthlyBillCents('pro', 0)).toBe(500); // floor at 1 agent
   });
 });

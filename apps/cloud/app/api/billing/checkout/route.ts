@@ -6,7 +6,10 @@ import { env } from '@/lib/env';
 
 export const runtime = 'nodejs';
 
-const Body = z.object({ plan: z.enum(['pro', 'team']) });
+// Phase-10: Pro is the only paid plan. The Stripe subscription's `quantity`
+// carries the per-tenant agent count, defaulting to current provisioned
+// agents at upgrade time.
+const Body = z.object({ quantity: z.number().int().min(1).max(1000).optional() });
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
@@ -18,15 +21,20 @@ export async function POST(req: Request): Promise<NextResponse> {
     const ctx = getBillingContext();
     if (!ctx.stripe) {
       return NextResponse.json(
-        { error: 'stripe_not_configured', hint: 'set STRIPE_SECRET_KEY + STRIPE_PRICE_* in .env.local' },
+        {
+          error: 'stripe_not_configured',
+          hint: 'set STRIPE_SECRET_KEY + STRIPE_PRICE_PRO_PER_AGENT in .env.local',
+        },
         { status: 503 },
       );
     }
+    const provisionedAgents = (await tenantDb.listAgents()).length;
+    const quantity = parsed.data.quantity ?? Math.max(1, provisionedAgents);
     const host = env().ARP_CLOUD_HOST;
     const { url } = await createCheckoutSession(ctx, {
       tenantId: tenant.id,
       principalDid: session.principalDid,
-      plan: parsed.data.plan,
+      quantity,
       successUrl: `https://${host}/billing?status=success`,
       cancelUrl: `https://${host}/billing?status=cancel`,
     });
