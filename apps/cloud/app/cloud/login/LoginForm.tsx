@@ -55,7 +55,6 @@ export default function LoginForm(): React.JSX.Element {
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
   const [passkeyStage, setPasskeyStage] = useState<PasskeyStage>('idle');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {

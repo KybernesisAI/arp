@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { AppShell } from '@/components/app/AppShell';
-import { Badge, Card, Code, Link, PlateHead } from '@/components/ui';
+import { Card, Code, Link, PlateHead } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { BUNDLES } from '@kybernesis/arp-scope-catalog';
 import { getScopeCatalog } from '@/lib/catalog';
@@ -184,7 +184,8 @@ async function loadDetail(id: string): Promise<DetailState | null> {
       })),
       needsParams: b.scopes.some(
         (s) =>
-          s.params != null &&
+          s.params !== null &&
+          s.params !== undefined &&
           Object.values(s.params).some((v) => v === '<user-picks>'),
       ),
     })),
