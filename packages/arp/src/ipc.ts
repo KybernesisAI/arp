@@ -42,7 +42,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import type { BridgeHandle } from '@kybernesis/arp-cloud-bridge';
+import type { BridgeHandle, PeerConnectionInfo } from '@kybernesis/arp-cloud-bridge';
 
 export interface ControlFile {
   port: number;
@@ -163,6 +163,10 @@ async function handle(
     return handleSend(req, res, opts);
   }
 
+  if (req.method === 'GET' && url.startsWith('/peer-actions')) {
+    return handlePeerActions(req, res, opts);
+  }
+
   json(res, 404, { error: 'not_found' });
 }
 
@@ -269,6 +273,55 @@ async function handleSend(req: IncomingMessage, res: ServerResponse, opts: IpcSe
       detail: (err as Error).message,
     });
   }
+}
+
+/**
+ * GET /peer-actions?from=<did>&to=<peer-did>
+ *
+ * Returns the connection (if any) between `from` and `to` together with
+ * the scope-selections granted on it. The contact skill calls this so
+ * the LLM can pick the right typed action for a peer.
+ *
+ * If `to` is omitted, returns ALL active connections for `from`.
+ */
+async function handlePeerActions(
+  req: IncomingMessage,
+  res: ServerResponse,
+  opts: IpcServerOptions,
+): Promise<void> {
+  const url = new URL(req.url ?? '', 'http://127.0.0.1');
+  const from = url.searchParams.get('from');
+  const to = url.searchParams.get('to');
+  if (!from) {
+    return json(res, 400, { error: 'missing_from', detail: 'pass ?from=<sender-did>' });
+  }
+  const supervised = opts.getSupervised().find((s) => s.bridge?.agentDid === from);
+  if (!supervised || !supervised.bridge) {
+    return json(res, 404, {
+      error: 'sender_not_supervised',
+      detail: `no running bridge for ${from}`,
+    });
+  }
+  let connections: PeerConnectionInfo[];
+  try {
+    connections = await supervised.bridge.listPeerConnections();
+  } catch (err) {
+    return json(res, 502, { error: 'gateway_unreachable', detail: (err as Error).message });
+  }
+  const filtered = to
+    ? connections.filter((c: PeerConnectionInfo) => c.peerDid === to)
+    : connections;
+  return json(res, 200, {
+    from,
+    connections: filtered.map((c: PeerConnectionInfo) => ({
+      connection_id: c.connectionId,
+      peer_did: c.peerDid,
+      status: c.status,
+      purpose: c.purpose,
+      scope_selections: c.scopeSelections,
+      expires_at: c.expiresAt,
+    })),
+  });
 }
 
 function readBody(req: IncomingMessage): Promise<string> {

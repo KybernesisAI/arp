@@ -54,9 +54,9 @@ export type SkillTemplate = {
 
 const CONTACT_SKILL_MD = `---
 name: contact
-description: "Send a message to another ARP agent and wait for their reply. Use when the user asks you to ask, message, contact, ping, check with, or get something from another agent (e.g. 'ask Samantha if she's free Friday', 'ping ian about the deal flow', 'check with Nova on the marketing copy'). Resolves names via contacts.yaml in this folder."
+description: "Talk to another ARP agent on the user's behalf. Use when the user asks you to ask, message, contact, ping, check with, or get something from another agent (e.g. 'ask Samantha if she's free Friday', 'ping ian about the deal flow', 'check with Nova on the marketing copy'). Picks the right typed scope when one is granted; falls back to chat. Resolves names via contacts.yaml in this folder."
 allowed-tools: Bash(arpc *)
-version: 1
+version: 2
 ---
 
 # Contact another agent
@@ -71,50 +71,138 @@ When the user asks you to message another agent, use this skill.
 - "Check with <name> ..."
 - "Get <something> from <name> ..."
 
+## Two ways to talk to a peer
+
+ARP gives you two paths to a peer. Pick the right one for the user's intent:
+
+1. **Typed action** — \`arpc request <peer> <scope-id> --param k=v ...\`
+   Hard data-layer enforcement: the peer's adapter runs a structured
+   handler (e.g. \`/api/arp/notes.search\` with \`WHERE project_id=alpha\`).
+   No room for the peer's LLM to leak out-of-scope data; the SQL
+   doesn't return rows it can't match. **Prefer this when possible.**
+
+2. **Chat** — \`arpc send <peer> "<text>"\`
+   Free-form natural-language relay through the peer's chatbot. Works
+   for anything; the peer's LLM decides what to share within its scope.
+   Soft enforcement (LLM-as-gatekeeper). Use this when no typed scope
+   matches the user's intent or when the question is genuinely
+   conversational.
+
+The connection's Cedar policy decides which paths are open. \`arpc peer-actions\`
+tells you what's available — always run it first.
+
 ## How
 
-1. Look up the contact list:
-   \`\`\`bash
-   arpc contacts list
-   \`\`\`
+### 1. Resolve the contact
 
-   If \`<name>\` isn't there, tell the user. Don't guess at DIDs. If you
-   know the DID from the conversation context, you can pass it directly
-   (skipping the contacts file): \`arpc send did:web:<host>.agent "..."\`.
+\`\`\`bash
+arpc contacts list
+\`\`\`
 
-2. Send the message and wait for the reply (default: 30s timeout):
-   \`\`\`bash
-   arpc send <name-or-did> "<your-question>"
-   \`\`\`
+If \`<name>\` isn't in the list, tell the user — don't guess DIDs. If
+you do know the full DID from context (e.g. user typed \`did:web:foo.agent\`),
+you can pass it directly to any of the commands below.
 
-   The command prints the reply to stdout. Include it verbatim in your
-   response to the user, attributing it to the contact ("Samantha says:
-   …"). Don't paraphrase unless asked.
+### 2. Discover what's granted on this peer
 
-3. If the command exits 2 with \`reply_timeout\`, tell the user the
-   message was delivered but no reply came back yet. Don't retry
-   automatically.
+\`\`\`bash
+arpc peer-actions <name-or-did> --json
+\`\`\`
+
+This prints the active connection (if any) and the list of granted
+scope IDs with their pinned parameters. Examples of typed scopes you
+might see: \`notes.search\`, \`notes.read\`, \`knowledge.query\`,
+\`calendar.availability.read\`, \`contacts.search\`,
+\`messaging.relay.to_principal\`.
+
+If \`peer-actions\` returns no active connection, tell the user there's
+no live ARP connection to that peer yet — they need to pair via
+\`cloud.arp.run/connections\`.
+
+### 3. Pick the right call
+
+Match the user's intent to a granted scope:
+
+| User intent | Best scope | Command |
+|---|---|---|
+| "what does X know about <topic>" / "search X's notes for ..." | \`notes.search\` | \`arpc request <name> notes.search --param collection_id=<project> --param query="<topic>"\` |
+| "ask X about Y" (specific note already known) | \`notes.read\` | \`arpc request <name> notes.read --param collection_id=<project> --param source_path=<path>\` |
+| "what does X think about <broader topic>" | \`knowledge.query\` | \`arpc request <name> knowledge.query --param kb_id=<id> --param query="<topic>"\` |
+| "is X free <when>" / "check X's availability" | \`calendar.availability.read\` | \`arpc request <name> calendar.availability.read --param days_ahead=<n>\` |
+| Conversational ("ping X to check in", "tell X ...") | \`messaging.relay.to_principal\` | \`arpc send <name> "<text>"\` |
+
+If multiple typed scopes plausibly apply, pick the narrowest match. If
+none fit, fall back to \`arpc send\` — but ONLY if the connection grants
+\`messaging.relay.to_principal\`.
+
+If the connection grants neither a relevant typed scope nor relay,
+tell the user: "I don't have a scope on this connection that lets me
+ask <name> about <topic>. They'd need to grant me <suggested-scope>
+through \`cloud.arp.run/connections/<id>/edit\`."
+
+### 4. Run the call (with a sane timeout)
+
+\`\`\`bash
+# typed
+arpc request <name> <scope-id> --param k=v ... --timeout 90
+
+# chat
+arpc send <name> "<your-question>" --timeout 90
+\`\`\`
+
+The command prints the reply (typed: structured JSON; chat: peer's
+free-form text). Include it in your response to the user, attributing
+it to the contact ("Samantha says: ..."). For typed JSON, summarise the
+fields naturally — don't dump raw JSON unless the user asked for it.
+
+### 5. Handle the failure cases
+
+- **Exit 3, \`denied by audience policy\`** — the cedar policy doesn't
+  permit what you tried. Tell the user why ("They've only granted me
+  notes.search on Project Alpha, not Project Beta") and suggest they
+  edit the connection at \`cloud.arp.run\` if they want to widen access.
+- **Exit 2, \`reply_timeout\`** — the request was delivered but the peer
+  didn't reply in time. Tell the user; don't retry.
+- **\`gateway_unreachable\`** — supervisor or gateway is down. Tell the
+  user; investigate before retrying.
 
 ## Examples
 
 User: "ask Samantha what time she's free Friday"
-You run: \`arpc send samantha "what time are you free Friday?"\`
-You reply: "Samantha says: I'm open from 1–4 PM Bangkok time. Want me to
-hold a slot?"
+You run:
+  \`arpc peer-actions samantha --json\`  → sees \`calendar.availability.read\`
+  \`arpc request samantha calendar.availability.read --param days_ahead=7 --timeout 90\`
+You reply: "Samantha is free 1–4 PM Friday."
 
-User: "ping ian about the meeting"
-You run: \`arpc send ian "atlas here — quick check on the meeting?"\`
+User: "ask Atlas what they know about Project Alpha hiring"
+You run:
+  \`arpc peer-actions atlas --json\` → sees \`notes.search collection_id=alpha\`
+  \`arpc request atlas notes.search --param collection_id=alpha --param query="hiring" --timeout 90\`
+You reply: "Atlas has one note: Sarah Chen joined Project Alpha as ML lead (2026-04-30)."
+
+User: "ping ian to remind him about the meeting"
+You run:
+  \`arpc peer-actions ian --json\` → sees \`messaging.relay.to_principal\`
+  \`arpc send ian "atlas here — reminder about the meeting" --timeout 90\`
 You reply: (whatever Ian's agent replied)
+
+User: "what does ghost.agent think about Project Beta"
+You run:
+  \`arpc peer-actions ghost.agent --json\` → no scope covers Project Beta
+You reply: "I don't have a scope on this connection that lets me query Ghost about Project Beta. If you want, I can ping them via free-form chat — that path's still open."
 
 ## Don'ts
 
 - Don't make up replies. If the supervisor isn't running or there's
-  no connection to that peer yet, say so.
+  no connection to the peer yet, say so.
+- Don't skip \`peer-actions\`. Without it you'll guess wrong and hit
+  \`policy_denied\`.
+- Don't fall back to \`arpc send\` if a typed scope would have worked —
+  you give up the data-layer guarantee that way.
 - Don't use this for talking to the user — they're already talking to
   you directly. This is for talking to OTHER agents on the user's behalf.
 - Don't add new contacts unless the user explicitly tells you to.
-  (They'll usually do this through the cloud.arp.run dashboard, which
-  auto-populates contacts.yaml after a successful pairing.)
+  Pairing through \`cloud.arp.run\` auto-populates contacts.yaml.
 `;
 
 /**
@@ -132,11 +220,12 @@ const OPENCLAW_CONTACT_PY = `# openclaw_skills/contact.py — preview, adapter p
 # adapter for arpc lands. Below is the shape we're targeting:
 
 from openclaw import Skill, action, trigger
+import json
 import subprocess
 
 
 class Contact(Skill):
-    """Send a message to another ARP agent and wait for the reply."""
+    """Talk to another ARP agent. Picks the right typed scope when granted; falls back to chat."""
 
     name = "contact"
     triggers = [
@@ -145,14 +234,35 @@ class Contact(Skill):
     ]
 
     @action
-    def run(self, name: str, text: str) -> str:
-        # Shell out to arpc; the supervisor handles signing + waits for
-        # the peer's reply.
-        out = subprocess.run(
-            ["arpc", "send", name, text],
-            capture_output=True,
-            check=True,
+    def run(self, name: str, intent: str) -> str:
+        # 1. Discover what scopes are granted on this peer.
+        peer_actions = subprocess.run(
+            ["arpc", "peer-actions", name, "--json"],
+            capture_output=True, check=True,
         )
+        info = json.loads(peer_actions.stdout)
+        if not info.get("connections"):
+            return f"no active ARP connection to {name}; ask the user to pair via cloud.arp.run."
+        scopes = {s["id"]: s.get("params", {}) for s in info["connections"][0]["scope_selections"]}
+
+        # 2. Choose: typed action (hard data-layer guarantee) or chat fallback.
+        #    The router below maps user intent → scope. Extend per use case.
+        if "notes.search" in scopes and "search" in intent.lower():
+            params = scopes["notes.search"]
+            cmd = ["arpc", "request", name, "notes.search",
+                   "--param", f"collection_id={params.get('collection_id', '')}",
+                   "--param", f"query={intent}",
+                   "--timeout", "90"]
+        elif "calendar.availability.read" in scopes and "free" in intent.lower():
+            cmd = ["arpc", "request", name, "calendar.availability.read",
+                   "--param", "days_ahead=14", "--timeout", "90"]
+        elif "messaging.relay.to_principal" in scopes:
+            cmd = ["arpc", "send", name, intent, "--timeout", "90"]
+        else:
+            return (f"connection to {name} doesn't grant a scope that covers this intent. "
+                    "Edit the connection at cloud.arp.run to grant the scope.")
+
+        out = subprocess.run(cmd, capture_output=True, check=True)
         return out.stdout.decode().strip()
 `;
 
@@ -173,22 +283,56 @@ import { execFileSync } from 'node:child_process';
 
 export class ContactSkill extends Agent {
   /**
-   * Send a message to another ARP agent and wait for the reply.
-   * The Hermes runtime auto-routes user prompts to this tool when
-   * they match the description's verb pattern.
+   * Talk to another ARP agent. Picks the right typed scope when one is
+   * granted (hard data-layer enforcement); falls back to chat relay
+   * when only that's available.
    */
   @tool({
     description:
-      'Send a message to another ARP agent and wait for their reply. ' +
-      'Use when the user asks you to ask, message, contact, ping, or check with another agent.',
+      'Talk to another ARP agent on the user\\'s behalf. Use when the user ' +
+      'asks you to ask, message, contact, ping, or check with another agent.',
     parameters: {
       name: { type: 'string', description: 'Contact name from contacts.yaml or a did:web: URI' },
-      text: { type: 'string', description: 'The question or message to deliver' },
+      intent: { type: 'string', description: 'The user\\'s natural-language question or instruction' },
     },
   })
-  async contact({ name, text }: { name: string; text: string }): Promise<string> {
-    const out = execFileSync('arpc', ['send', name, text], { encoding: 'utf-8' });
-    return out.trim();
+  async contact({ name, intent }: { name: string; intent: string }): Promise<string> {
+    // 1. Discover what scopes the connection grants for this peer.
+    const peerActionsRaw = execFileSync(
+      'arpc',
+      ['peer-actions', name, '--json'],
+      { encoding: 'utf-8' },
+    );
+    const info = JSON.parse(peerActionsRaw) as {
+      connections: Array<{
+        scope_selections: Array<{ id: string; params?: Record<string, unknown> }>;
+      }>;
+    };
+    if (!info.connections.length) {
+      return \`no active ARP connection to \${name}; pair via cloud.arp.run.\`;
+    }
+    const scopes = new Map<string, Record<string, unknown>>(
+      info.connections[0].scope_selections.map((s) => [s.id, s.params ?? {}]),
+    );
+
+    // 2. Map intent → typed scope (preferred) or chat fallback.
+    let cmd: string[];
+    if (scopes.has('notes.search') && /search|find|know about|notes/i.test(intent)) {
+      const collection = (scopes.get('notes.search')!.collection_id ?? '') as string;
+      cmd = ['request', name, 'notes.search',
+             '--param', \`collection_id=\${collection}\`,
+             '--param', \`query=\${intent}\`,
+             '--timeout', '90'];
+    } else if (scopes.has('calendar.availability.read') && /free|available/i.test(intent)) {
+      cmd = ['request', name, 'calendar.availability.read',
+             '--param', 'days_ahead=14', '--timeout', '90'];
+    } else if (scopes.has('messaging.relay.to_principal')) {
+      cmd = ['send', name, intent, '--timeout', '90'];
+    } else {
+      return \`connection to \${name} doesn't grant a scope that covers this intent. \` +
+             \`Edit the connection at cloud.arp.run to grant the scope.\`;
+    }
+    return execFileSync('arpc', cmd, { encoding: 'utf-8' }).trim();
   }
 }
 `;
