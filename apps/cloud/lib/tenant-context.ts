@@ -56,3 +56,24 @@ export async function tenantDbById(tenantId: string): Promise<TenantDb> {
   const db = await getDb();
   return withTenant(db, toTenantId(tenantId));
 }
+
+/**
+ * Lightweight gate for marketing/auth surfaces (onboarding, login). Returns
+ * the caller's tenantId if they are fully signed up, or null otherwise.
+ *
+ * Mirrors requireTenantDb's session→tenant resolution (including the
+ * principalDid → tenants fallback) but never throws — pages that want to
+ * redirect already-authenticated users away can branch on the return value.
+ */
+export async function resolveAuthenticatedTenantId(): Promise<string | null> {
+  const session = await getSession();
+  if (!session) return null;
+  if (session.tenantId) return session.tenantId;
+  const db = await getDb();
+  const rows = await db
+    .select({ id: tenantsTable.id })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.principalDid, session.principalDid))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
