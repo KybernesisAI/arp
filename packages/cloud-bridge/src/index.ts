@@ -20,6 +20,7 @@ export {
   type SendOutboundParams,
   type SendOutboundResult,
   type AwaitReplyResult,
+  type PeerConnectionInfo,
 } from './bridge.js';
 export type { Adapter, InboundContext, BridgeOptions } from './types.js';
 export {

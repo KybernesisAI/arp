@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import {
   createCloudClient,
+  signBearerToken,
   type CloudClientHandle,
   type InboundMessage,
 } from '@kybernesis/arp-cloud-client';
@@ -89,6 +90,15 @@ export interface AwaitReplyResult {
   body: Record<string, unknown>;
 }
 
+export interface PeerConnectionInfo {
+  connectionId: string;
+  peerDid: string;
+  status: string;
+  purpose: string | null;
+  scopeSelections: Array<{ id: string; params?: Record<string, unknown> }>;
+  expiresAt: string | null;
+}
+
 export interface BridgeHandle {
   readonly agentDid: string;
   readonly gatewayWsUrl: string;
@@ -107,6 +117,12 @@ export interface BridgeHandle {
    * it). Rejects after `timeoutMs` (default 30 000 ms).
    */
   awaitReply(thid: string, timeoutMs?: number): Promise<AwaitReplyResult>;
+  /**
+   * Fetch the agent's active connections from the cloud, including
+   * scope-selections so callers (the contact skill, `arpc peer-actions`)
+   * can discover what typed ARP actions are available per peer.
+   */
+  listPeerConnections(): Promise<PeerConnectionInfo[]>;
 }
 
 interface PendingReply {
@@ -236,6 +252,36 @@ export async function startBridge(opts: BridgeOptions): Promise<BridgeHandle> {
         timer.unref?.();
         pending.set(thid, { resolve, reject, timer });
       });
+    },
+    async listPeerConnections(): Promise<PeerConnectionInfo[]> {
+      const bearer = await signBearerToken(agentDid, privateKey, Date.now());
+      const url = `${gatewayHttp}/agent-connections?did=${encodeURIComponent(agentDid)}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { authorization: `Bearer ${bearer}` },
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`listPeerConnections: ${res.status} ${text}`);
+      }
+      const body = (await res.json()) as {
+        connections: Array<{
+          connection_id: string;
+          peer_did: string;
+          status: string;
+          purpose: string | null;
+          scope_selections: Array<{ id: string; params?: Record<string, unknown> }>;
+          expires_at: string | null;
+        }>;
+      };
+      return body.connections.map((c) => ({
+        connectionId: c.connection_id,
+        peerDid: c.peer_did,
+        status: c.status,
+        purpose: c.purpose,
+        scopeSelections: c.scope_selections,
+        expiresAt: c.expires_at,
+      }));
     },
   };
 }

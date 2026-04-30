@@ -401,3 +401,120 @@ export function cmdContacts(sub: string | null, positional: string[]): void {
 }
 
 export type { Contacts };
+
+// ---- arpc peer-actions — discover what typed actions are available on a peer
+
+interface PeerActionsFlags {
+  as?: string;
+}
+
+interface ScopeSelectionPayload {
+  id: string;
+  params?: Record<string, unknown>;
+}
+
+interface PeerActionsConnection {
+  connection_id: string;
+  peer_did: string;
+  status: string;
+  purpose: string | null;
+  scope_selections: ScopeSelectionPayload[];
+  expires_at: string | null;
+}
+
+/**
+ * `arpc peer-actions [<name-or-did>] [--as <did>] [--json]`
+ *
+ * Lists active connections for the supervised sender plus the typed
+ * scopes granted on each — what `arpc request <peer> <action>` calls
+ * are available without hitting policy_denied.
+ *
+ * No peer arg → lists every active connection. With a peer name/DID,
+ * filters to that one. Skill-friendly machine output via --json.
+ */
+export async function cmdPeerActions(
+  positional: string[],
+  flags: PeerActionsFlags,
+): Promise<void> {
+  const peerArg = positional[1];
+  const wantsJson = positional.includes('--json');
+
+  const cwd = process.cwd();
+  const sender = await detectSender(cwd, flags.as);
+  let peerDid: string | null = null;
+  if (peerArg && peerArg !== '--json') {
+    try {
+      peerDid = resolveRecipient(sender.agentRoot, peerArg).did;
+    } catch (err) {
+      console.error(`arpc peer-actions: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  const ctrl = readControlFile();
+  if (!ctrl) {
+    console.error(
+      'arpc peer-actions: supervisor not running. Start it with `arpc service install` or `arpc host`.',
+    );
+    process.exit(1);
+  }
+
+  const url =
+    `http://127.0.0.1:${ctrl.port}/peer-actions` +
+    `?from=${encodeURIComponent(sender.agentDid)}` +
+    (peerDid ? `&to=${encodeURIComponent(peerDid)}` : '');
+
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { 'x-arp-control-token': ctrl.token } });
+  } catch (err) {
+    console.error(`arpc peer-actions: supervisor unreachable: ${(err as Error).message}`);
+    process.exit(1);
+  }
+  const body = (await res.json().catch(() => ({}))) as
+    | { from: string; connections: PeerActionsConnection[] }
+    | { error: string; detail?: string };
+
+  if (!res.ok) {
+    console.error(`arpc peer-actions: ${res.status} ${(body as { error?: string }).error ?? 'failed'}`);
+    if ((body as { detail?: string }).detail) {
+      console.error((body as { detail: string }).detail);
+    }
+    process.exit(1);
+  }
+
+  const connections = (body as { connections: PeerActionsConnection[] }).connections;
+
+  if (wantsJson) {
+    console.log(JSON.stringify({ from: sender.agentDid, connections }, null, 2));
+    return;
+  }
+
+  if (connections.length === 0) {
+    if (peerDid) {
+      console.log(`no active connection between ${sender.agentDid} and ${peerDid}`);
+    } else {
+      console.log(`no active connections for ${sender.agentDid}`);
+    }
+    return;
+  }
+
+  for (const conn of connections) {
+    console.log(`peer:       ${conn.peer_did}`);
+    console.log(`connection: ${conn.connection_id} · ${conn.status}`);
+    if (conn.purpose) console.log(`purpose:    ${conn.purpose}`);
+    if (conn.expires_at) console.log(`expires:    ${conn.expires_at}`);
+    if (conn.scope_selections.length === 0) {
+      console.log(`scopes:     (none granted — peer cannot reach this agent)`);
+    } else {
+      console.log(`scopes:`);
+      for (const s of conn.scope_selections) {
+        const params = s.params && Object.keys(s.params).length
+          ? ` · ${Object.entries(s.params).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')}`
+          : '';
+        console.log(`  - ${s.id}${params}`);
+      }
+    }
+    console.log('');
+  }
+}
