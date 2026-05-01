@@ -1,0 +1,339 @@
+/* ──────────────────────────────────────────────────────────────────────
+ *  Explainer slide — single-screen runtime + policy explainer.
+ *  Horizontal pipeline: SENDER → 7 LAYERS → RECEIVER.
+ *
+ *  Two tracks:
+ *    · Top track    = REQUEST  (sender → receiver)
+ *      - allow packet:  blue → flips GREEN at the gate → continues to receiver
+ *      - deny packet:   blue → flips RED at the gate → bounces back to sender
+ *    · Bottom track = RESPONSE (receiver → sender), green throughout
+ *      - represents Samantha's signed reply travelling back to Ghost
+ *
+ *  All animation lives ABOVE/BELOW the cells, never on top of text.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* Signal palette as CSS variables — the design-system tokens.css only
+   exposes paper/ink/muted/rule as vars; signal-* lives in the Tailwind
+   preset (compiled into utility classes) but is NOT available as
+   var(--arp-signal-*). Re-publish them locally so keyframes can interpolate. */
+:root {
+  --arp-signal-blue: #1536e6;
+  --arp-signal-red: #e8371f;
+  --arp-signal-yellow: #f2c14b;
+  --arp-signal-green: #0f7a4a;
+}
+
+/* 9-column row: sender + 7 stages + receiver, all equal width.
+   Equal cells = packet x-positions land cleanly at i/18 (cell centres). */
+.arp-cells-row {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+}
+
+/* ── Track strips ────────────────────────────────────────────────────── */
+
+.arp-track-strip {
+  position: relative;
+  height: 38px;
+}
+
+.arp-track-strip--top {
+  margin-bottom: 4px;
+}
+
+.arp-track-strip--bottom {
+  margin-top: 4px;
+}
+
+.arp-track-caption {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.arp-track-caption--bottom {
+  inset: auto 0 0 0;
+}
+
+.arp-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 70%;
+  height: 1px;
+  background-color: var(--arp-ink);
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+
+.arp-track-strip--bottom .arp-track-line {
+  top: 30%;
+}
+
+.arp-track-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10px;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+}
+
+.arp-track-ticks--down {
+  top: calc(70% - 0.5px);
+}
+
+.arp-track-ticks--up {
+  bottom: calc(70% - 0.5px);
+}
+
+.arp-tick-cell {
+  display: flex;
+  justify-content: center;
+}
+
+.arp-track-ticks--down .arp-tick-cell {
+  align-items: flex-start;
+}
+
+.arp-track-ticks--up .arp-tick-cell {
+  align-items: flex-end;
+}
+
+.arp-tick {
+  display: block;
+  width: 1px;
+  height: 10px;
+  background-color: var(--arp-ink);
+  opacity: 0.5;
+}
+
+/* ── Packets ─────────────────────────────────────────────────────────── */
+
+.arp-packet {
+  position: absolute;
+  /* Hollow ring — only the outline carries the colour, fill is transparent
+     so the track line shows through the centre. */
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  margin-left: -11px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background-color: transparent;
+  border: 3px solid var(--arp-signal-blue);
+  /* paper halo masks the track line on either side of the ring */
+  box-shadow: 0 0 0 3px var(--arp-paper);
+  z-index: 5;
+}
+
+.arp-track-strip--top .arp-packet {
+  top: 70%;
+}
+
+.arp-track-strip--bottom .arp-packet {
+  top: 30%;
+}
+
+.arp-packet--allow {
+  animation: arp-packet-allow 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.arp-packet--deny {
+  animation: arp-packet-deny 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-delay: 4s;
+}
+
+.arp-packet--response {
+  border-color: var(--arp-signal-green);
+  animation: arp-packet-response 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  /* Starts about the time the allow packet leaves the gate going green */
+  animation-delay: 1.6s;
+}
+
+/* 9 equal cells → centres at i/18 percent:
+   sender 5.56% · L1 16.67 · L2 27.78 · L3 38.89 · L4 50 ·
+   L5 61.11 · L6 72.22 · L7 83.33 · receiver 94.44 */
+
+/* — REQUEST · ALLOW (top track) — blue → GREEN at the gate, exits at receiver — */
+@keyframes arp-packet-allow {
+  0% {
+    left: 5.56%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-blue);
+  }
+  4% {
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-blue);
+  }
+  14% { left: 16.67%; border-color: var(--arp-signal-blue); }
+  22% { left: 27.78%; border-color: var(--arp-signal-blue); }
+  30% { left: 38.89%; border-color: var(--arp-signal-blue); }
+  /* Arrive at the gate (L4) — slow, dwell, BLUE pulse */
+  42% {
+    left: 50%;
+    transform: scale(1);
+    border-color: var(--arp-signal-blue);
+  }
+  50% {
+    left: 50%;
+    transform: scale(2);
+    border-color: var(--arp-signal-blue);
+  }
+  /* Decision — flip to GREEN crisply */
+  52% {
+    left: 50%;
+    transform: scale(2);
+    border-color: var(--arp-signal-green);
+  }
+  60% {
+    left: 50%;
+    transform: scale(1.1);
+    border-color: var(--arp-signal-green);
+  }
+  /* Continue forward, GREEN, through L5 → L7 → recipient */
+  68% { left: 61.11%; border-color: var(--arp-signal-green); }
+  76% { left: 72.22%; border-color: var(--arp-signal-green); }
+  84% { left: 83.33%; border-color: var(--arp-signal-green); }
+  93% {
+    left: 94.44%;
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-green);
+  }
+  100% {
+    left: 94.44%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-green);
+  }
+}
+
+/* — REQUEST · DENY (top track) — blue → RED at the gate, bounces back — */
+@keyframes arp-packet-deny {
+  0% {
+    left: 5.56%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-blue);
+  }
+  5% {
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-blue);
+  }
+  18% { left: 27.78%; border-color: var(--arp-signal-blue); }
+  30% { left: 38.89%; border-color: var(--arp-signal-blue); }
+  42% {
+    left: 50%;
+    transform: scale(1);
+    border-color: var(--arp-signal-blue);
+  }
+  50% {
+    left: 50%;
+    transform: scale(2.2);
+    border-color: var(--arp-signal-blue);
+  }
+  /* Decision — flip to RED crisply */
+  52% {
+    left: 50%;
+    transform: scale(2.2);
+    border-color: var(--arp-signal-red);
+  }
+  60% {
+    left: 50%;
+    transform: scale(1.1);
+    border-color: var(--arp-signal-red);
+  }
+  /* Bounce back, RED, through L3 → L2 → L1 → sender */
+  68% { left: 38.89%; border-color: var(--arp-signal-red); }
+  76% { left: 27.78%; border-color: var(--arp-signal-red); }
+  84% { left: 16.67%; border-color: var(--arp-signal-red); }
+  95% {
+    left: 5.56%;
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-red);
+  }
+  100% {
+    left: 5.56%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-red);
+  }
+}
+
+/* — RESPONSE (bottom track) — receiver → sender, GREEN throughout — */
+@keyframes arp-packet-response {
+  0% {
+    left: 94.44%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-green);
+  }
+  5% {
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-green);
+  }
+  16% { left: 83.33%; border-color: var(--arp-signal-green); }
+  26% { left: 72.22%; border-color: var(--arp-signal-green); }
+  36% { left: 61.11%; border-color: var(--arp-signal-green); }
+  46% { left: 50%;    border-color: var(--arp-signal-green); }
+  56% { left: 38.89%; border-color: var(--arp-signal-green); }
+  66% { left: 27.78%; border-color: var(--arp-signal-green); }
+  76% { left: 16.67%; border-color: var(--arp-signal-green); }
+  93% {
+    left: 5.56%;
+    opacity: 1;
+    transform: scale(1);
+    border-color: var(--arp-signal-green);
+  }
+  100% {
+    left: 5.56%;
+    opacity: 0;
+    transform: scale(0.5);
+    border-color: var(--arp-signal-green);
+  }
+}
+
+/* ── POLICY GATE pulsing dot inline with the L4 cell label ──────────── */
+
+.arp-pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  border-color: var(--arp-signal-yellow);
+  box-shadow: 0 0 0 0 rgba(242, 193, 75, 0.7);
+  animation: arp-pulse-ring 1.6s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes arp-pulse-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(242, 193, 75, 0.55);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(242, 193, 75, 0);
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arp-pulse-dot,
+  .arp-packet--allow,
+  .arp-packet--deny,
+  .arp-packet--response {
+    animation: none;
+  }
+  .arp-packet--allow,
+  .arp-packet--deny,
+  .arp-packet--response {
+    opacity: 0;
+  }
+}
