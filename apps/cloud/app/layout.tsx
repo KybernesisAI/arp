@@ -1,7 +1,9 @@
 import type * as React from 'react';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { Suspense } from 'react';
 import './globals.css';
+import { PostHogProvider } from '@/components/PostHogProvider';
 
 export const metadata: Metadata = {
   title: 'ARP — The secure network for AI agents',
@@ -18,7 +20,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <html lang="en" data-theme="light" data-density="tight">
-      <body>{children}</body>
+      <body>
+        {/* Suspense wraps useSearchParams() inside PostHogProvider —
+            required for any client hook reading nav state. */}
+        <Suspense fallback={null}>
+          <PostHogProvider>{children}</PostHogProvider>
+        </Suspense>
+      </body>
     </html>
   );
 }
