@@ -139,6 +139,10 @@ export function isAppOwnedPath(pathname: string): boolean {
     // static + auth-optional. Passthrough here prevents the /cloud rewrite
     // from burying it at /cloud/support.
     '/support',
+    // /runtime: single-screen explainer slide for the seven-layer runtime +
+    // policy gate. Same page on every host (arp.run, cloud.arp.run,
+    // app.arp.run) — must not be rewritten under /project or /cloud.
+    '/runtime',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
