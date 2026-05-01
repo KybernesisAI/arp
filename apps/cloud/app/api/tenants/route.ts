@@ -21,7 +21,7 @@ import { getDb } from '@/lib/db';
 import { setSession } from '@/lib/session';
 import { decodeDidKeyPublicKey } from '@/lib/principal-keys';
 import { multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
-import { posthog } from '@/lib/posthog';
+import { track, identify } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -109,14 +109,14 @@ export async function POST(req: Request): Promise<NextResponse> {
   await setSession(principalDid, tenantId, nonce);
 
   if (isNewTenant) {
-    posthog.identify({
+    identify({
       distinctId: principalDid,
       properties: {
         $set: { tenant_id: tenantId, plan: 'free' },
         $set_once: { first_seen: new Date().toISOString() },
       },
     });
-    posthog.capture({
+    track({
       distinctId: principalDid,
       event: 'tenant_signed_up',
       properties: { tenant_id: tenantId },

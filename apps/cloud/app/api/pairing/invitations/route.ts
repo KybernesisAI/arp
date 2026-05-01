@@ -26,7 +26,7 @@ import { PairingProposalSchema } from '@kybernesis/arp-pairing';
 import { pairingInvitations } from '@kybernesis/arp-cloud-db';
 import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
-import { posthog } from '@/lib/posthog';
+import { track } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -114,7 +114,7 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'insert_failed' }, { status: 500 });
     }
 
-    posthog.capture({
+    track({
       distinctId: session.principalDid,
       event: 'pairing_invitation_created',
       properties: {

@@ -48,7 +48,7 @@ import { requireTenantDb, AuthError } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
 import { createPairingResolver } from '@/lib/pairing-resolver';
 import { getScopeCatalog } from '@/lib/catalog';
-import { posthog } from '@/lib/posthog';
+import { posthog, track } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -415,7 +415,7 @@ export async function POST(req: Request): Promise<Response> {
           ),
         );
     }
-    posthog.capture({
+    track({
       distinctId: tenantDb.tenantId,
       event: 'pairing_accepted',
       properties: {
