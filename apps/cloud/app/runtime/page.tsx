@@ -77,7 +77,7 @@ export default function ExplainerPage(): React.JSX.Element {
 
 /* ─── TOP BAR ───────────────────────────────────────────────────────── */
 
-function TopBar(): React.JSX.Element {
+function _TopBar(): React.JSX.Element {
   return (
     <header className="shrink-0 border-b border-rule">
       <Container className="flex items-center justify-between py-2.5">
