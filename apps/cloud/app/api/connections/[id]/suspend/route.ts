@@ -22,7 +22,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { checkRateLimit, rateLimitedResponse } from '@/lib/rate-limit';
-import { posthog } from '@/lib/posthog';
+import { track } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -123,7 +123,7 @@ export async function POST(
       { prevHash, selfHash, seq },
     );
 
-    posthog.capture({
+    track({
       distinctId: tenantDb.tenantId,
       event: 'connection_suspended',
       properties: {

@@ -17,6 +17,7 @@
  */
 
 import { PostHog } from 'posthog-node';
+import { after } from 'next/server';
 
 const apiKey = process.env['NEXT_PUBLIC_POSTHOG_KEY'] ?? '';
 const host = process.env['NEXT_PUBLIC_POSTHOG_HOST'];
@@ -27,3 +28,38 @@ export const posthog = new PostHog(apiKey, {
   flushInterval: 0,
   enableExceptionAutocapture: true,
 });
+
+/**
+ * Capture an event AND keep the Vercel function alive long enough for
+ * the HTTP request to PostHog to complete. Call this everywhere
+ * instead of `posthog.capture()` directly — it's the only safe path
+ * on serverless. Returns void; capture is fire-and-forget from the
+ * caller's perspective.
+ *
+ * Mechanism: Next.js's `after()` (App Router) runs the callback after
+ * the response is sent, with the function instance kept warm until
+ * it returns. Without this, flushAt:1 still races against function
+ * shutdown and ~30% of events get lost.
+ */
+export function track(input: Parameters<PostHog['capture']>[0]): void {
+  posthog.capture(input);
+  after(async () => {
+    try {
+      await posthog.flush();
+    } catch {
+      /* never throw from after-hook; PostHog will retry on next call */
+    }
+  });
+}
+
+/** Same pattern for identify. */
+export function identify(input: Parameters<PostHog['identify']>[0]): void {
+  posthog.identify(input);
+  after(async () => {
+    try {
+      await posthog.flush();
+    } catch {
+      /* swallow */
+    }
+  });
+}

@@ -40,7 +40,7 @@ import {
 import { ed25519RawToMultibase, base64urlEncode } from '@kybernesis/arp-transport';
 import { getDb } from '@/lib/db';
 import { getSession } from '@/lib/session';
-import { posthog } from '@/lib/posthog';
+import { track } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -198,7 +198,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     tlsFingerprint: 'cloud-hosted',
   });
 
-  posthog.capture({
+  track({
     distinctId: session.principalDid,
     event: 'agent_provisioned',
     properties: {
