@@ -38,8 +38,8 @@ describe('billing (phase-7 task 8)', () => {
 
   it('checkQuota returns null under cap, limits at cap', () => {
     expect(checkQuota('free', 0)).toBeNull();
-    expect(checkQuota('free', 99)).toBeNull();
-    expect(checkQuota('free', 100)?.plan).toBe('free');
+    expect(checkQuota('free', 999)).toBeNull();
+    expect(checkQuota('free', 1_000)?.plan).toBe('free');
     expect(checkQuota('pro', 9999)).toBeNull();
     expect(checkQuota('pro', 10_000)?.plan).toBe('pro');
     // Pro cap is shared across the tenant's agents; even with many seats
@@ -93,15 +93,19 @@ describe('billing (phase-7 task 8)', () => {
 
   // ----------------------- Phase-10 billing helpers -----------------------
 
-  it('PLAN_LIMITS shape: only free + pro, no team', () => {
-    expect(Object.keys(PLAN_LIMITS).sort()).toEqual(['free', 'pro']);
+  it('PLAN_LIMITS shape: free + pro + internal', () => {
+    expect(Object.keys(PLAN_LIMITS).sort()).toEqual(['free', 'internal', 'pro']);
     expect(PLAN_LIMITS.free.maxAgents).toBe(1);
-    expect(PLAN_LIMITS.free.maxInboundMessagesPerMonth).toBe(100);
+    expect(PLAN_LIMITS.free.maxInboundMessagesPerMonth).toBe(1_000);
     expect(PLAN_LIMITS.free.perAgentPriceCents).toBe(0);
     // Pro is variable-quantity — no fixed agent cap on the plan record.
     expect(PLAN_LIMITS.pro.maxAgents).toBeNull();
     expect(PLAN_LIMITS.pro.maxInboundMessagesPerMonth).toBe(10_000);
     expect(PLAN_LIMITS.pro.perAgentPriceCents).toBe(500);
+    // Internal — every cap is null, never billed.
+    expect(PLAN_LIMITS.internal.maxAgents).toBeNull();
+    expect(PLAN_LIMITS.internal.maxInboundMessagesPerMonth).toBeNull();
+    expect(PLAN_LIMITS.internal.perAgentPriceCents).toBe(0);
   });
 
   it('effectiveMaxAgents: free hard-capped at 1; pro scales with quantity', () => {

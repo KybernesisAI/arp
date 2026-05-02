@@ -40,26 +40,36 @@ export const posthog = new PostHog(apiKey, {
  * the response is sent, with the function instance kept warm until
  * it returns. Without this, flushAt:1 still races against function
  * shutdown and ~30% of events get lost.
+ *
+ * `after()` itself throws when called outside a request scope (e.g.
+ * unit/integration tests that import a route handler directly), so
+ * the call is guarded — in test/script contexts we fall back to a
+ * fire-and-forget flush so capture still works without leaking the
+ * "outside request scope" error into every test that touches a route.
  */
 export function track(input: Parameters<PostHog['capture']>[0]): void {
   posthog.capture(input);
-  after(async () => {
-    try {
-      await posthog.flush();
-    } catch {
-      /* never throw from after-hook; PostHog will retry on next call */
-    }
-  });
+  scheduleFlush();
 }
 
 /** Same pattern for identify. */
 export function identify(input: Parameters<PostHog['identify']>[0]): void {
   posthog.identify(input);
-  after(async () => {
-    try {
-      await posthog.flush();
-    } catch {
-      /* swallow */
-    }
-  });
+  scheduleFlush();
+}
+
+function scheduleFlush(): void {
+  try {
+    after(async () => {
+      try {
+        await posthog.flush();
+      } catch {
+        /* never throw from after-hook; PostHog will retry on next call */
+      }
+    });
+  } catch {
+    posthog.flush().catch(() => {
+      /* outside Next.js request scope (tests, scripts) — fire and forget */
+    });
+  }
 }
