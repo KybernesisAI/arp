@@ -65,9 +65,10 @@ describe('inbound quota gate (phase-10 billing)', () => {
   });
 
   it('denies inbound once the free-tier cap is reached and does NOT increment', async () => {
-    // Pre-seed usage to the cap. Free tier = 100 inbound msgs/mo.
+    // Pre-seed usage to the cap. Free tier = 1,000 inbound msgs/mo
+    // (see PLAN_LIMITS.free in @kybernesis/arp-cloud-db/types).
     const period = currentUsagePeriod(Date.now());
-    await h.tenantDb.incrementUsage(period, { inbound: 100 });
+    await h.tenantDb.incrementUsage(period, { inbound: 1_000 });
 
     const env = await h.signFromPeer({
       id: 'msg-over-cap',
@@ -83,7 +84,7 @@ describe('inbound quota gate (phase-10 billing)', () => {
 
     // Counter unchanged — denied messages are NOT billed.
     const usage = await h.tenantDb.getUsage(period);
-    expect(usage?.inboundMessages).toBe(100);
+    expect(usage?.inboundMessages).toBe(1_000);
 
     // No envelope persisted.
     const queued = await h.tenantDb.claimQueuedMessages(h.agentDid);
@@ -92,7 +93,7 @@ describe('inbound quota gate (phase-10 billing)', () => {
 
   it('records the quota denial in the audit chain', async () => {
     const period = currentUsagePeriod(Date.now());
-    await h.tenantDb.incrementUsage(period, { inbound: 100 });
+    await h.tenantDb.incrementUsage(period, { inbound: 1_000 });
     const env = await h.signFromPeer({
       id: 'msg-audit-quota',
       type: 'https://didcomm.org/arp/1.0/request',
@@ -103,7 +104,7 @@ describe('inbound quota gate (phase-10 billing)', () => {
     await dispatchInbound(ctx(), env);
     const latest = await h.tenantDb.latestAudit(h.agentDid, 'conn_quota');
     expect(latest?.decision).toBe('deny');
-    expect(latest?.reason).toMatch(/quota_exceeded:free:100\/100/);
+    expect(latest?.reason).toMatch(/quota_exceeded:free:1000\/1000/);
   });
 
   it('uses Pro tier 10_000 cap when tenant.plan === "pro"', async () => {
