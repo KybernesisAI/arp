@@ -18,6 +18,8 @@ import {
 import { AppShell } from '@/components/app/AppShell';
 import { ProvisionAgentButton } from './ProvisionAgentButton';
 import { SelfTestConnectionButton } from './SelfTestConnectionButton';
+import { DeleteAgentButton } from './DeleteAgentButton';
+import { UnbindDomainButton } from './UnbindDomainButton';
 import { OutgoingActions, IncomingActions } from './PairingInboxActions';
 import { SKILL_TEMPLATES, listSkillNames } from '@kybernesis/arp/skill-templates';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
@@ -357,6 +359,7 @@ function AgentRow({
         >
           Pair with another agent
         </ButtonLink>
+        <DeleteAgentButton agentDid={agent.did} agentName={agent.name} />
       </div>
     </li>
   );
@@ -407,6 +410,12 @@ function DomainRow({
           domain={domain.domain}
           alreadyProvisioned={domain.provisioned}
         />
+        <div className="col-span-12 mt-2">
+          <UnbindDomainButton
+            domain={domain.domain}
+            hasProvisionedAgent={domain.provisioned}
+          />
+        </div>
       </div>
     </li>
   );
