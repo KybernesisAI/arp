@@ -106,10 +106,64 @@ export const agents = pgTable(
     wsSessionId: text('ws_session_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    // AgentID S2: identity can exist without a runtime.
+    //   key_custody   'cloud' → we hold the sealed seed in private_key_enc;
+    //                 'exported' → owner downloaded it, we hold nothing.
+    //   runtime_kind  'none' | 'bridge' (WS daemon) | 'push' (S4 HTTP push)
+    keyCustody: text('key_custody').$type<'cloud' | 'exported'>().notNull().default('exported'),
+    privateKeyEnc: text('private_key_enc'),
+    runtimeKind: text('runtime_kind').$type<'none' | 'bridge' | 'push'>().notNull().default('bridge'),
+    domainRegistrationId: uuid('domain_registration_id'),
   },
   (t) => ({
     idxTenant: index('idx_agents_tenant').on(t.tenantId),
     idxWsSession: index('idx_agents_ws_session').on(t.wsSessionId),
+  }),
+);
+
+// ---------------------------------------------------------- domain_registrations
+//
+// AgentID S2: one row per .agent name bought through the console. Lifecycle:
+//   pending_payment → registering → registered → owner_pending → active
+//                                 ↘ failed (auto-refunded)          ↘ expired
+export const DOMAIN_REGISTRATION_STATUSES = [
+  'pending_payment',
+  'registering',
+  'registered',
+  'owner_pending',
+  'active',
+  'failed',
+  'expired',
+] as const;
+export type DomainRegistrationStatus = (typeof DOMAIN_REGISTRATION_STATUSES)[number];
+
+export const domainRegistrations = pgTable(
+  'domain_registrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    domain: text('domain').notNull(),
+    sld: text('sld').notNull(),
+    status: text('status').$type<DomainRegistrationStatus>().notNull().default('pending_payment'),
+    years: integer('years').notNull().default(1),
+    priceCents: integer('price_cents').notNull().default(0),
+    currency: text('currency').notNull().default('usd'),
+    stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+    stripePaymentIntentId: text('stripe_payment_intent_id'),
+    headlessDomainId: text('headless_domain_id'),
+    headlessOrderId: text('headless_order_id'),
+    registeredAt: timestamp('registered_at', { withTimezone: true }),
+    expiryAt: timestamp('expiry_at', { withTimezone: true }),
+    graceEndsAt: timestamp('grace_ends_at', { withTimezone: true }),
+    ownerLabel: text('owner_label'),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxTenant: index('idx_domain_registrations_tenant').on(t.tenantId),
+    idxDomain: index('idx_domain_registrations_domain').on(t.domain),
+    idxCheckout: uniqueIndex('domain_registrations_checkout_session').on(t.stripeCheckoutSessionId),
   }),
 );
 
@@ -445,3 +499,4 @@ export type RateLimitHitRow = typeof rateLimitHits.$inferSelect;
 export type UserCredentialRow = typeof userCredentials.$inferSelect;
 export type WebauthnChallengeRow = typeof webauthnChallenges.$inferSelect;
 export type PairingInvitationRow = typeof pairingInvitations.$inferSelect;
+export type DomainRegistrationRow = typeof domainRegistrations.$inferSelect;
