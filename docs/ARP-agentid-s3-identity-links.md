@@ -1,6 +1,6 @@
 # AgentID — Slice S3: Identity links
 
-**Parent:** `docs/ARP-agentid-plan.md` §3 + §6 (S3). **Status:** built 2026-09-17 (L1–L5 ✅; L6 this edit). Live gate: migration 0011 on prod, gateway redeploy (`railway up`), NIP-05 check on the mirror. **S3b (cross-repo, open):** the control plane must emit the ES256 statement `{sub:'agent:<org>/<name>', did, challenge}` from an admin action; until then Kybernesis links stay pending.
+**Parent:** `docs/ARP-agentid-plan.md` §3 + §6 (S3). **Status:** ✅ COMPLETE 2026-09-17 (PR #157). Live: migration 0011 on prod ✅, gateway redeployed ✅, `https://samantha.agent.arp.run/.well-known/nostr.json?name=_` → 200 `{names:{}}` (empty until Ian links Samantha's Buzz key from `/names/samantha` → Identities: add the npub, sign the shown challenge with the buzz CLI key, paste the event). Console + profile deployed. **S3b (cross-repo, open):** the control plane must emit the ES256 statement `{sub:'agent:<org>/<name>', did, challenge}` from an admin action; until then Kybernesis links stay pending.
 **Branch:** `agentid-s3-identity-links`. Commits tagged `[agentid/s3]`.
 **Goal:** a `.agent` name is the root identity; other identities attach to it as **verified links** with two-way proofs. First link kinds: **Buzz / nostr**, **Kybernesis control plane**, **runtime endpoint**, **web origin**. The DID document, the public profile, and the records page all reflect verified links; a NIP-05 document is served for nostr so any nostr client sees the name as verified.
 
