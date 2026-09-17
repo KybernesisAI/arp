@@ -2,6 +2,8 @@
 
 **Parent:** `docs/ARP-agentid-plan.md` §6 (S2). **Status:** brief written 2026-09-17; execution starts same day.
 **Branch:** `agentid-s2-registrar-console`. Commits tagged `[agentid/s2]`.
+**Progress (2026-09-17):** T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ (all unit-tested against fixtures/stubs; live gate blocked on §5 asks). Next: T6 owner binding, T7 mirror host, T8 profile page, T9 console UI, T10 webhooks/reconcile, T11 samantha re-mint, T12 docs.
+**Customer-facing rule (Ian, same day):** no mention of the upstream registry, gems, crypto, or DIDs anywhere a customer can see — UI, API error codes/messages, stored messages, profile pages. Error codes are `registry_unavailable` / `payments_not_configured`, never supplier-named.
 **Goal:** a signed-in user searches a `.agent` name in the console, pays, and walks away with a live identity (DID document + signed card + profile page + owner binding) with **no runtime attached yet**. Purchase is the entry point; everything else is a side effect.
 
 ---
