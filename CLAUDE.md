@@ -77,7 +77,10 @@ Every build increment is scoped as a **phase**. Phase briefs live in `docs/ARP-p
 | 8.5 | Auth & Identity Shift (Self.xyz demotion + did:key + terminology) | `docs/ARP-phase-8-5-auth-identity-shift.md` | ✅ merged (PR #14) |
 | 8.75 | Brand & Design Scaffold (Swiss / editorial system, three-surface middleware, placeholder pages) | design spec: `docs/ARP-design-system.md` | ✅ merged (PR #17) |
 | 9 | Headless Integration + Public Launch | `docs/ARP-phase-9-launch.md` | ✅ all 5 slices merged (9a PR #19+#20, 9b PR #26, 9c PR #28, 9d PR #29, 9e PR #32+#33). **Launch checklist (`docs/launch/checklist.md`) HELD pending Phase 10 completion** — product-completion gap audit found missing pairing / audit viewer / revocation / logout UI on cloud app; launching without those violates product promises. See `docs/ARP-phase-10-gap-audit.md`. |
-| 10 | Product Completion (pairing + audit viewer + revocation + dashboard + owner-app parity + e2e + samantha.agent validation) | `docs/ARP-phase-10-product-completion.md` + `docs/ARP-phase-10-gap-audit.md` | **in progress** — slice 10a ready-to-push (branch `phase-10-10a-pairing-cloud`: cloud pairing HTTP routes + /pair + /pair/accept + logout both apps + dashboard incoming-pairing widget + owner-app drift audit + `docs/ARP-phase-10-slice-10a-manual-smoke.md` + `docs/ARP-phase-10-slice-10a-pairing-shape-audit.md`). Migration 0005 adds pairing_invitations + swaps connections PK to (tenant_id, connection_id) for dual-tenant cloud-to-cloud insert. 14 new cloud tests (7 invitations + 7 accept), total 127 green. Remaining: 10b audit + revoke, 10c dashboard + polish, 10d owner-app parity, 10e e2e tests + real-world validation |
+| 10 | Product Completion (pairing + audit viewer + revocation + dashboard + owner-app parity + e2e + samantha.agent validation) | `docs/ARP-phase-10-product-completion.md` + `docs/ARP-phase-10-gap-audit.md` | ✅ merged (10a PR #40, 10b #41, 10c #42, 10d #43, 10e #44) |
+| 10.5 | Headless pre-flight + release pipeline (changesets consumed, `publishConfig.tag` → `latest`, registrar-bind hardening) | `docs/ARP-headless-integration-prompt.md` | ✅ merged (PRs #45–#58). All `@kybernesis/arp-*` packages publish on `latest` at 0.x; PR #35 (v1.0.0 bump) still open, Ian decides |
+| 11 | Cloud bridge + `arpc` CLI + gateway.arp.run + typed actions + per-agent Stripe + PostHog (unnumbered post-10 work, 2026-04-26 → 05-03) | `docs/ARP-atlas-cloud-quickstart.md`, `docs/ARP-KyberBot-unification-roadmap.md` (KyberBot as reference impl is **superseded** by the AgentID plan) | ✅ merged (PRs #59–#149). Repo then idle until 2026-09-17 |
+| **AgentID** | **Identity-first .agent product on top of ARP Cloud** — the current direction. Slices S0–S6 | **`docs/ARP-agentid-plan.md` (canonical; overrides this table where they disagree)** | S0 lander ✅ live at `agent.arp.run` (PR #150). S1 revival in progress: cold-cache gates green 2026-09-17 |
 
 Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel from `main` once the prior phase's runtime layer is stable.
 
@@ -85,7 +88,7 @@ Phases 5B (live deployment of reference agents), 7, and 8 can run in parallel fr
 
 ## 6. Operating rules for THIS repo
 
-- **Branch naming:** `phase-<N>-<short-name>`, `fix-<short-description>`, `ci-<short-description>`, `docs-<short-description>`.
+- **Branch naming:** `phase-<N>-<short-name>`, `agentid-s<N>-<short-name>` (AgentID slices, see `docs/ARP-agentid-plan.md §8`), `fix-<short-description>`, `ci-<short-description>`, `docs-<short-description>`.
 - **Commit style:** conventional commits scoped to the affected package (e.g. `feat(runtime): ...`, `fix(scope-catalog): ...`, `docs(pdp): ...`, `ci: ...`) with task numbers: `[phase-N/task-M]` or `[phase-N/review]`.
 - **Commit cadence:** one logical change per commit. Don't mash unrelated edits. PRs are squash-merged anyway, so atomic commits show up as the PR history.
 - **PR body:** include acceptance gate results, conservative-calls list, commits list, handoff note for next phase, done-when checklist.
@@ -192,7 +195,7 @@ We run `npx @kybernesis/arp-testkit audit <domain>` against a Headless-provision
 - Prefers "ship once it's right" over "ship convoluted then polish"
 - Chose **Option A** for user testing: don't test with real non-technical users until Phase 7/8/9 ship the consumer UX. Dev-test cycles (Ian ↔ Janice pairing) are shelved.
 - Wants clean operating mechanics — no manual terminal gymnastics in the target UX
-- Writes notes in Obsidian at `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Samantha/` — all ARP docs are mirrored there + in `docs/` in this repo
+- Writes notes in Obsidian at `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/ARP/` — all ARP docs are mirrored there + in `docs/` in this repo (`CLAUDE.md` → `ARP-CLAUDE-md.md`)
 - Uses auto-mode extensively; expects autonomous execution + approval gates
 
 ## 11. The human-in-the-loop decisions (never decide these autonomously)
@@ -253,6 +256,7 @@ bash tests/phase-3/atlas-smoke.sh
 - `docs/ARP-scope-catalog-v1.md` — the 50 scope templates
 - `docs/ARP-tld-integration-spec-v2.md` — the TLD-side contract (used by Headless)
 - `docs/ARP-adapter-authoring-guide.md` — the adapter contract (used by community adapter authors)
+- `docs/ARP-agentid-plan.md` — **the locked master plan (Sept 2026). Read first.**
 - `docs/ARP-session-handoff.md` — **this session's state when/if you need to resume**
 
 ## 14. Known tech debt (not blocking, tracked)
@@ -293,4 +297,4 @@ If you are a continuing Claude session and your context window just compacted:
 
 ---
 
-*Last updated on `phase-9-9c-rate-limits-probes-sweep` branch after Phase 9 slice 9c acceptance gates passed (2026-04-24). Update the phase status table in §5 and `docs/ARP-session-handoff.md` after the Phase 9 slice 9c PR merges.*
+*Last updated 2026-09-17 on `agentid-s1-revival` (AgentID slice S1). The §5 table was stale from 2026-04-24 to 2026-09-17; rows 10 / 10.5 / 11 / AgentID were reconstructed from `git log`. Vault mirror folder is `Documents/ARP/`.*
