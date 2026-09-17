@@ -147,11 +147,23 @@ export interface WebhookHandleResult {
   reason?: string;
 }
 
+/**
+ * AgentID S2: a `checkout.session.completed` whose `metadata.kind` is
+ * `agentid_name` is a one-time name purchase, not a Pro subscription. The
+ * webhook route injects the fulfilment handler so billing.ts stays free of
+ * registrar dependencies.
+ */
+export type NameCheckoutHandler = (
+  session: Stripe.Checkout.Session,
+  tenantId: string,
+) => Promise<void>;
+
 export async function handleStripeWebhook(
   ctx: BillingContext,
   db: CloudDbClient,
   payload: string,
   signatureHeader: string,
+  hooks: { onNameCheckout?: NameCheckoutHandler } = {},
 ): Promise<WebhookHandleResult> {
   if (!ctx.stripe || !ctx.webhookSecret) {
     return { ok: false, processed: false, reason: 'stripe_not_configured' };
@@ -174,7 +186,7 @@ export async function handleStripeWebhook(
   }
 
   const tenantId = await extractTenantId(db, event);
-  await applyEvent(db, event, tenantId);
+  await applyEvent(db, event, tenantId, hooks);
 
   await db.insert(stripeEvents).values({
     eventId: event.id,
@@ -225,11 +237,17 @@ async function applyEvent(
   db: CloudDbClient,
   event: Stripe.Event,
   tenantId: string | null,
+  hooks: { onNameCheckout?: NameCheckoutHandler } = {},
 ): Promise<void> {
   if (!tenantId) return;
   switch (event.type) {
     case 'checkout.session.completed': {
       const obj = event.data.object as Stripe.Checkout.Session;
+      if (obj.metadata?.['kind'] === 'agentid_name') {
+        // One-time name purchase: never touches plan/subscription state.
+        if (hooks.onNameCheckout) await hooks.onNameCheckout(obj, tenantId);
+        return;
+      }
       // Plan is always 'pro' under the new model — the legacy 'team' tier
       // was collapsed into pro-with-quantity.
       await db
