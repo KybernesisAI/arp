@@ -9,6 +9,7 @@ import { AppShell } from '@/components/app/AppShell';
 import { Badge, Card, Code, Dot, Link, PlateHead, Pre } from '@/components/ui';
 import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
 import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
+import { LinksPanel } from '@/app/names/LinksPanel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -118,6 +119,18 @@ export default async function NameRecordsPage(props: {
           </ul>
         </Card>
       </section>
+
+      {agent && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">Identities</h2>
+            <span className="font-mono text-kicker uppercase text-muted">// I · LINKED &amp; VERIFIED</span>
+          </header>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <LinksPanel sld={domain.replace(/\.agent$/, '')} agentDid={agent.did} />
+          </Card>
+        </section>
+      )}
 
       <section className="mb-10">
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">

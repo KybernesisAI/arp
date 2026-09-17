@@ -483,6 +483,38 @@ export const webauthnChallenges = pgTable(
   }),
 );
 
+// ---------------------------------------------------------------- agent_links
+//
+// AgentID S3: identities attached to a .agent name with two-way proofs.
+export const AGENT_LINK_KINDS = ['nostr', 'kybernesis', 'runtime', 'web'] as const;
+export type AgentLinkKind = (typeof AGENT_LINK_KINDS)[number];
+export const AGENT_LINK_STATUSES = ['pending', 'verified', 'revoked'] as const;
+export type AgentLinkStatus = (typeof AGENT_LINK_STATUSES)[number];
+
+export const agentLinks = pgTable(
+  'agent_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    agentDid: text('agent_did').notNull(),
+    kind: text('kind').$type<AgentLinkKind>().notNull(),
+    value: text('value').notNull(),
+    label: text('label'),
+    challenge: text('challenge').notNull(),
+    status: text('status').$type<AgentLinkStatus>().notNull().default('pending'),
+    proofJson: jsonb('proof_json').$type<Record<string, unknown>>(),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxTenant: index('idx_agent_links_tenant').on(t.tenantId),
+    idxAgent: index('idx_agent_links_agent').on(t.agentDid),
+    uqAgentKindValue: uniqueIndex('agent_links_agent_kind_value').on(t.agentDid, t.kind, t.value),
+  }),
+);
+
 export type TenantRow = typeof tenants.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type ConnectionRow = typeof connections.$inferSelect;
@@ -500,3 +532,4 @@ export type UserCredentialRow = typeof userCredentials.$inferSelect;
 export type WebauthnChallengeRow = typeof webauthnChallenges.$inferSelect;
 export type PairingInvitationRow = typeof pairingInvitations.$inferSelect;
 export type DomainRegistrationRow = typeof domainRegistrations.$inferSelect;
+export type AgentLinkRow = typeof agentLinks.$inferSelect;

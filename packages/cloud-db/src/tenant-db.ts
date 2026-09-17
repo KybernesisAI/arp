@@ -17,6 +17,7 @@
 
 import { and, eq, sql, desc, asc, lt, or, isNull } from 'drizzle-orm';
 import type {
+  AgentLinkRow,
   DomainRegistrationRow,
   AgentRow,
   AuditEntryRow,
@@ -29,6 +30,7 @@ import type {
 } from './schema.js';
 import {
   agents,
+  agentLinks,
   domainRegistrations,
   auditEntries,
   connections,
@@ -91,6 +93,22 @@ export interface TenantDb {
     >,
   ): Promise<void>;
   deleteAgent(did: string): Promise<void>;
+
+  // ----- identity links (AgentID S3) -------------------------------------
+  createLink(input: {
+    agentDid: string;
+    kind: AgentLinkRow['kind'];
+    value: string;
+    label?: string | null;
+    challenge: string;
+  }): Promise<AgentLinkRow>;
+  listLinks(agentDid: string, opts?: { includeRevoked?: boolean }): Promise<AgentLinkRow[]>;
+  getLink(id: string): Promise<AgentLinkRow | null>;
+  updateLink(
+    id: string,
+    patch: Partial<Pick<AgentLinkRow, 'status' | 'proofJson' | 'verifiedAt' | 'revokedAt' | 'label' | 'challenge'>>,
+  ): Promise<AgentLinkRow | null>;
+  deleteLink(id: string): Promise<boolean>;
 
   // ----- domain registrations (AgentID S2) ------------------------------
   createRegistration(input: {
@@ -235,6 +253,55 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
     },
     async deleteAgent(did) {
       await client.delete(agents).where(and(eq(agents.did, did), eq(agents.tenantId, tenantId)));
+    },
+
+    // --- identity links (AgentID S3)
+    async createLink(input) {
+      const rows = await client
+        .insert(agentLinks)
+        .values({
+          tenantId,
+          agentDid: input.agentDid,
+          kind: input.kind,
+          value: input.value,
+          label: input.label ?? null,
+          challenge: input.challenge,
+        })
+        .returning();
+      const row = rows[0];
+      if (!row) throw new Error('createLink returned no row');
+      return row;
+    },
+    async listLinks(agentDid, opts) {
+      const rows = await client
+        .select()
+        .from(agentLinks)
+        .where(and(eq(agentLinks.agentDid, agentDid), eq(agentLinks.tenantId, tenantId)))
+        .orderBy(asc(agentLinks.createdAt));
+      return opts?.includeRevoked ? rows : rows.filter((r) => r.status !== 'revoked');
+    },
+    async getLink(id) {
+      const rows = await client
+        .select()
+        .from(agentLinks)
+        .where(and(eq(agentLinks.id, id), eq(agentLinks.tenantId, tenantId)))
+        .limit(1);
+      return rows[0] ?? null;
+    },
+    async updateLink(id, patch) {
+      const rows = await client
+        .update(agentLinks)
+        .set({ ...patch, updatedAt: sql`now()` })
+        .where(and(eq(agentLinks.id, id), eq(agentLinks.tenantId, tenantId)))
+        .returning();
+      return rows[0] ?? null;
+    },
+    async deleteLink(id) {
+      const rows = await client
+        .delete(agentLinks)
+        .where(and(eq(agentLinks.id, id), eq(agentLinks.tenantId, tenantId)))
+        .returning({ id: agentLinks.id });
+      return rows.length > 0;
     },
 
     // --- domain registrations (AgentID S2)
