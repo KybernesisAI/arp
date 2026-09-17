@@ -40,17 +40,44 @@ export interface GatewayHonoOptions {
   metrics: TenantMetrics;
   auditFactory: (tenantDbForAgent: ReturnType<typeof withTenant>) => PostgresAudit;
   now?: () => number;
+  /**
+   * AgentID S2: ICANN mirror suffix. `<sld>.agent<suffix>` (e.g.
+   * `samantha.agent.arp.run` with suffix `.arp.run`) resolves to
+   * `did:web:samantha.agent` exactly like the HNS hostname does.
+   * Note the suffix is what follows `.agent`, so `.agent.arp.run` and
+   * `.arp.run` are both accepted for the same host.
+   */
+  mirrorSuffix?: string | null;
+  /** AgentID S2: `GET /` on a mirror host 302s to `${profileBase}/<sld>`. */
+  profileBase?: string | null;
 }
 
-/** Parse Host header into the target agent DID, or null if not routable. */
-export function agentDidFromHost(host: string): string | null {
+/**
+ * Parse Host header into the target agent DID, or null if not routable.
+ *
+ * `mirrorSuffix` (optional) is an ICANN suffix appended to the `.agent`
+ * name for browsers + A2A clients that cannot resolve HNS — e.g.
+ * `samantha.agent.arp.run`. Public HNS resolvers were measured unreliable
+ * on 2026-09-17, so the mirror is the primary reachable face of an identity.
+ */
+export function agentDidFromHost(host: string, mirrorSuffix?: string | null): string | null {
   const normalized = host.toLowerCase().replace(/:[0-9]+$/, '');
   if (!normalized) return null;
+  // Strip the ICANN mirror suffix (accept both `.agent.arp.run` and `.arp.run` forms).
+  let hostCore = normalized;
+  if (mirrorSuffix) {
+    const suffix = mirrorSuffix.toLowerCase().replace(/^\.?/, '.');
+    // Accept `<sld>.agent.arp.run` for either configured form of the suffix.
+    const full = suffix.startsWith('.agent.') ? suffix : `.agent${suffix}`;
+    if (hostCore.endsWith(full) && hostCore.length > full.length) {
+      hostCore = `${hostCore.slice(0, -full.length)}.agent`;
+    }
+  }
   // Strip hns.to gateway suffix.
   const hnsToSuffix = '.hns.to';
-  const hostCore = normalized.endsWith(hnsToSuffix)
-    ? normalized.slice(0, -hnsToSuffix.length)
-    : normalized;
+  hostCore = hostCore.endsWith(hnsToSuffix)
+    ? hostCore.slice(0, -hnsToSuffix.length)
+    : hostCore;
   const labels = hostCore.split('.');
   if (labels.length < 2) return null;
   // Accept only hostnames that terminate with the agent TLD.
@@ -72,7 +99,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     agentDid: string;
     agentRow: typeof agents.$inferSelect;
   } | null> {
-    const agentDid = agentDidFromHost(host);
+    const agentDid = agentDidFromHost(host, opts.mirrorSuffix ?? null);
     if (!agentDid) return null;
     try {
       const rows = await opts.db.select().from(agents).where(eq(agents.did, agentDid)).limit(1);
@@ -127,7 +154,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     const xfor = c.req.header('x-forwarded-for') ?? null;
     const target = c.req.query('target') ?? null;
     const effective = target ?? xfh ?? host ?? '';
-    const agentDid = agentDidFromHost(effective);
+    const agentDid = agentDidFromHost(effective, opts.mirrorSuffix ?? null);
     let agentRowFound = false;
     if (agentDid) {
       const rows = await opts.db
@@ -144,6 +171,18 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       parsed_agent_did: agentDid,
       agent_row_found: agentRowFound,
     });
+  });
+
+  // AgentID S2: a browser landing on the mirror host root gets the public
+  // profile page; everything machine-readable stays under /.well-known.
+  app.get('/', async (c) => {
+    const host = effectiveHost(c);
+    const agentDid = agentDidFromHost(host, opts.mirrorSuffix ?? null);
+    if (agentDid && opts.profileBase) {
+      const sld = agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '');
+      return c.redirect(`${opts.profileBase.replace(/\/+$/, '')}/${encodeURIComponent(sld)}`, 302);
+    }
+    return c.json({ error: 'not_found' }, 404);
   });
 
   const wellKnownHeaders = {
