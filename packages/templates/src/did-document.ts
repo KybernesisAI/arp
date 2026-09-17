@@ -22,6 +22,8 @@ export interface BuildDidDocumentInput {
   representationVcUrl: string;
   /** Optional verification-method key id suffix. Defaults to `key-1`. */
   keyId?: string;
+  /** Other URIs this DID is known by (mirror origin, npub, control-plane handle). */
+  alsoKnownAs?: readonly string[];
 }
 
 /**
@@ -66,6 +68,9 @@ export function buildDidDocument(input: BuildDidDocumentInput): DidDocument {
       did: input.controllerDid,
       representationVC: input.representationVcUrl,
     },
+    ...(input.alsoKnownAs && input.alsoKnownAs.length > 0
+      ? { alsoKnownAs: [...input.alsoKnownAs] }
+      : {}),
   };
 
   return validateOrThrow('buildDidDocument', DidDocumentSchema, doc);
