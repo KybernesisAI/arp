@@ -10,14 +10,18 @@
 # 3001 for local). Postgres connection comes from $DATABASE_URL.
 
 # ---------- build stage ----------
-FROM node:24-alpine AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /build
 
-# better-sqlite3 (transitive dep via @kybernesis/arp-runtime) compiles
-# native bindings — install Python + g++ on Alpine, same as the sidecar
-# Dockerfile. The gateway itself never opens a SQLite mailbox, but the
-# install runs unconditionally during pnpm install + pnpm deploy.
-RUN apk add --no-cache python3 make g++ \
+# better-sqlite3 (transitive dep via @kybernesis/arp-runtime) ships prebuilt
+# binaries for glibc/x64 — on the Debian base `prebuild-install` uses them
+# and node-gyp never runs. (On Alpine/musl there are no prebuilds, so every
+# build compiled from source and depended on downloading Node headers from
+# unofficial-builds.nodejs.org, which timed out on Railway's builder on
+# 2026-09-17.) Python + g++ stay installed as a fallback only.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
   && corepack enable
 
 # Manifests + lockfile first so the install layer is cacheable.
@@ -39,12 +43,14 @@ RUN pnpm --filter @kybernesis/arp-cloud-gateway deploy --prod --legacy /out
 
 
 # ---------- runtime stage ----------
-FROM node:24-alpine
+FROM node:24-bookworm-slim
 WORKDIR /app
 
 # tini for PID 1 signal forwarding.
-RUN apk add --no-cache tini \
-  && addgroup -S arp && adduser -S -G arp arp \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends tini ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd -r arp && useradd -r -g arp -d /app -s /usr/sbin/nologin arp \
   && chown -R arp:arp /app
 
 COPY --from=build --chown=arp:arp /out /app
@@ -64,5 +70,5 @@ ENV NODE_ENV=production \
 # Railway routes $PORT internally; expose for clarity.
 EXPOSE 3001
 
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "dist/bin.js"]

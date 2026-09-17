@@ -1,0 +1,24 @@
+# Keep the container build context small + host-independent.
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+.git
+.vercel
+**/.vercel
+**/*.log
+**/.env*
+python/
+docs/
+tests/
+examples/
+adapters/
+apps/cloud
+apps/spec-site
+apps/owner-app
+apps/sidecar
+apps/samantha-reference
+apps/ghost-reference
+apps/runtime-bin
