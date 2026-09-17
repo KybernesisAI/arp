@@ -6,6 +6,17 @@
 
 **Last updated:** 2026-04-25, Phase 9 fully merged (9a-9e) + launch checklist **HELD** pending Phase 10 product-completion. Gap audit in `docs/ARP-phase-10-gap-audit.md`; phase brief in `docs/ARP-phase-10-product-completion.md`.
 
+> ## ⚠️ State as of 2026-09-17 (read this block first; everything below is historical)
+>
+> - **Direction changed.** The product is now **AgentID**: identity-first `.agent` registration on top of ARP Cloud. Canonical plan: `docs/ARP-agentid-plan.md`. Slices S0–S6; S0 (lander at `agent.arp.run`, PR #150) is live; S1 (this revival) in progress.
+> - **Phase 10 shipped** (PRs #40–#44), then ~105 more PRs through #149 (2026-04-26 → 05-03): changesets consumed + packages on `latest` at 0.x (#47), Headless pre-flight (#45–#58), `apps/cloud-gateway` live at `gateway.arp.run` (#59–#74), `packages/cloud-bridge` + `@kybernesis/arp` umbrella CLI `arpc` with launchd supervisor (#67–#85), bidirectional pairing consent (#107), typed actions (#114–#117, #131), per-agent Stripe pricing + quota (#132), PostHog (#134, #144–#146), README rewritten as a runbook (#147), delete-agent + unbind-domain (#149). Repo idle 2026-05-03 → 2026-09-17.
+> - **PR #35 (v1.0.0 bump) is still open** and stale; Ian decides merge-at-S6 vs close.
+> - **KyberBot is no longer the reference implementation** (`docs/ARP-KyberBot-unification-roadmap.md` is superseded); Kybernesis Eve agents via `@kybernesis/identity` are (plan §6 S4).
+> - **Cold-cache gates re-run 2026-09-17: green** (typecheck 78/78 tasks, build, test incl. cloud-app 174/174, lint 47/47). DIDComm isolation grep clean. All six prod hosts + `gateway.arp.run/health` return 200.
+> - **Known hardening gaps** are enumerated in `docs/ARP-agentid-plan.md §5` (sourced from the Aug-2026 deep-read in the vault); do not re-audit, schedule them per the slice table.
+> - **Vault mirror folder is `Documents/ARP/`** (not `Samantha/`).
+
+
 ---
 
 ## 1. Current state of the build
