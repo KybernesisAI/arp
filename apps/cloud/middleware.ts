@@ -145,6 +145,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     // authenticated surfaces. They must resolve at the top level on both
     // cloud.arp.run (marketing host passthrough) and app.arp.run.
     '/connections',
+    // AgentID S2: per-name records page in the console.
+    '/names',
     // /legal/* pages are referenced from footers on all three surfaces
     // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
     // /legal layout regardless of which host the user is on.

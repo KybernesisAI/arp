@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { NextRequest } from 'next/server';
 import {
+  isAppOwnedPath,
   parseAgentDidFromHost,
   surfaceForHost,
   rewriteForSurface,
@@ -36,6 +37,11 @@ describe('surfaceForHost (host → surface dispatch)', () => {
     expect(surfaceForHost('arp.run')).toBe<Surface>('project');
     expect(surfaceForHost('www.arp.run')).toBe<Surface>('project');
     expect(surfaceForHost('ARP.RUN')).toBe<Surface>('project'); // case-insensitive via stripPort lowercase
+  });
+  it('keeps /names/* on the app surface for every host', () => {
+    expect(isAppOwnedPath('/names/samantha')).toBe(true);
+    expect(isAppOwnedPath('/names')).toBe(true);
+    expect(isAppOwnedPath('/namesake')).toBe(false);
   });
   it('routes agent.arp.run to agentid', () => {
     expect(surfaceForHost('agent.arp.run')).toBe<Surface>('agentid');
