@@ -79,10 +79,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ sld: string }>
     );
     let link: AgentLinkRow;
     if (existing) {
-      // Re-adding a revoked or pending link mints a fresh challenge.
+      // A pending link keeps its challenge (so the other side can converge);
+      // re-adding a revoked link mints a fresh one.
       const updated = await r.tenantDb.updateLink(existing.id, {
         status: existing.status === 'verified' ? 'verified' : 'pending',
-        challenge: existing.status === 'verified' ? existing.challenge : makeChallenge(),
+        challenge: existing.status === 'revoked' ? makeChallenge() : existing.challenge,
         revokedAt: null,
         ...(parsed.data.label !== undefined ? { label: parsed.data.label } : {}),
       });

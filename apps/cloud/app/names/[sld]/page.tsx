@@ -10,6 +10,7 @@ import { Badge, Card, Code, Dot, Link, PlateHead, Pre } from '@/components/ui';
 import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
 import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
+import { AttachRuntimePanel } from '@/app/names/AttachRuntimePanel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -132,6 +133,18 @@ export default async function NameRecordsPage(props: {
         </section>
       )}
 
+      {agent && agent.keyCustody === 'cloud' && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">Runtime</h2>
+            <span className="font-mono text-kicker uppercase text-muted">// R · WHERE MESSAGES ARE DELIVERED</span>
+          </header>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <AttachRuntimePanel agentDid={agent.did} attached={agent.runtimeKind === 'push'} pushKind={agent.pushKind} pushUrl={agent.pushUrl} />
+          </Card>
+        </section>
+      )}
+
       <section className="mb-10">
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
           <h2 className="font-display font-medium text-h3">Agent</h2>
@@ -212,6 +225,8 @@ async function loadState(sld: string) {
           agentName: agentRow.agentName,
           keyCustody: agentRow.keyCustody,
           runtimeKind: agentRow.runtimeKind,
+          pushKind: agentRow.pushKind,
+          pushUrl: agentRow.pushUrl,
           online: agentRow.lastSeenAt ? now - agentRow.lastSeenAt.getTime() <= 5 * 60 * 1000 : false,
           wellKnownDid: agentRow.wellKnownDid,
           wellKnownAgentCard: agentRow.wellKnownAgentCard,

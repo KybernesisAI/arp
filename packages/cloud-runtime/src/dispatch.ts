@@ -19,6 +19,7 @@
 
 import { verifyEnvelope, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import type { DidCommMessage } from '@kybernesis/arp-transport';
+import { deliverPush, resolvePendingReply, type PushContext } from './push.js';
 import { createPdp, type Entity, type Pdp, type PdpDecision } from '@kybernesis/arp-pdp';
 import type { ConnectionToken, DidDocument, Obligation } from '@kybernesis/arp-spec';
 import { checkQuota, type ConnectionRow, type TenantDb } from '@kybernesis/arp-cloud-db';
@@ -33,6 +34,8 @@ export interface PeerResolver {
 }
 
 export interface DispatchContext {
+  /** AgentID S4: push-delivery context; when present, push runtimes are served. */
+  push?: PushContext;
   tenantDb: TenantDb;
   tenantId: string;
   agentDid: string;
@@ -51,6 +54,8 @@ export interface DispatchResult {
   decision: 'allow' | 'deny';
   reason?: string;
   queued?: boolean;
+  /** AgentID S4: delivered (asynchronously) to a push runtime. */
+  pushed?: boolean;
 }
 
 export async function dispatchInbound(
@@ -128,6 +133,18 @@ export async function dispatchInbound(
       reason: 'revoked',
     });
     return { ok: false, decision: 'deny', reason: 'revoked' };
+  }
+
+  // ---- freshness (AgentID S4 hardening) -----------------------------
+  // Envelopes are replay-protected only by UNIQUE(msg_id); a stale signed
+  // envelope with an unseen id would otherwise replay cleanly. Reject
+  // anything whose created_time is more than 5 minutes off our clock.
+  if (typeof msg.created_time === 'number') {
+    const skewMs = Math.abs(ctx.now() - msg.created_time * 1000);
+    if (skewMs > 5 * 60 * 1000) {
+      log.warn({ msgId: msg.id, skewMs }, 'envelope_stale');
+      return { ok: false, decision: 'deny', reason: 'stale_envelope' };
+    }
   }
 
   // ---- PDP ---------------------------------------------------------
@@ -257,6 +274,41 @@ export async function dispatchInbound(
     } catch (err) {
       log.error({ err: (err as Error).message, msgId: msg.id }, 'ws_send_failed');
       await ctx.tenantDb.markMessageFailed(row.id, 'ws_send_failed');
+    }
+  }
+
+  // ---- AgentID S4: resolve an agent-API send awaiting this reply ---------
+  if (isResponse && resolvePendingReply(msg.thid, msg)) {
+    await ctx.tenantDb.markMessageDelivered(row.id);
+    return { ok: true, decision: 'allow', messageId: row.id, queued: false };
+  }
+
+  // ---- AgentID S4: push delivery for daemonless runtimes -----------------
+  if (ctx.push) {
+    const agentRow = await ctx.tenantDb.getAgent(ctx.agentDid);
+    if (agentRow && agentRow.runtimeKind === 'push' && agentRow.pushUrl) {
+      const push = ctx.push;
+      const tenantDb = ctx.tenantDb;
+      const rowId = row.id;
+      void deliverPush(
+        push,
+        tenantDb.raw,
+        {
+          agent: agentRow,
+          peerDid,
+          connectionId,
+          purpose: conn.purpose ?? null,
+          msg,
+          obligations: effectiveObligations,
+        },
+        log,
+      ).then(async (r) => {
+        if (r.ok) await tenantDb.markMessageDelivered(rowId);
+        else await tenantDb.markMessageFailed(rowId, `push_failed:${r.error ?? 'unknown'}`);
+      }).catch(async (err: Error) => {
+        await tenantDb.markMessageFailed(rowId, `push_failed:${err.message}`).catch(() => undefined);
+      });
+      return { ok: true, decision: 'allow', messageId: row.id, queued: false, pushed: true };
     }
   }
 

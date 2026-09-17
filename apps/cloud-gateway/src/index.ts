@@ -22,6 +22,10 @@ import {
   type PeerResolver,
   type SessionRegistry,
   type PostgresAudit,
+  createForwardEnvelope,
+  pushSignerFromJwk,
+  sealingKeyFromEnv,
+  type PushContext,
 } from '@kybernesis/arp-cloud-runtime';
 import type { CloudDbClient, TenantDb } from '@kybernesis/arp-cloud-db';
 import type { Server as HttpServer } from 'node:http';
@@ -46,6 +50,14 @@ export interface GatewayOptions {
   mirrorSuffix?: string | null;
   /** AgentID S2: profile base for `/` redirects (default from AGENTID_PROFILE_BASE). */
   profileBase?: string | null;
+  /** AgentID S4: push signer JWK (default from ARP_CLOUD_PUSH_SIGNING_JWK); null disables push. */
+  pushSigningJwk?: string | null;
+  /** AgentID S4: issuer origin for push tokens (default ARP_CLOUD_PUSH_ISSUER or https://gateway.arp.run). */
+  pushIssuer?: string;
+  /** AgentID S4: sealing key override (default from ARP_CLOUD_KEY_ENCRYPTION_KEY / dev key). */
+  sealingKey?: Uint8Array;
+  /** AgentID S4: fetch override for push delivery (tests). */
+  pushFetch?: typeof fetch;
 }
 
 export interface GatewayHandle {
@@ -65,6 +77,22 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
   const auditFactory = (tenantDb: TenantDb): PostgresAudit =>
     createPostgresAudit({ tenantDb, logger });
 
+  // AgentID S4: push delivery context. The forward function is filled in
+  // after the forwarder exists (it needs the same push ctx for the peer's
+  // own push delivery) — a two-step init that avoids a module cycle.
+  const jwkJson = opts.pushSigningJwk !== undefined ? opts.pushSigningJwk : (process.env['ARP_CLOUD_PUSH_SIGNING_JWK'] ?? null);
+  let push: PushContext | undefined;
+  if (jwkJson) {
+    const signer = await pushSignerFromJwk(jwkJson);
+    push = {
+      issuer: opts.pushIssuer ?? process.env['ARP_CLOUD_PUSH_ISSUER'] ?? 'https://gateway.arp.run',
+      signer,
+      sealingKey: opts.sealingKey ?? sealingKeyFromEnv(),
+      ...(opts.pushFetch ? { fetchImpl: opts.pushFetch } : {}),
+      forward: async () => null,
+    };
+  }
+
   const app = createGatewayApp({
     db: opts.db,
     sessions,
@@ -74,6 +102,7 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     metrics,
     auditFactory,
     ...(opts.now ? { now: opts.now } : {}),
+    ...(push ? { push } : {}),
     mirrorSuffix:
       opts.mirrorSuffix !== undefined
         ? opts.mirrorSuffix
@@ -91,7 +120,7 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     hostname,
   }) as unknown as HttpServer;
 
-  const onOutboundEnvelope = createForwardOutboundEnvelope({
+  const forwardOpts = {
     db: opts.db,
     sessions,
     pdp,
@@ -100,6 +129,14 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     metrics,
     auditFactory,
     ...(opts.now ? { now: opts.now } : {}),
+    ...(push ? { push } : {}),
+  };
+  if (push) {
+    const forwardEnvelope = createForwardEnvelope(forwardOpts);
+    push.forward = (params) => forwardEnvelope(params);
+  }
+  const onOutboundEnvelope = createForwardOutboundEnvelope({
+    ...forwardOpts,
   });
   const ws = createCloudWsServer({
     db: opts.db,

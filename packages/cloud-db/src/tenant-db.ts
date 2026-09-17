@@ -17,6 +17,7 @@
 
 import { and, eq, sql, desc, asc, lt, or, isNull } from 'drizzle-orm';
 import type {
+  AgentCredentialRow,
   AgentLinkRow,
   DomainRegistrationRow,
   AgentRow,
@@ -30,6 +31,7 @@ import type {
 } from './schema.js';
 import {
   agents,
+  agentCredentials,
   agentLinks,
   domainRegistrations,
   auditEntries,
@@ -65,6 +67,8 @@ export interface TenantDb {
       | 'privateKeyEnc'
       | 'runtimeKind'
       | 'domainRegistrationId'
+      | 'pushUrl'
+      | 'pushKind'
     > & {
       wsSessionId?: string | null;
       lastSeenAt?: Date | null;
@@ -72,6 +76,8 @@ export interface TenantDb {
       privateKeyEnc?: string | null;
       runtimeKind?: AgentRow['runtimeKind'];
       domainRegistrationId?: string | null;
+      pushUrl?: string | null;
+      pushKind?: AgentRow['pushKind'];
     },
   ): Promise<AgentRow>;
   updateAgent(
@@ -89,9 +95,16 @@ export interface TenantDb {
         | 'runtimeKind'
         | 'agentName'
         | 'agentDescription'
+        | 'pushUrl'
+        | 'pushKind'
       >
     >,
   ): Promise<void>;
+
+  // ----- agent credentials (AgentID S4) ----------------------------------
+  createAgentCredential(input: { agentDid: string; tokenHash: string; label?: string | null }): Promise<AgentCredentialRow>;
+  listAgentCredentials(agentDid: string): Promise<AgentCredentialRow[]>;
+  revokeAgentCredentials(agentDid: string): Promise<number>;
   deleteAgent(did: string): Promise<void>;
 
   // ----- identity links (AgentID S3) -------------------------------------
@@ -253,6 +266,32 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
     },
     async deleteAgent(did) {
       await client.delete(agents).where(and(eq(agents.did, did), eq(agents.tenantId, tenantId)));
+    },
+
+    // --- agent credentials (AgentID S4)
+    async createAgentCredential(input) {
+      const rows = await client
+        .insert(agentCredentials)
+        .values({ tenantId, agentDid: input.agentDid, tokenHash: input.tokenHash, label: input.label ?? null })
+        .returning();
+      const row = rows[0];
+      if (!row) throw new Error('createAgentCredential returned no row');
+      return row;
+    },
+    async listAgentCredentials(agentDid) {
+      return client
+        .select()
+        .from(agentCredentials)
+        .where(and(eq(agentCredentials.agentDid, agentDid), eq(agentCredentials.tenantId, tenantId), isNull(agentCredentials.revokedAt)))
+        .orderBy(asc(agentCredentials.createdAt));
+    },
+    async revokeAgentCredentials(agentDid) {
+      const rows = await client
+        .update(agentCredentials)
+        .set({ revokedAt: sql`now()` })
+        .where(and(eq(agentCredentials.agentDid, agentDid), eq(agentCredentials.tenantId, tenantId), isNull(agentCredentials.revokedAt)))
+        .returning({ id: agentCredentials.id });
+      return rows.length;
     },
 
     // --- identity links (AgentID S3)

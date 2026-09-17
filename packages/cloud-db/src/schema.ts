@@ -114,6 +114,9 @@ export const agents = pgTable(
     privateKeyEnc: text('private_key_enc'),
     runtimeKind: text('runtime_kind').$type<'none' | 'bridge' | 'push'>().notNull().default('bridge'),
     domainRegistrationId: uuid('domain_registration_id'),
+    // AgentID S4: push delivery target (runtime_kind = 'push').
+    pushUrl: text('push_url'),
+    pushKind: text('push_kind').$type<'eve' | 'generic'>(),
   },
   (t) => ({
     idxTenant: index('idx_agents_tenant').on(t.tenantId),
@@ -515,6 +518,29 @@ export const agentLinks = pgTable(
   }),
 );
 
+// ---------------------------------------------------------- agent_credentials
+//
+// AgentID S4: bearer tokens for an attached runtime to call the gateway's
+// agent-API. Hash only; token shown once.
+export const agentCredentials = pgTable(
+  'agent_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    agentDid: text('agent_did').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    label: text('label'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => ({
+    uqHash: uniqueIndex('agent_credentials_token_hash').on(t.tokenHash),
+    idxAgent: index('idx_agent_credentials_agent').on(t.agentDid),
+    idxTenant: index('idx_agent_credentials_tenant').on(t.tenantId),
+  }),
+);
+
 export type TenantRow = typeof tenants.$inferSelect;
 export type AgentRow = typeof agents.$inferSelect;
 export type ConnectionRow = typeof connections.$inferSelect;
@@ -533,3 +559,4 @@ export type WebauthnChallengeRow = typeof webauthnChallenges.$inferSelect;
 export type PairingInvitationRow = typeof pairingInvitations.$inferSelect;
 export type DomainRegistrationRow = typeof domainRegistrations.$inferSelect;
 export type AgentLinkRow = typeof agentLinks.$inferSelect;
+export type AgentCredentialRow = typeof agentCredentials.$inferSelect;

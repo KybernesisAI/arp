@@ -39,6 +39,7 @@ export {
   domainRegistrations,
   DOMAIN_REGISTRATION_STATUSES,
   agentLinks,
+  agentCredentials,
   AGENT_LINK_KINDS,
   AGENT_LINK_STATUSES,
 } from './schema.js';
@@ -62,6 +63,10 @@ export type {
   DomainRegistrationRow,
   DomainRegistrationStatus,
   AgentLinkRow,
+  AgentCredentialRow,
   AgentLinkKind,
   AgentLinkStatus,
 } from './schema.js';
+
+// AgentID S4: cross-tenant lookup for the gateway's agent-API bearer.
+export { findAgentCredentialByHash, touchAgentCredential } from './credentials.js';

@@ -13,6 +13,7 @@
 
 import { agents, toTenantId, withTenant, type CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { eq } from 'drizzle-orm';
+import type { PushContext } from './push.js';
 import { dispatchInbound, type DispatchContext, type PeerResolver } from './dispatch.js';
 import type { PostgresAudit } from './audit.js';
 import type { SessionRegistry } from './sessions.js';
@@ -20,6 +21,8 @@ import type { CloudRuntimeLogger, TenantMetrics, WsClientEvent } from './types.j
 import type { Pdp } from '@kybernesis/arp-pdp';
 
 export interface ForwardOptions {
+  /** AgentID S4: push-delivery context (JWS signer + sealing key); optional. */
+  push?: PushContext;
   db: CloudDbClient;
   sessions: SessionRegistry;
   pdp: Pdp;
@@ -28,6 +31,43 @@ export interface ForwardOptions {
   metrics: TenantMetrics;
   auditFactory: (tenantDbForAgent: ReturnType<typeof withTenant>) => PostgresAudit;
   now?: () => number;
+}
+
+/**
+ * AgentID S4: deliver an already-signed envelope to a peer hosted on this
+ * gateway (cloud-to-cloud). Returns the recipient-side dispatch result, or
+ * null when the peer is not hosted here. Used by the WS outbound path and by
+ * push-mode replies / agent-API sends.
+ */
+export function createForwardEnvelope(opts: ForwardOptions) {
+  const now = opts.now ?? (() => Date.now());
+  return async function forwardEnvelope(params: {
+    peerDid: string;
+    envelope: string;
+  }): Promise<Awaited<ReturnType<typeof dispatchInbound>> | null> {
+    const rows = await opts.db
+      .select({ tenantId: agents.tenantId, did: agents.did })
+      .from(agents)
+      .where(eq(agents.did, params.peerDid))
+      .limit(1);
+    const recipient = rows[0];
+    if (!recipient) return null;
+    const recipientTenantDb = withTenant(opts.db, toTenantId(recipient.tenantId));
+    const ctx: DispatchContext = {
+      tenantDb: recipientTenantDb,
+      tenantId: recipient.tenantId,
+      agentDid: recipient.did,
+      audit: opts.auditFactory(recipientTenantDb),
+      pdp: opts.pdp,
+      resolver: opts.resolver,
+      sessions: opts.sessions,
+      logger: opts.logger,
+      metrics: opts.metrics,
+      now,
+      ...(opts.push ? { push: opts.push } : {}),
+    };
+    return dispatchInbound(ctx, params.envelope);
+  };
 }
 
 export function createForwardOutboundEnvelope(opts: ForwardOptions) {
