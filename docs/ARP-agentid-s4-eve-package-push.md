@@ -1,6 +1,6 @@
 # AgentID — Slice S4: Eve thin package + push delivery
 
-**Parent:** `docs/ARP-agentid-plan.md` §6 (S4), decisions D6 + hardening gaps in §5. **Status:** brief 2026-09-18; execution starts same day.
+**Parent:** `docs/ARP-agentid-plan.md` §6 (S4), decisions D6 + hardening gaps in §5. **Status (2026-09-18):** ARP side ✅ merged + live (PR #159): migration 0012 on prod, gateway redeployed with `ARP_CLOUD_PUSH_SIGNING_JWK` / sealing key / issuer → `https://gateway.arp.run/.well-known/jwks.json` live, agent-API answering, attach panel on `/names/<sld>`. Platform side ✅ built + tested locally on `~/platform` branch `identity-package` (`packages/identity` 0.1.0, registry item `identity`, 7 tests) — **not yet published to npm nor deployed to registry.kybernesis.ai** (release gate = Ian). **E3 / S3b (control-plane emitter) still open.** Live gate (§3.2, two Eve agents) pending the publish.
 **Branches:** `agentid-s4-push-delivery` (this repo) then `identity-package` in `~/platform`. Commits tagged `[agentid/s4]`.
 **Goal:** a Vercel-hosted Eve agent can be reached by its `.agent` name and can reach its paired peers, with **no daemon, no WebSocket, no key in the Eve bundle**. ARP Cloud holds the identity, policy, audit, and key; the Eve agent is an HTTP backend plus a thin package that verifies ARP Cloud's tokens and exposes peers as tools — exactly the shape `@kybernesis/enterprise` + `@kybernesis/dispatch` already use for the control plane.
 
