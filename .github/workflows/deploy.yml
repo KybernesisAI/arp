@@ -53,6 +53,29 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Attach custom domains (idempotent)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for domain in agent.arp.run; do
+            status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+              "https://api.vercel.com/v10/projects/arp-cloud/domains?teamId=${VERCEL_ORG_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\":\"${domain}\"}")
+            if [ "$status" = "200" ] || [ "$status" = "201" ]; then
+              echo "attached ${domain}"
+            elif [ "$status" = "409" ]; then
+              echo "${domain} already attached"
+            else
+              echo "${domain} failed → HTTP ${status}"
+              cat /tmp/resp.json
+              exit 1
+            fi
+          done
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
   configure-spec-site:
     name: Configure arp-spec-site project + domains
     runs-on: ubuntu-24.04

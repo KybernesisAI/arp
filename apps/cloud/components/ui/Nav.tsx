@@ -5,6 +5,8 @@ import { cn } from './lib/cn';
 export type NavLink = { label: string; href: string; external?: boolean };
 
 export type NavProps = {
+  /** Brand word rendered next to the mark. Defaults to `ARP`. */
+  brand?: string;
   /** Optional brand subtitle (e.g. `// arp.run`). */
   brandSub?: string;
   links?: NavLink[];
@@ -14,6 +16,7 @@ export type NavProps = {
 };
 
 export function Nav({
+  brand = 'ARP',
   brandSub,
   links = [],
   cta,
@@ -35,7 +38,7 @@ export function Nav({
         >
           <BrandMark />
           <span className="font-display font-semibold text-[14px] tracking-[0.04em]">
-            ARP
+            {brand}
           </span>
           {brandSub && (
             <span className="hidden sm:inline font-mono text-[10.5px] tracking-[0.12em] uppercase text-muted">
