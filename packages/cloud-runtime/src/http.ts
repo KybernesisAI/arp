@@ -19,10 +19,10 @@
  * apps/cloud (Next.js) owns the human-facing UX at that hostname.
  */
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
-import { toTenantId, withTenant, agents } from '@kybernesis/arp-cloud-db';
-import { eq } from 'drizzle-orm';
+import { toTenantId, withTenant, agents, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
 import { dispatchInbound } from './dispatch.js';
@@ -211,6 +211,32 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownArp), 200, wellKnownHeaders);
   });
+
+  // AgentID S2 / T6: the owner's representation JWT, self-hosted. The DID
+  // document's `principal.representationVC` points here. Served raw as
+  // application/jwt so verifiers (testkit, peers) can fetch + verify it
+  // without any DNS TXT lookup.
+  const serveRepresentationJwt = async (c: Context): Promise<Response> => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
+    const domain = ctx.agentDid.replace(/^did:web:/, '');
+    const rows = await opts.db
+      .select({ jwt: registrarBindings.representationJwt })
+      .from(registrarBindings)
+      .where(eq(registrarBindings.domain, domain))
+      .orderBy(desc(registrarBindings.createdAt))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return c.json({ error: 'no_owner_binding' }, 404);
+    return c.newResponse(row.jwt, 200, {
+      'Content-Type': 'application/jwt',
+      'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*',
+    });
+  };
+  app.get('/representation.jwt', serveRepresentationJwt);
+  app.get('/.well-known/representation.jwt', serveRepresentationJwt);
 
   app.get('/.well-known/revocations.json', async (c) => {
     const host = effectiveHost(c);

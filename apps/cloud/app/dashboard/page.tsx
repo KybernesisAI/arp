@@ -20,6 +20,9 @@ import { ProvisionAgentButton } from './ProvisionAgentButton';
 import { SelfTestConnectionButton } from './SelfTestConnectionButton';
 import { DeleteAgentButton } from './DeleteAgentButton';
 import { UnbindDomainButton } from './UnbindDomainButton';
+import { ClaimNamePanel } from './ClaimNamePanel';
+import { FinishSetupButton } from './FinishSetupButton';
+import { ExportKeyButton } from './ExportKeyButton';
 import { OutgoingActions, IncomingActions } from './PairingInboxActions';
 import { SKILL_TEMPLATES, listSkillNames } from '@kybernesis/arp/skill-templates';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
@@ -32,7 +35,11 @@ const IDLE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
 type HealthBucket = 'active' | 'idle' | 'inactive';
 
-export default async function DashboardPage(): Promise<React.JSX.Element> {
+export default async function DashboardPage(props: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<React.JSX.Element> {
+  const sp = (await props.searchParams) ?? {};
+  const claimParam = typeof sp['claim'] === 'string' ? sp['claim'] : undefined;
   let state: Awaited<ReturnType<typeof loadState>>;
   try {
     state = await loadState();
@@ -50,6 +57,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     totalActiveConnections,
     domains,
     usage,
+    registrations,
+    tenantId,
   } = state;
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
   const outgoingCount = outgoingInvitations.length;
@@ -201,6 +210,26 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </ul>
           </Card>
         )}
+      </section>
+
+      <section className="mb-10">
+        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+          <h2 className="font-display font-medium text-h3">
+            Your names{' '}
+            <span className="text-muted font-mono text-body-sm ml-2">{registrations.length}</span>
+          </h2>
+          <span className="font-mono text-kicker uppercase text-muted">// N · AGENTID</span>
+        </header>
+        <Card tone="paper-2" padded={false} className="border border-rule">
+          <ClaimNamePanel initialQuery={claimParam} />
+          {registrations.length > 0 && (
+            <ul className="list-none p-0 m-0 border-t border-rule">
+              {registrations.map((r, i) => (
+                <RegistrationRow key={r.id} reg={r} tenantId={tenantId} isLast={i === registrations.length - 1} />
+              ))}
+            </ul>
+          )}
+        </Card>
       </section>
 
       {domains.length > 0 && (
@@ -360,6 +389,80 @@ function AgentRow({
           Pair with another agent
         </ButtonLink>
         <DeleteAgentButton agentDid={agent.did} agentName={agent.name} />
+      </div>
+    </li>
+  );
+}
+
+interface DashboardRegistration {
+  id: string;
+  domain: string;
+  sld: string;
+  status: string;
+  years: number;
+  priceCents: number;
+  expiryAt: string | null;
+  ownerLabel: string | null;
+  error: string | null;
+  createdAgo: string;
+  agentDid: string;
+  agentName: string | null;
+  keyCustody: 'cloud' | 'exported' | null;
+  runtimeKind: 'none' | 'bridge' | 'push' | null;
+}
+
+const REGISTRATION_BADGE: Record<string, { label: string; tone: 'yellow' | 'blue' | 'red' | 'ink' }> = {
+  pending_payment: { label: 'AWAITING PAYMENT', tone: 'yellow' },
+  registering: { label: 'REGISTERING', tone: 'yellow' },
+  registered: { label: 'VERIFY OWNER', tone: 'yellow' },
+  owner_pending: { label: 'VERIFY OWNER', tone: 'yellow' },
+  active: { label: 'ACTIVE', tone: 'blue' },
+  failed: { label: 'FAILED', tone: 'red' },
+  expired: { label: 'EXPIRED', tone: 'ink' },
+};
+
+function RegistrationRow({
+  reg,
+  tenantId,
+  isLast,
+}: {
+  reg: DashboardRegistration;
+  tenantId: string;
+  isLast?: boolean;
+}): React.JSX.Element {
+  const badge = REGISTRATION_BADGE[reg.status] ?? { label: reg.status.toUpperCase(), tone: 'ink' as const };
+  const needsOwner = reg.status === 'registered' || reg.status === 'owner_pending';
+  const dotTone = reg.status === 'active' ? 'green' : reg.status === 'failed' ? 'red' : 'yellow';
+  return (
+    <li className={'p-5 ' + (isLast ? '' : 'border-b border-rule')}>
+      <div className="grid grid-cols-12 gap-4 items-center">
+        <div className="col-span-12 md:col-span-4 flex items-baseline gap-3">
+          <Dot tone={dotTone} />
+          <div>
+            <Link href={`https://agent.arp.run/${reg.sld}`} className="font-display font-medium text-h5 block">
+              {reg.domain}
+            </Link>
+            <span className="font-mono text-kicker uppercase text-muted">
+              {reg.years} YR · {reg.expiryAt ? `EXPIRES ${reg.expiryAt.slice(0, 10)}` : `CLAIMED ${reg.createdAgo}`}
+              {reg.runtimeKind === 'none' && ' · IDENTITY ONLY'}
+            </span>
+          </div>
+        </div>
+        <div className="col-span-6 md:col-span-3 font-mono text-kicker uppercase text-muted">
+          {reg.ownerLabel ? `OWNER · ${reg.ownerLabel}` : 'OWNER · NOT VERIFIED'}
+        </div>
+        <div className="col-span-6 md:col-span-2 md:text-center">
+          <Badge tone={badge.tone} className="text-[9px] px-2 py-0.5">{badge.label}</Badge>
+        </div>
+        <div className="col-span-12 md:col-span-3 flex justify-end gap-2">
+          {needsOwner && <FinishSetupButton domain={reg.domain} tenantId={tenantId} />}
+          {reg.status === 'active' && reg.keyCustody === 'cloud' && (
+            <ExportKeyButton agentDid={reg.agentDid} domain={reg.domain} />
+          )}
+        </div>
+        {reg.error && (
+          <p className="col-span-12 text-body-sm text-signal-red m-0">{reg.error}</p>
+        )}
       </div>
     </li>
   );
@@ -554,6 +657,8 @@ interface ActivityEntry {
 
 async function loadState(): Promise<{
   tenant: { plan: string; status: string; principalDid: string };
+  tenantId: string;
+  registrations: DashboardRegistration[];
   agents: DashboardAgent[];
   hasPasskey: boolean;
   outgoingInvitations: Array<{
@@ -707,6 +812,29 @@ async function loadState(): Promise<{
   // the domain's apex DID — registrar bindings without a matching agent
   // row are still in the "registered, not provisioned" state.
   const agentByDid = new Map(agentRows.map((a) => [a.did, a]));
+
+  // AgentID S2: names bought through the console.
+  const registrationRows = await tenantDb.listRegistrations();
+  const registrations: DashboardRegistration[] = registrationRows.map((r) => {
+    const agentDid = `did:web:${r.domain}`;
+    const agent = agentByDid.get(agentDid) ?? null;
+    return {
+      id: r.id,
+      domain: r.domain,
+      sld: r.sld,
+      status: r.status,
+      years: r.years,
+      priceCents: r.priceCents,
+      expiryAt: r.expiryAt?.toISOString() ?? null,
+      ownerLabel: r.ownerLabel,
+      error: r.error,
+      createdAgo: formatAgo(now, r.createdAt),
+      agentDid,
+      agentName: agent?.agentName ?? null,
+      keyCustody: agent?.keyCustody ?? null,
+      runtimeKind: agent?.runtimeKind ?? null,
+    };
+  });
   const domains: DashboardDomain[] = bindingRows.map((r) => {
     const agentDid = `did:web:${r.domain.toLowerCase()}`;
     const agent = agentByDid.get(agentDid) ?? null;
@@ -755,6 +883,8 @@ async function loadState(): Promise<{
     recentActivity,
     totalActiveConnections,
     domains,
+    tenantId: tenantDb.tenantId,
+    registrations,
     usage: {
       period,
       inboundMessages: usageRow?.inboundMessages ?? 0,

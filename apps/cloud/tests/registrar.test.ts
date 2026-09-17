@@ -130,7 +130,7 @@ describe('registrar lifecycle', () => {
     expect(registration.priceCents).toBe(5800);
     expect(registration.stripeCheckoutSessionId).toBe('cs_test_1');
 
-    const params = stripe.checkout.sessions.create.mock.calls[0]![0] as {
+    const params = (stripe.checkout.sessions.create.mock.calls as unknown as unknown[][])[0]![0] as {
       mode: string;
       metadata: Record<string, string>;
       line_items: Array<{ price_data: { unit_amount: number; product_data: { name: string } } }>;
