@@ -37,6 +37,11 @@ describe('surfaceForHost (host → surface dispatch)', () => {
     expect(surfaceForHost('www.arp.run')).toBe<Surface>('project');
     expect(surfaceForHost('ARP.RUN')).toBe<Surface>('project'); // case-insensitive via stripPort lowercase
   });
+  it('routes agent.arp.run to agentid', () => {
+    expect(surfaceForHost('agent.arp.run')).toBe<Surface>('agentid');
+    expect(surfaceForHost('AGENT.ARP.RUN')).toBe<Surface>('agentid');
+    expect(surfaceForHost('agent.arp.run:443')).toBe<Surface>('agentid');
+  });
   it('routes cloud.arp.run to cloud', () => {
     expect(surfaceForHost('cloud.arp.run')).toBe<Surface>('cloud');
   });

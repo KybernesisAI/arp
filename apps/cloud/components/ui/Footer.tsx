@@ -11,6 +11,8 @@ export type FooterColumn = {
 };
 
 export type FooterProps = {
+  /** Brand word rendered next to the mark. Defaults to `ARP`. */
+  brand?: string;
   tagline?: string;
   subtitle?: string;
   columns?: FooterColumn[];
@@ -24,6 +26,7 @@ export type FooterProps = {
 };
 
 export function Footer({
+  brand = 'ARP',
   tagline,
   subtitle,
   columns = [],
@@ -41,7 +44,7 @@ export function Footer({
             <div className="flex items-baseline gap-2.5 mb-3.5">
               <BrandMark size={14} className="translate-y-[2px]" />
               <span className="font-display font-semibold text-[14px] tracking-[0.04em]">
-                ARP
+                {brand}
               </span>
             </div>
             {tagline && (

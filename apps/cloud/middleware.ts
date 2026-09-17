@@ -6,6 +6,7 @@
  *   - arp.run          → project / open-source landing (routes rewritten to /project/*)
  *   - cloud.arp.run    → cloud marketing + signup (routes rewritten to /cloud/*)
  *   - app.arp.run      → authenticated dashboard (pass through to top-level routes)
+ *   - agent.arp.run    → AgentID identity lander (routes rewritten to /agentid/*)
  *
  * Plus the Phase-7 HNS bridge for `<owner>.<agent>.agent.hns.to` visitors,
  * which is still routed to `/agent/<did>/…` regardless of surface.
@@ -26,11 +27,12 @@ export const config = {
   ],
 };
 
-export type Surface = 'project' | 'cloud' | 'app' | 'hns';
+export type Surface = 'project' | 'cloud' | 'app' | 'agentid' | 'hns';
 
 const PROJECT_HOSTS = new Set<string>(['arp.run', 'www.arp.run']);
 const CLOUD_HOSTS = new Set<string>(['cloud.arp.run']);
 const APP_HOSTS = new Set<string>(['app.arp.run']);
+const AGENTID_HOSTS = new Set<string>(['agent.arp.run']);
 
 export function middleware(req: NextRequest): NextResponse {
   const host = (req.headers.get('host') ?? '').toLowerCase();
@@ -63,6 +65,7 @@ export function surfaceForHost(host: string): Surface {
   if (PROJECT_HOSTS.has(bare)) return 'project';
   if (CLOUD_HOSTS.has(bare)) return 'cloud';
   if (APP_HOSTS.has(bare)) return 'app';
+  if (AGENTID_HOSTS.has(bare)) return 'agentid';
   // Default: treat everything else (localhost, Vercel preview domains, ngrok
   // tunnels, IP literals) as the app surface so local dev + preview flows
   // behave identically to app.arp.run.
@@ -97,6 +100,17 @@ export function rewriteForSurface(
     // bookmarks + Stripe webhook redirects continue to resolve.
     if (isAppOwnedPath(pathname)) return null;
     url.pathname = `/cloud${pathname === '/' ? '' : pathname}`;
+    return NextResponse.rewrite(url);
+  }
+
+  if (surface === 'agentid') {
+    if (pathname.startsWith('/api/')) return null;
+    if (pathname.startsWith('/agentid/')) return null;
+    if (pathname === '/agentid') return null;
+    // Same passthrough set as the other marketing hosts so /legal, /support,
+    // /pair etc. still resolve if someone lands on them via agent.arp.run.
+    if (isAppOwnedPath(pathname)) return null;
+    url.pathname = `/agentid${pathname === '/' ? '' : pathname}`;
     return NextResponse.rewrite(url);
   }
 
