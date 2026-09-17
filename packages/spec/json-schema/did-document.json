@@ -138,6 +138,14 @@
         "representationVC"
       ],
       "additionalProperties": false
+    },
+    "alsoKnownAs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Other URIs this DID is known by (W3C DID Core §5.1.3): ICANN mirror origin, nostr npub, control-plane handle"
     }
   },
   "required": [
