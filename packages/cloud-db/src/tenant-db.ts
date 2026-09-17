@@ -17,6 +17,7 @@
 
 import { and, eq, sql, desc, asc, lt, or, isNull } from 'drizzle-orm';
 import type {
+  DomainRegistrationRow,
   AgentRow,
   AuditEntryRow,
   ConnectionRow,
@@ -28,6 +29,7 @@ import type {
 } from './schema.js';
 import {
   agents,
+  domainRegistrations,
   auditEntries,
   connections,
   messages,
@@ -50,15 +52,75 @@ export interface TenantDb {
   // ----- agents --------------------------------------------------------
   listAgents(): Promise<AgentRow[]>;
   getAgent(did: string): Promise<AgentRow | null>;
-  createAgent(input: Omit<AgentRow, 'tenantId' | 'createdAt' | 'lastSeenAt' | 'wsSessionId'> & {
-    wsSessionId?: string | null;
-    lastSeenAt?: Date | null;
-  }): Promise<AgentRow>;
+  createAgent(
+    input: Omit<
+      AgentRow,
+      | 'tenantId'
+      | 'createdAt'
+      | 'lastSeenAt'
+      | 'wsSessionId'
+      | 'keyCustody'
+      | 'privateKeyEnc'
+      | 'runtimeKind'
+      | 'domainRegistrationId'
+    > & {
+      wsSessionId?: string | null;
+      lastSeenAt?: Date | null;
+      keyCustody?: AgentRow['keyCustody'];
+      privateKeyEnc?: string | null;
+      runtimeKind?: AgentRow['runtimeKind'];
+      domainRegistrationId?: string | null;
+    },
+  ): Promise<AgentRow>;
   updateAgent(
     did: string,
-    patch: Partial<Pick<AgentRow, 'wsSessionId' | 'lastSeenAt' | 'wellKnownDid' | 'wellKnownAgentCard' | 'wellKnownArp'>>,
+    patch: Partial<
+      Pick<
+        AgentRow,
+        | 'wsSessionId'
+        | 'lastSeenAt'
+        | 'wellKnownDid'
+        | 'wellKnownAgentCard'
+        | 'wellKnownArp'
+        | 'keyCustody'
+        | 'privateKeyEnc'
+        | 'runtimeKind'
+        | 'agentName'
+        | 'agentDescription'
+      >
+    >,
   ): Promise<void>;
   deleteAgent(did: string): Promise<void>;
+
+  // ----- domain registrations (AgentID S2) ------------------------------
+  createRegistration(input: {
+    sld: string;
+    years: number;
+    priceCents: number;
+    currency?: string;
+    stripeCheckoutSessionId?: string | null;
+  }): Promise<DomainRegistrationRow>;
+  getRegistration(id: string): Promise<DomainRegistrationRow | null>;
+  getRegistrationByDomain(domain: string): Promise<DomainRegistrationRow | null>;
+  listRegistrations(): Promise<DomainRegistrationRow[]>;
+  updateRegistration(
+    id: string,
+    patch: Partial<
+      Pick<
+        DomainRegistrationRow,
+        | 'status'
+        | 'stripeCheckoutSessionId'
+        | 'stripePaymentIntentId'
+        | 'headlessDomainId'
+        | 'headlessOrderId'
+        | 'registeredAt'
+        | 'expiryAt'
+        | 'graceEndsAt'
+        | 'ownerLabel'
+        | 'error'
+      >
+    >,
+  ): Promise<DomainRegistrationRow | null>;
 
   // ----- connections ---------------------------------------------------
   listConnections(filter?: { agentDid?: string; status?: string; includeExpired?: boolean }): Promise<ConnectionRow[]>;
@@ -173,6 +235,63 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
     },
     async deleteAgent(did) {
       await client.delete(agents).where(and(eq(agents.did, did), eq(agents.tenantId, tenantId)));
+    },
+
+    // --- domain registrations (AgentID S2)
+    async createRegistration(input) {
+      const sld = input.sld.toLowerCase();
+      const rows = await client
+        .insert(domainRegistrations)
+        .values({
+          tenantId,
+          sld,
+          domain: `${sld}.agent`,
+          years: input.years,
+          priceCents: input.priceCents,
+          currency: input.currency ?? 'usd',
+          stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+        })
+        .returning();
+      const row = rows[0];
+      if (!row) throw new Error('createRegistration returned no row');
+      return row;
+    },
+    async getRegistration(id) {
+      const rows = await client
+        .select()
+        .from(domainRegistrations)
+        .where(and(eq(domainRegistrations.id, id), eq(domainRegistrations.tenantId, tenantId)))
+        .limit(1);
+      return rows[0] ?? null;
+    },
+    async getRegistrationByDomain(domain) {
+      const rows = await client
+        .select()
+        .from(domainRegistrations)
+        .where(
+          and(
+            eq(domainRegistrations.domain, domain.toLowerCase()),
+            eq(domainRegistrations.tenantId, tenantId),
+          ),
+        )
+        .orderBy(desc(domainRegistrations.createdAt))
+        .limit(1);
+      return rows[0] ?? null;
+    },
+    async listRegistrations() {
+      return client
+        .select()
+        .from(domainRegistrations)
+        .where(eq(domainRegistrations.tenantId, tenantId))
+        .orderBy(desc(domainRegistrations.createdAt));
+    },
+    async updateRegistration(id, patch) {
+      const rows = await client
+        .update(domainRegistrations)
+        .set({ ...patch, updatedAt: sql`now()` })
+        .where(and(eq(domainRegistrations.id, id), eq(domainRegistrations.tenantId, tenantId)))
+        .returning();
+      return rows[0] ?? null;
     },
 
     // --- connections

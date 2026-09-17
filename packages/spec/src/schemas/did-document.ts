@@ -82,6 +82,12 @@ export const DidDocumentSchema = z.object({
   // layer; agent-card consumers must check presence themselves.
   service: z.array(ServiceEndpointSchema).optional(),
   principal: PrincipalBindingSchema.optional(),
+  alsoKnownAs: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      'Other URIs this DID is known by (W3C DID Core §5.1.3): ICANN mirror origin, nostr npub, control-plane handle',
+    ),
 });
 
 export type DidUri = z.infer<typeof DidUriSchema>;

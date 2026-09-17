@@ -20,6 +20,26 @@ describe('buildDidDocument', () => {
     expect(doc.verificationMethod[0]?.id).toBe('did:web:samantha.agent#key-1');
   });
 
+  it('emits alsoKnownAs only when provided', () => {
+    const base = {
+      agentDid: 'did:web:samantha.agent',
+      controllerDid: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
+      publicKeyMultibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
+      endpoints: {
+        didcomm: 'https://samantha.agent.arp.run/didcomm',
+        agentCard: 'https://samantha.agent.arp.run/.well-known/agent-card.json',
+      },
+      representationVcUrl: 'https://samantha.agent.arp.run/representation.jwt',
+    } as const;
+    const without = buildDidDocument(base);
+    expect('alsoKnownAs' in without).toBe(false);
+    const withAka = buildDidDocument({
+      ...base,
+      alsoKnownAs: ['https://samantha.agent.arp.run', 'nostr:npub1abc'],
+    });
+    expect(withAka.alsoKnownAs).toEqual(['https://samantha.agent.arp.run', 'nostr:npub1abc']);
+  });
+
   it('uses a caller-supplied keyId', () => {
     const doc = buildDidDocument({
       agentDid: 'did:web:samantha.agent',

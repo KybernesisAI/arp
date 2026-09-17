@@ -42,6 +42,10 @@ export interface GatewayOptions {
   hostname?: string;
   /** Optional clock injection. */
   now?: () => number;
+  /** AgentID S2: ICANN mirror suffix (default from AGENTID_MIRROR_SUFFIX, `.agent.arp.run`). */
+  mirrorSuffix?: string | null;
+  /** AgentID S2: profile base for `/` redirects (default from AGENTID_PROFILE_BASE). */
+  profileBase?: string | null;
 }
 
 export interface GatewayHandle {
@@ -70,6 +74,14 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     metrics,
     auditFactory,
     ...(opts.now ? { now: opts.now } : {}),
+    mirrorSuffix:
+      opts.mirrorSuffix !== undefined
+        ? opts.mirrorSuffix
+        : (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run'),
+    profileBase:
+      opts.profileBase !== undefined
+        ? opts.profileBase
+        : (process.env['AGENTID_PROFILE_BASE'] ?? 'https://agent.arp.run'),
   });
 
   const hostname = opts.hostname ?? '127.0.0.1';

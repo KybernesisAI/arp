@@ -24,20 +24,13 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import * as ed25519 from '@noble/ed25519';
-import { randomBytes } from 'node:crypto';
 import {
-  agents,
   registrarBindings,
   toTenantId,
   withTenant,
 } from '@kybernesis/arp-cloud-db';
-import {
-  buildDidDocument,
-  buildAgentCard,
-  buildArpJson,
-} from '@kybernesis/arp-templates';
-import { ed25519RawToMultibase, base64urlEncode } from '@kybernesis/arp-transport';
+import { ed25519RawToMultibase } from '@kybernesis/arp-transport';
+import { IdentityExistsError, mintIdentity, type MintedIdentity } from '@/lib/key-custody';
 import { getDb } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { track } from '@/lib/posthog';
@@ -111,92 +104,35 @@ export async function POST(req: Request): Promise<NextResponse> {
   //    issue a fresh keypair (recovery path when the user lost the
   //    original handoff JSON). Without force, bail with 409 so the user
   //    knows the row exists.
-  const agentDid = `did:web:${lowerDomain}`;
-  const existing = await tenantDb.raw
-    .select({ did: agents.did })
-    .from(agents)
-    .where(eq(agents.did, agentDid))
-    .limit(1);
-  if (existing[0]) {
-    if (!force) {
+  // 3. Generate the agent keypair.
+  // AgentID S2: shared minting path. provision-cloud keeps its historical
+  // contract — the owner downloads the key once (exported custody) and runs
+  // a WS bridge — while cloud-custody identities (purchase fulfilment) share
+  // the same document builders.
+  let minted: MintedIdentity;
+  try {
+    minted = await mintIdentity({
+      tenantDb,
+      domain: lowerDomain,
+      principalDid: session.principalDid,
+      agentName,
+      ...(agentDescription !== undefined ? { agentDescription } : {}),
+      custody: 'exported',
+      runtimeKind: 'bridge',
+      wellKnownOrigin: `https://${GATEWAY_WELL_KNOWN_HOST}`,
+      gatewayWsUrl: GATEWAY_WS_URL,
+      force: force ?? false,
+    });
+  } catch (err) {
+    if (err instanceof IdentityExistsError) {
       return NextResponse.json(
-        { error: 'already_provisioned', agent_did: agentDid },
+        { error: 'already_provisioned', agent_did: err.agentDid },
         { status: 409 },
       );
     }
-    await tenantDb.raw.delete(agents).where(eq(agents.did, agentDid));
+    throw err;
   }
-
-  // 3. Generate the agent keypair.
-  const agentPrivateKey = ed25519.utils.randomPrivateKey();
-  const agentPublicKey = await ed25519.getPublicKeyAsync(agentPrivateKey);
-  const publicKeyMultibase = ed25519RawToMultibase(agentPublicKey);
-
-  // 4. Build the well-known docs. The endpoints point at the
-  //    cloud-gateway, since cloud-managed agents serve through the
-  //    gateway via WS relay.
-  const gatewayOrigin = `https://${GATEWAY_WELL_KNOWN_HOST}`;
-  const wellKnownUrls = {
-    did: `${gatewayOrigin}/.well-known/did.json`,
-    agent_card: `${gatewayOrigin}/.well-known/agent-card.json`,
-    arp: `${gatewayOrigin}/.well-known/arp.json`,
-  };
-  const didDoc = buildDidDocument({
-    agentDid,
-    controllerDid: session.principalDid,
-    publicKeyMultibase,
-    endpoints: {
-      didcomm: `${gatewayOrigin}/didcomm`,
-      agentCard: wellKnownUrls.agent_card,
-    },
-    representationVcUrl: `${gatewayOrigin}/representation.jwt`,
-  });
-  const agentCard = buildAgentCard({
-    name: agentName,
-    did: agentDid,
-    description: agentDescription ?? 'Personal agent',
-    endpoints: {
-      didcomm: `${gatewayOrigin}/didcomm`,
-      pairing: `${gatewayOrigin}/pairing`,
-    },
-    agentOrigin: gatewayOrigin,
-  });
-  const arpJson = buildArpJson({
-    agentOrigin: gatewayOrigin,
-  });
-
-  // 5. Build a handoff bundle. The cloud-managed flow doesn't publish
-  //    DNS records via this endpoint (that's the registrar's job via
-  //    the bind callback) — we mark the bundle's dns_records_published
-  //    with the records the registrar already wrote.
-  const bootstrapToken = base64urlEncode(randomBytes(32));
-  const certExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-  const handoff = {
-    agent_did: agentDid,
-    principal_did: session.principalDid,
-    public_key_multibase: publicKeyMultibase,
-    well_known_urls: wellKnownUrls,
-    dns_records_published: ['_principal TXT'] as const,
-    cert_expires_at: certExpiresAt,
-    bootstrap_token: bootstrapToken,
-  };
-
-  // 6. Insert the agents row. tenantId is already enforced by the
-  //    earlier ownerCheck.
-  await tenantDb.raw.insert(agents).values({
-    did: agentDid,
-    tenantId: session.tenantId,
-    principalDid: session.principalDid,
-    agentName,
-    agentDescription: agentDescription ?? '',
-    publicKeyMultibase,
-    handoffJson: handoff,
-    wellKnownDid: didDoc as Record<string, unknown>,
-    wellKnownAgentCard: agentCard as Record<string, unknown>,
-    wellKnownArp: arpJson as Record<string, unknown>,
-    scopeCatalogVersion: 'v1',
-    tlsFingerprint: 'cloud-hosted',
-  });
+  const { agentDid, publicKeyMultibase, handoff, privateKeyRaw } = minted;
 
   track({
     distinctId: session.principalDid,
@@ -217,7 +153,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     agent_did: agentDid,
     principal_did: session.principalDid,
     public_key_multibase: publicKeyMultibase,
-    agent_private_key_multibase: ed25519RawToMultibase(agentPrivateKey),
+    agent_private_key_multibase: ed25519RawToMultibase(privateKeyRaw),
     gateway_ws_url: GATEWAY_WS_URL,
     handoff,
   });

@@ -36,6 +36,8 @@ export {
   userCredentials,
   webauthnChallenges,
   pairingInvitations,
+  domainRegistrations,
+  DOMAIN_REGISTRATION_STATUSES,
 } from './schema.js';
 export type {
   TenantRow,
@@ -54,4 +56,6 @@ export type {
   UserCredentialRow,
   WebauthnChallengeRow,
   PairingInvitationRow,
+  DomainRegistrationRow,
+  DomainRegistrationStatus,
 } from './schema.js';

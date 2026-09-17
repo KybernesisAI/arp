@@ -18,6 +18,20 @@ interface EnvShape {
   WEBAUTHN_RP_ID: string;
   WEBAUTHN_RP_NAME: string;
   WEBAUTHN_ORIGINS: string[];
+  /** AgentID S2: Headless Domains registrar credentials (master reseller account). */
+  HEADLESS_API_KEY: string | null;
+  HEADLESS_BASE_URL: string;
+  HEADLESS_RESELLER_CHANNEL: string;
+  HEADLESS_WEBHOOK_SECRET: string | null;
+  /** AgentID S2: sealing key for cloud-custody agent seeds (32 bytes, base64 or hex). */
+  ARP_CLOUD_KEY_ENCRYPTION_KEY: string | null;
+  /** AgentID S2: ICANN mirror suffix, e.g. `.agent.arp.run` → `https://<sld>.agent.arp.run`. */
+  AGENTID_MIRROR_SUFFIX: string;
+  /** AgentID S2: public profile base, e.g. `https://agent.arp.run` → `/<sld>`. */
+  AGENTID_PROFILE_BASE: string;
+  /** AgentID S2: name price placeholders until Ian sets real numbers. */
+  AGENTID_NAME_PRICE_CENTS: number;
+  AGENTID_NAME_MAX_YEARS: number;
 }
 
 let cached: EnvShape | null = null;
@@ -70,6 +84,15 @@ export function env(): EnvShape {
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
+    HEADLESS_API_KEY: process.env['HEADLESS_API_KEY'] ?? null,
+    HEADLESS_BASE_URL: process.env['HEADLESS_BASE_URL'] ?? 'https://headlessdomains.com',
+    HEADLESS_RESELLER_CHANNEL: process.env['HEADLESS_RESELLER_CHANNEL'] ?? 'arp.run',
+    HEADLESS_WEBHOOK_SECRET: process.env['HEADLESS_WEBHOOK_SECRET'] ?? null,
+    ARP_CLOUD_KEY_ENCRYPTION_KEY: process.env['ARP_CLOUD_KEY_ENCRYPTION_KEY'] ?? null,
+    AGENTID_MIRROR_SUFFIX: process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run',
+    AGENTID_PROFILE_BASE: (process.env['AGENTID_PROFILE_BASE'] ?? 'https://agent.arp.run').replace(/\/+$/, ''),
+    AGENTID_NAME_PRICE_CENTS: Number.parseInt(process.env['AGENTID_NAME_PRICE_CENTS'] ?? '2900', 10),
+    AGENTID_NAME_MAX_YEARS: Number.parseInt(process.env['AGENTID_NAME_MAX_YEARS'] ?? '3', 10),
   };
   return cached;
 }

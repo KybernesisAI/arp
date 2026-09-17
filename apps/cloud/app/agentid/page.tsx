@@ -713,14 +713,14 @@ function Persona({
 }
 
 /**
- * Claim form. There is no registrar yet — this is a plain GET to the existing
- * cloud signup so an early-access name lands in a real tenant record and can
- * be honoured once registration is live. No JS, no client component.
+ * Claim form. Plain GET into the console dashboard with `?claim=<name>`; the
+ * dashboard's claim panel prefills and checks availability. Signed-out
+ * visitors pass through login with the deep link preserved. No JS here.
  */
 function ClaimForm(): React.JSX.Element {
   return (
     <form
-      action="https://cloud.arp.run/signup"
+      action="https://cloud.arp.run/dashboard"
       method="get"
       className="mt-10 flex flex-col sm:flex-row gap-3 max-w-[640px]"
     >
@@ -728,7 +728,7 @@ function ClaimForm(): React.JSX.Element {
       <label className="flex-1 flex items-stretch border border-paper/40 bg-paper text-ink focus-within:border-signal-yellow">
         <span className="sr-only">Agent name</span>
         <input
-          name="agent"
+          name="claim"
           type="text"
           inputMode="text"
           autoComplete="off"
