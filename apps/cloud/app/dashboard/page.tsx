@@ -439,7 +439,7 @@ function RegistrationRow({
         <div className="col-span-12 md:col-span-4 flex items-baseline gap-3">
           <Dot tone={dotTone} />
           <div>
-            <Link href={`https://agent.arp.run/${reg.sld}`} className="font-display font-medium text-h5 block">
+            <Link href={`/names/${reg.sld}`} className="font-display font-medium text-h5 block">
               {reg.domain}
             </Link>
             <span className="font-mono text-kicker uppercase text-muted">
