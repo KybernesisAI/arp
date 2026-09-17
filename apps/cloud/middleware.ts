@@ -7,6 +7,11 @@
  *   - cloud.arp.run    → cloud marketing + signup (routes rewritten to /cloud/*)
  *   - app.arp.run      → authenticated dashboard (pass through to top-level routes)
  *   - agent.arp.run    → AgentID identity lander (routes rewritten to /agentid/*)
+ *   - <sld>.agent.arp.run → AgentID ICANN mirror for one name: machine paths
+ *     (/.well-known/*, /representation.jwt, /didcomm, /pairing) are proxied to
+ *     the gateway with ?target=<sld>.agent; everything else renders the
+ *     public profile. (Railway's plan caps custom domains per service, so the
+ *     mirror lives on Vercel, which already owns the arp.run zone.)
  *
  * Plus the Phase-7 HNS bridge for `<owner>.<agent>.agent.hns.to` visitors,
  * which is still routed to `/agent/<did>/…` regardless of surface.
@@ -27,12 +32,17 @@ export const config = {
   ],
 };
 
-export type Surface = 'project' | 'cloud' | 'app' | 'agentid' | 'hns';
+export type Surface = 'project' | 'cloud' | 'app' | 'agentid' | 'mirror' | 'hns';
 
 const PROJECT_HOSTS = new Set<string>(['arp.run', 'www.arp.run']);
 const CLOUD_HOSTS = new Set<string>(['cloud.arp.run']);
 const APP_HOSTS = new Set<string>(['app.arp.run']);
 const AGENTID_HOSTS = new Set<string>(['agent.arp.run']);
+/** ICANN mirror suffix — `<sld>.agent.arp.run`. Override for staging. */
+const MIRROR_SUFFIX = (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run').toLowerCase();
+const GATEWAY_ORIGIN = (process.env['ARP_CLOUD_GATEWAY_ORIGIN'] ?? 'https://gateway.arp.run').replace(/\/+$/, '');
+/** Paths on a mirror host that belong to the identity's machine surface (served by the gateway). */
+const MIRROR_GATEWAY_PATHS = ['/.well-known/', '/representation.jwt', '/didcomm', '/pairing', '/agent-connections'];
 
 export function middleware(req: NextRequest): NextResponse {
   const host = (req.headers.get('host') ?? '').toLowerCase();
@@ -54,7 +64,8 @@ export function middleware(req: NextRequest): NextResponse {
 
   // 2. Host-based surface dispatch.
   const surface = surfaceForHost(effective);
-  const rewritten = rewriteForSurface(req, surface);
+  const rewritten =
+    surface === 'mirror' ? rewriteForMirror(req, effective) : rewriteForSurface(req, surface);
   const res = rewritten ?? NextResponse.next();
   res.headers.set('x-arp-surface', surface);
   return res;
@@ -66,6 +77,7 @@ export function surfaceForHost(host: string): Surface {
   if (CLOUD_HOSTS.has(bare)) return 'cloud';
   if (APP_HOSTS.has(bare)) return 'app';
   if (AGENTID_HOSTS.has(bare)) return 'agentid';
+  if (mirrorSldFromHost(bare) !== null) return 'mirror';
   // Default: treat everything else (localhost, Vercel preview domains, ngrok
   // tunnels, IP literals) as the app surface so local dev + preview flows
   // behave identically to app.arp.run.
@@ -161,6 +173,40 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/runtime',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
+}
+
+/**
+ * `<sld>.agent.arp.run` (or `<owner>.<sld>.agent.arp.run`) → `<sld>`; null for
+ * the bare `agent.arp.run` host or anything not under the mirror suffix.
+ */
+export function mirrorSldFromHost(host: string, suffix: string = MIRROR_SUFFIX): string | null {
+  const bare = stripPort(host).toLowerCase();
+  if (!bare.endsWith(suffix) || bare.length <= suffix.length) return null;
+  const labels = bare.slice(0, -suffix.length).split('.').filter((l) => l.length > 0);
+  const sld = labels[labels.length - 1];
+  if (!sld || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(sld)) return null;
+  return sld;
+}
+
+/**
+ * Mirror host routing. Machine paths proxy to the gateway (external rewrite
+ * carrying `?target=<sld>.agent` so the gateway resolves the same identity
+ * it would for the HNS hostname); every other path renders the profile.
+ */
+export function rewriteForMirror(req: NextRequest, host: string): NextResponse | null {
+  const sld = mirrorSldFromHost(host);
+  if (!sld) return null;
+  const url = req.nextUrl.clone();
+  const pathname = url.pathname;
+  if (MIRROR_GATEWAY_PATHS.some((p) => pathname === p || pathname.startsWith(p))) {
+    const target = new URL(`${GATEWAY_ORIGIN}${pathname}`);
+    url.searchParams.forEach((v, k) => target.searchParams.set(k, v));
+    target.searchParams.set('target', `${sld}.agent`);
+    return NextResponse.rewrite(target);
+  }
+  url.pathname = `/agentid/${sld}`;
+  url.search = '';
+  return NextResponse.rewrite(url);
 }
 
 function stripPort(host: string): string {

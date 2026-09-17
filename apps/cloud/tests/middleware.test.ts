@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { NextRequest } from 'next/server';
 import {
   isAppOwnedPath,
+  mirrorSldFromHost,
+  rewriteForMirror,
   parseAgentDidFromHost,
   surfaceForHost,
   rewriteForSurface,
@@ -180,5 +182,37 @@ describe('rewriteForSurface', () => {
     expect(rewriteForSurface(mockReq('/support'), 'cloud')).toBeNull();
     expect(rewriteForSurface(mockReq('/support'), 'project')).toBeNull();
     expect(rewriteForSurface(mockReq('/support'), 'app')).toBeNull();
+  });
+});
+
+describe('mirror host (<sld>.agent.arp.run)', () => {
+  it('parses the sld and ignores the bare host + unrelated hosts', () => {
+    expect(mirrorSldFromHost('samantha.agent.arp.run')).toBe('samantha');
+    expect(mirrorSldFromHost('SAMANTHA.AGENT.ARP.RUN:443')).toBe('samantha');
+    expect(mirrorSldFromHost('ian.samantha.agent.arp.run')).toBe('samantha');
+    expect(mirrorSldFromHost('agent.arp.run')).toBeNull();
+    expect(mirrorSldFromHost('cloud.arp.run')).toBeNull();
+    expect(mirrorSldFromHost('samantha.agent')).toBeNull();
+    expect(surfaceForHost('samantha.agent.arp.run')).toBe<Surface>('mirror');
+    expect(surfaceForHost('agent.arp.run')).toBe<Surface>('agentid');
+  });
+  it('proxies machine paths to the gateway with ?target and renders the profile otherwise', () => {
+    const mk = (path: string): NextRequest => {
+      const url = new URL(`https://samantha.agent.arp.run${path}`);
+      return { nextUrl: { clone: () => new URL(url.toString()) } } as unknown as NextRequest;
+    };
+    const wk = rewriteForMirror(mk('/.well-known/did.json'), 'samantha.agent.arp.run');
+    expect(wk?.headers.get('x-middleware-rewrite')).toBe(
+      'https://gateway.arp.run/.well-known/did.json?target=samantha.agent',
+    );
+    const rep = rewriteForMirror(mk('/representation.jwt?v=1'), 'samantha.agent.arp.run');
+    expect(rep?.headers.get('x-middleware-rewrite')).toBe(
+      'https://gateway.arp.run/representation.jwt?v=1&target=samantha.agent',
+    );
+    const root = rewriteForMirror(mk('/'), 'samantha.agent.arp.run');
+    expect(root?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agent.arp.run/agentid/samantha');
+    const other = rewriteForMirror(mk('/anything/else?x=1'), 'ian.samantha.agent.arp.run');
+    expect(other?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agent.arp.run/agentid/samantha');
+    expect(rewriteForMirror(mk('/'), 'agent.arp.run')).toBeNull();
   });
 });
