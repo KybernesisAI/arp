@@ -22,11 +22,27 @@ interface EnvShape {
 
 let cached: EnvShape | null = null;
 
+/**
+ * Session-cookie HMAC secret. Fails closed on production deployments: an
+ * unset secret used to silently fall back to a fixed dev string, which would
+ * let anyone forge session cookies on a misconfigured prod host. Preview /
+ * dev / test keep the fallback so local flows need no setup.
+ */
+function sessionSecret(): string {
+  const value = process.env['ARP_CLOUD_SESSION_SECRET'];
+  if (value && value.length > 0) return value;
+  if (process.env['VERCEL_ENV'] === 'production') {
+    throw new Error(
+      'ARP_CLOUD_SESSION_SECRET must be set on production deployments (refusing insecure default)',
+    );
+  }
+  return 'dev-only-insecure-secret';
+}
+
 export function env(): EnvShape {
   if (cached) return cached;
   cached = {
-    ARP_CLOUD_SESSION_SECRET:
-      process.env['ARP_CLOUD_SESSION_SECRET'] ?? 'dev-only-insecure-secret',
+    ARP_CLOUD_SESSION_SECRET: sessionSecret(),
     ARP_CLOUD_HOST: process.env['ARP_CLOUD_HOST'] ?? 'arp-cloud.vercel.app',
     ARP_CLOUD_WS_PUBLIC_URL:
       process.env['ARP_CLOUD_WS_PUBLIC_URL'] ?? 'ws://localhost:3001/ws',

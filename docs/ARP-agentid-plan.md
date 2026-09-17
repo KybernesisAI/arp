@@ -60,12 +60,12 @@ These are inputs to slice S1/S4/S5, listed so they are not rediscovered:
 - **No outbound send in `@kybernesis/arp-sdk`** (`packages/sdk/src/agent.ts`): library mode can answer but not initiate. Outbound lives only in `arpc` + `cloud-bridge`.
 - **Delivery is WebSocket-only** (`packages/cloud-runtime/src/dispatch.ts`): no push-to-URL / webhook; offline → `queued_no_session`, 7-day expiry. A serverless (Vercel) agent cannot be reached without a daemon. → S4 adds a **push delivery mode** + delivery-target registration.
 - **`SessionRegistry` and `apps/cloud/lib/challenge-store.ts` are in-process Maps** → single-instance only; challenge store already broken on multi-instance Vercel.
-- **Scope catalog reads the filesystem in `apps/cloud/lib/catalog.ts`**; copy the `cloud-runtime` pattern (JSON import + tsup `noExternal`).
+- ~~**Scope catalog reads the filesystem in `apps/cloud/lib/catalog.ts`**~~ → **fixed in S1** (bundled `generated/scopes.json` import, `ARP_SCOPE_CATALOG_DIR` kept as dev override).
 - **Docs oversell the code:** no JWE/encryption (`jose` declared, never imported); no PDP egress re-check; agent card served with `supported_scopes: []` and consumed by nobody but testkit; DID-pinned TLS validators have zero non-test callers; no peer revocation polling; x402 has no settlement code; context-isolation layer is key-partitioning only.
 - **`/response`-typed messages bypass the PDP** in the cloud path (`auto_allow_response`); `drainQueue` redelivers with `obligations: []`.
 - **No replay protection** beyond `UNIQUE(msg_id)`; `created_time` never freshness-checked.
 - **Two incompatible handoff shapes**: spec `HandoffBundleSchema` (no private key) vs the dashboard's download (`agent_private_key_multibase`, unvalidated).
-- **`ARP_CLOUD_SESSION_SECRET` defaults to an insecure string**; self-test writes a placeholder `tokenJws` into a real `connections` row.
+- ~~**`ARP_CLOUD_SESSION_SECRET` defaults to an insecure string**~~ → **fixed in S1** (throws on `VERCEL_ENV=production` when unset; prod has it set). Still open: self-test writes a placeholder `tokenJws` into a real `connections` row.
 - **`arpc` hard-exits on openclaw/hermes** even though SDK adapters exist; two "adapter" concepts share the word.
 - **Cedar schema is decoration** (3 entity types, catalog uses 6+; request validation off).
 - Stale docs: CLAUDE.md §5 says Phase 10 in progress; handoff dated 2026-04-25; ~110 PRs since; PR #35 (v1.0.0) stale since April; KyberBot unification roadmap names the wrong reference implementation.
