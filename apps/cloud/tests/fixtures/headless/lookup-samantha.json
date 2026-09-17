@@ -1,0 +1,91 @@
+{
+ "commerce": null,
+ "domain": {
+  "directory_listed": true,
+  "expiry_date": "2027-04-23T06:47:56.461938",
+  "flag_status": null,
+  "for_sale": null,
+  "grace_ends_at": "2027-06-02T06:47:56.461938",
+  "is_listed": true,
+  "name": "samantha.agent",
+  "registration_date": "2026-04-23T06:47:56.466046",
+  "registry": "Headless Domains",
+  "registry_id": "headlessdomains",
+  "registry_url": "https://headlessdomains.com",
+  "status": "active",
+  "tld": "agent",
+  "updated_at": "2026-09-01T05:35:19.410255"
+ },
+ "identity": {
+  "capabilities_preview": [
+   "general"
+  ],
+  "claim_state": "not_applicable",
+  "commerce": null,
+  "human_backed": true,
+  "squad_id": "powerlobster-squad-ianborders"
+ },
+ "integrations": {
+  "agent_inbox": {
+   "actions_require_owner_approval": null,
+   "enabled": false,
+   "message_class": null,
+   "submission_url": null,
+   "supported": true,
+   "trust_default": null,
+   "url": null
+  },
+  "arp_chat": {
+   "enabled": false,
+   "url": null
+  }
+ },
+ "manifests": {
+  "agent_json": "https://headlessdomains.com/manifests/samantha.agent.json",
+  "skill_md": "https://headlessdomains.com/skills/samantha.agent.md"
+ },
+ "profile": {
+  "_arp": {
+   "owner_label": "owner",
+   "representation_jwt": "eyJhbGciOiJFZERTQSJ9.e30.c2ln"
+  },
+  "agent-manifest": "headlessdomains.com/manifests/samantha.agent.json",
+  "skill-md": "headlessdomains.com/skills/samantha.agent.md",
+  "web_presence": {
+   "dns_status": "added",
+   "edge_ip": "134.209.111.52",
+   "edge_ips": [
+    "134.209.111.52"
+   ],
+   "enabled_at": "2026-05-29T05:00:30.509399Z",
+   "fallback_url": "https://profiles.host.limo/samantha.agent",
+   "mode": "profile_default",
+   "native_hns_https": {
+    "certificate_model": "self_signed_per_domain",
+    "certificate_valid_from": "Sep  1 05:19:35 2026 GMT",
+    "certificate_valid_to": "Aug 29 05:19:35 2036 GMT",
+    "managed": true,
+    "metadata_synced_at": "2026-09-01T05:34:42Z",
+    "source": "host-limo-profile-edge",
+    "status": "active",
+    "tlsa_matching_type": 1,
+    "tlsa_name": "_443._tcp.samantha.agent",
+    "tlsa_record": {
+     "content": "3 1 1 9aea6a85de9bfae72328263899eb9ff65e2f045f556b0f325a1cda8ad9605ea3",
+     "name": "_443._tcp.samantha.agent",
+     "spki_sha256": "9aea6a85de9bfae72328263899eb9ff65e2f045f556b0f325a1cda8ad9605ea3",
+     "type": "TLSA"
+    },
+    "tlsa_selector": 1,
+    "tlsa_spki_sha256": "9aea6a85de9bfae72328263899eb9ff65e2f045f556b0f325a1cda8ad9605ea3",
+    "tlsa_usage": 3,
+    "validated_at": "2026-06-07T11:58:07.313660Z",
+    "validated_by": [
+     "skyinclude-browser"
+    ]
+   },
+   "provider": "host_limo"
+  }
+ },
+ "status": "success"
+}

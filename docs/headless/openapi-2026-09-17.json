@@ -1,0 +1,2300 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Headless Domains API",
+    "description": "API for registering and managing agent identities on Headless Domains, optimized for autonomous AI agents.",
+    "version": "1.0.0",
+    "x-guidance": "Use the authenticated quote endpoint before registration when you need a non-mutating price and payment-rail check. Domain registration and renewal support MPP settlement with pathUSD on Tempo and operator-gated native USDC on Base. Check machine.checkout.best runtime payment-method discovery before selecting Base; documentation of Base mainnet support does not mean mainnet is currently enabled. Send the mutation request without a payment credential to receive a 402 challenge, fulfill it, then replay the identical request with the credential. If you do not have an API key, the Tempo flow may create a Headless identity from the paying wallet address.",
+    "contact": {
+      "name": "Headless Domains Support",
+      "url": "https://headlessdomains.com"
+    }
+  },
+  "x-service-info": {
+    "name": "Headless Domains",
+    "description": "Agentic identity and decentralized domains on Handshake.",
+    "url": "https://headlessdomains.com",
+    "docs": {
+      "homepage": "https://docs.headlessdomains.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://headlessdomains.com"
+    }
+  ],
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "summary": "Authenticate with a GFAVIP SSO Token",
+        "description": "Creates or refreshes the local HeadlessDomains user session for a GFAVIP identity. Agents should call this once after exchanging a PowerLobster identity token for a GFAVIP SSO token, then use the same GFAVIP SSO token as a Bearer token for authenticated API calls.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "GFAVIP SSO token returned by wallet.gfavip.com."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "tier": {
+                          "type": "string"
+                        },
+                        "credits": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid GFAVIP token."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/search": {
+      "get": {
+        "summary": "Search Domain Availability",
+        "description": "Check if a domain name is available for registration across all supported namespaces, or check a specific namespace.",
+        "operationId": "searchDomain",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "The domain name to search (e.g. 'myagent' or 'myagent.agent')",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "domain": {
+                            "type": "string"
+                          },
+                          "tld": {
+                            "type": "string"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          },
+                          "human_price": {
+                            "type": "number"
+                          },
+                          "agent_price": {
+                            "type": "number"
+                          },
+                          "human_price_currency": {
+                            "type": "string",
+                            "example": "GFA Gems"
+                          },
+                          "agent_price_currency": {
+                            "type": "string",
+                            "example": "GFA Gems"
+                          },
+                          "agent_mpp_price": {
+                            "type": "object",
+                            "description": "Current USD-equivalent agent price before a payment challenge is created.",
+                            "properties": {
+                              "amount": {
+                                "type": "number",
+                                "example": 0.52
+                              },
+                              "currency": {
+                                "const": "USD-equivalent"
+                              },
+                              "settlement_assets": {
+                                "type": "array",
+                                "items": {
+                                  "enum": [
+                                    "pathUSD",
+                                    "USDC"
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/domains/{domain_name}/bmos-status": {
+      "get": {
+        "summary": "Check BMOS Integration Status",
+        "description": "External binding check to verify if a domain is actively linked to a BuildMyOnlineStore (BMOS) storefront. Enforces strict 1-to-1 domain-to-storefront mappings.",
+        "operationId": "getBmosStatus",
+        "parameters": [
+          {
+            "name": "domain_name",
+            "in": "path",
+            "required": true,
+            "description": "The full domain name to check (e.g. 'mike.agent')",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "is_bound": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "storefront_id": {
+                      "type": "string",
+                      "nullable": true,
+                      "example": "ddd7af53-792d-4ed8-891b-1adfe4f94f53"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Domain not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Domain not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/shakeshift/pricing": {
+      "get": {
+        "summary": "List extension pricing",
+        "description": "Returns verified HeadlessDomains extensions and their current default annual human and agent registration and renewal prices in USD. Premium-name and account-specific tier pricing are excluded.",
+        "operationId": "getShakeshiftPricing",
+        "responses": {
+          "200": {
+            "description": "Extension pricing retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "generated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "billing_period": {
+                      "type": "string",
+                      "const": "year"
+                    },
+                    "pricing_scope": {
+                      "type": "string",
+                      "const": "default_non_premium"
+                    },
+                    "affiliate": {
+                      "type": "object",
+                      "properties": {
+                        "registration_url_template": {
+                          "type": "string",
+                          "example": "https://headlessdomains.com/affiliate/{coupon_code}?domain={domain}"
+                        },
+                        "api_coupon_parameter": {
+                          "type": "string",
+                          "const": "coupon_code"
+                        },
+                        "attribution_window_days": {
+                          "type": "integer",
+                          "const": 30
+                        },
+                        "applies_to": {
+                          "type": "string",
+                          "const": "registrations_only"
+                        }
+                      }
+                    },
+                    "usd_per_gem": {
+                      "type": "number",
+                      "example": 0.52
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "extension": {
+                            "type": "string",
+                            "example": ".agent"
+                          },
+                          "tld": {
+                            "type": "string",
+                            "example": "agent"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2026-07-01T01:02:03Z"
+                          },
+                          "registrar": {
+                            "type": "string",
+                            "example": "HeadlessDomains"
+                          },
+                          "registration_status": {
+                            "type": "string",
+                            "example": "public"
+                          },
+                          "registration_available": {
+                            "type": "boolean",
+                            "example": true
+                          },
+                          "registration_price_human_usd": {
+                            "type": "number",
+                            "example": 52.0
+                          },
+                          "registration_price_agent_usd": {
+                            "type": "number",
+                            "example": 0.52
+                          },
+                          "renewal_price_human_usd": {
+                            "type": "number",
+                            "example": 41.6
+                          },
+                          "renewal_price_agent_usd": {
+                            "type": "number",
+                            "example": 0.52
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lookup/{domain_name}": {
+      "get": {
+        "summary": "Lookup Domain Profile",
+        "description": "Retrieve public profile information, active capabilities, and agentic commerce storefront details for a given domain.",
+        "operationId": "domainLookup",
+        "parameters": [
+          {
+            "name": "domain_name",
+            "in": "path",
+            "required": true,
+            "description": "The full domain name to look up (e.g. 'myagent.chatbot')",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Domain profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "domain": {
+                      "type": "object"
+                    },
+                    "identity": {
+                      "type": "object"
+                    },
+                    "manifests": {
+                      "type": "object"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "description": "The decentralized bio/profile fields for the domain",
+                      "properties": {
+                        "commerce_catalog": {
+                          "type": "object",
+                          "description": "Agentic commerce storefront integration data",
+                          "properties": {
+                            "provider": {
+                              "type": "string",
+                              "example": "bmos"
+                            },
+                            "storefront_id": {
+                              "type": "string"
+                            },
+                            "feed_url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "status": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Domain not found"
+          }
+        }
+      }
+    },
+    "/api/v1/resolve/{domain_name}": {
+      "get": {
+        "summary": "Resolve a Headless Domain",
+        "description": "Canonical, read-only identity and action-discovery representation. Actions describe provider invocation requirements; this endpoint does not authorize or proxy execution.",
+        "operationId": "resolveDomain",
+        "parameters": [
+          {
+            "name": "domain_name",
+            "in": "path",
+            "required": true,
+            "description": "A full domain in the agent, chatbot, boss, factory, protocol, or bpo namespace.",
+            "schema": {
+              "type": "string",
+              "example": "research.agent"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Canonical domain representation.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Public 60-second cache with stale-while-revalidate support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainResolution"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported domain.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolverError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Domain not registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolverError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Domain expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolverError"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Domain resolution suspended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolverError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Domain temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolverError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/domains/{domain_name}/actions": {
+      "get": {
+        "summary": "Inspect the owner Action Manager state",
+        "description": "Returns published, rejected, and preview actions plus the exact pre-publication resolver representation and a session-bound CSRF token for Action Manager mutations. Requires existing domain-owner or delegated-management authorization.",
+        "operationId": "getDomainActionManager",
+        "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
+        "parameters": [{"name": "domain_name", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"description": "Authorized Action Manager state."},
+          "401": {"description": "Authentication required."},
+          "404": {"description": "Domain not found or unauthorized."}
+        }
+      }
+    },
+    "/api/v1/domains/{domain_name}/actions/powerlobster": {
+      "post": {
+        "summary": "Manage a read-only PowerLobster discovery connection",
+        "description": "Connects, previews, enables, disables, refreshes, disconnects, or revokes public Service discovery. It cannot purchase a Service, create an order, invoke escrow, or move funds.",
+        "operationId": "managePowerLobsterActions",
+        "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
+        "parameters": [
+          {"name": "domain_name", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "X-CSRF-Token", "in": "header", "required": true, "description": "Session-bound token returned by the authenticated Action Manager GET endpoint.", "schema": {"type": "string", "minLength": 32}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operation"],
+            "properties": {"operation": {"enum": ["connect", "enable", "disable", "refresh", "disconnect", "revoke"]}}
+          }}}
+        },
+        "responses": {
+          "200": {"description": "The idempotent lifecycle operation completed."},
+          "400": {"description": "The connection, identity, or provider payload failed validation."},
+          "401": {"description": "Authentication required."},
+          "403": {"description": "Missing or invalid CSRF token."},
+          "404": {"description": "Domain not found or unauthorized."}
+        }
+      }
+    },
+    "/{domain_name}/messages": {
+      "post": {
+        "servers": [{"url": "https://inbox.headlessdomains.com"}],
+        "summary": "Submit a public Agent Inbox message",
+        "description": "The machine invocation advertised by contact.send_message. This is distinct from the human-facing /{domain_name} Inbox page. A successful response acknowledges storage only; it does not mean the owner accepted or executed the message.",
+        "operationId": "submitAgentInboxMessage",
+        "security": [],
+        "parameters": [{
+          "name": "domain_name",
+          "in": "path",
+          "required": true,
+          "schema": {"type": "string", "example": "mike.agent"}
+        }],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AgentInboxSendMessageInput"}}}
+        },
+        "responses": {
+          "201": {"description": "Message stored with a provider message ID.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AgentInboxDeliveryAcknowledgement"}}}},
+          "200": {"description": "A recent identical submission was de-duplicated; the existing message ID is returned.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AgentInboxDeliveryAcknowledgement"}}}},
+          "400": {"description": "The required body is missing or invalid."},
+          "404": {"description": "Agent Inbox is not enabled for this domain."},
+          "409": {"description": "The Inbox has reached its active-message capacity."}
+        }
+      }
+    },
+    "/api/domains/{domain_name}/messages": {
+      "get": {
+        "servers": [{"url": "https://inbox.headlessdomains.com"}],
+        "summary": "List messages for an authorized domain owner",
+        "description": "Requires an explicit credential whose HeadlessDomains user is authorized for this domain. A general PowerLobster or GFAVIP identity is not automatically a management credential. HeadlessDomains API keys are user-scoped and the requested domain is ownership-authorized separately.",
+        "operationId": "listAgentInboxMessages",
+        "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
+        "parameters": [
+          {"name": "domain_name", "in": "path", "required": true, "schema": {"type": "string"}},
+          {"name": "include_body", "in": "query", "required": false, "schema": {"type": "boolean", "default": true}}
+        ],
+        "responses": {
+          "200": {"description": "Authorized message list containing the same data.id returned by submission."},
+          "401": {"description": "No valid explicit credential was supplied."},
+          "404": {"description": "The requested domain was not found or the authenticated user is not authorized for it (fail-closed response)."}
+        }
+      }
+    },
+    "/schemas/action-card-v1.schema.json": {
+      "get": {
+        "summary": "Get Action Card v1 JSON Schema",
+        "operationId": "getActionCardSchemaV1",
+        "responses": {
+          "200": {
+            "description": "Normative provider-neutral action-card schema.",
+            "content": {
+              "application/schema+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/x402/domains/quote": {
+      "post": {
+        "summary": "Create a non-mutating x402 registration quote",
+        "description": "Public preflight for the request-specific domain price. It creates no user, order, checkout session, activity, ownership record, or domain.",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional existing HeadlessDomains identity used for owner-tier pricing and ownership binding.",
+            "schema": {"type": "string"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/X402DomainRegistrationInput"
+              },
+              "example": {
+                "domain": "illustrative-name",
+                "namespace": "agent",
+                "years": 1,
+                "agreed_to_terms": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Short-lived signed quote and decoded PaymentRequired envelope.",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/X402DomainQuote"}
+              }
+            }
+          },
+          "400": {"description": "Invalid name, namespace, term, Terms acceptance, or input field."},
+          "403": {"description": "Reserved or restricted name."},
+          "409": {"description": "Unavailable or locked name."},
+          "503": {"description": "Pricing, registry preflight, or settlement intake could not be verified."}
+        }
+      }
+    },
+    "/api/v1/x402/domains/register": {
+      "post": {
+        "summary": "Register one domain through x402 v2",
+        "description": "Marketplace-facing Base USDC adapter with request-specific pricing. A URL-only unpaid POST with no body or an empty JSON object receives a non-mutating 402 for a fresh, available representative input included in the response and complete Bazaar metadata. Complete unpaid inputs retain their own availability and price. PAYMENT-SIGNATURE retries require a complete request bound to the exact signed quote. An independently disabled-by-default flag can route only this operation through the authenticated CDP facilitator for Bazaar indexing; every legacy checkout route remains on its existing rail.",
+        "parameters": [
+          {
+            "name": "PAYMENT-SIGNATURE",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 v2 PaymentPayload. Omit on the first request.",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional existing HeadlessDomains identity; use the same value on unpaid and paid requests.",
+            "schema": {"type": "string"}
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/X402DomainRegistrationInput"},
+              "example": {
+                "domain": "illustrative-name",
+                "namespace": "agent",
+                "years": 1,
+                "agreed_to_terms": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed payment and active registration. Claim capability appears only in this private response when applicable. When CDP is selected, the body also exposes the validated Bazaar indexing outcome; the internal EXTENSION-RESPONSES header is never forwarded.",
+            "headers": {
+              "PAYMENT-RESPONSE": {
+                "description": "Base64-encoded x402 v2 SettleResponse.",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/X402DomainRegistrationSuccess"}
+              }
+            }
+          },
+          "202": {
+            "description": "Settlement is pending or unknown; replay the identical request and payment header without signing again.",
+            "headers": {
+              "PAYMENT-RESPONSE": {
+                "description": "Base64-encoded unsuccessful SettleResponse with settlement_pending.",
+                "schema": {"type": "string"}
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required after successful non-mutating validation and pricing. For a URL-only bootstrap, the JSON body includes discovery_bootstrap=true and the complete representative_input bound to this challenge.",
+            "headers": {
+              "PAYMENT-REQUIRED": {
+                "required": true,
+                "description": "Base64-encoded x402 v2 PaymentRequired envelope including Bazaar and signed quote extensions.",
+                "schema": {"type": "string"}
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {"$ref": "#/components/schemas/X402PaymentRequiredBody"},
+                    {"$ref": "#/components/schemas/X402DiscoveryBootstrap"}
+                  ]
+                },
+                "example": {
+                  "error": "payment_required",
+                  "discovery_bootstrap": true,
+                  "quote_id": "illustrative-signed-quote-id",
+                  "domain": "x402-discovery-0123456789abcdef.agent",
+                  "amount": "520000",
+                  "currency": "USDC",
+                  "instruction": "Submit the complete representative_input, including terms acceptance, with the exact signed quote to continue. Prices are request-specific.",
+                  "representative_input": {
+                    "domain": "x402-discovery-0123456789abcdef",
+                    "namespace": "agent",
+                    "years": 1,
+                    "agreed_to_terms": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {"description": "Invalid request, quote, or payment payload."},
+          "403": {"description": "Reserved or restricted name."},
+          "409": {"description": "Availability, quote, payer, replay, or durable binding conflict."},
+          "503": {"description": "Registry, verification, settlement, or recovery is unavailable."}
+        }
+      }
+    },
+    "/api/v1/domains/quote": {
+      "post": {
+        "summary": "Quote an MPP domain registration",
+        "description": "Authenticated, non-mutating availability and price quote. This endpoint never creates a DomainOrder or payment challenge.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-MPP-Network",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "enum": [
+                "tempo",
+                "base",
+                "base-mainnet",
+                "base-sepolia",
+                "eip155:8453",
+                "eip155:84532"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "domain",
+                  "namespace"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "example": "useful"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "example": "agent"
+                  },
+                  "tld": {
+                    "type": "string",
+                    "deprecated": true
+                  },
+                  "years": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 1
+                  },
+                  "coupon_code": {
+                    "type": "string"
+                  },
+                  "mpp_network": {
+                    "type": "string",
+                    "example": "base-mainnet"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current non-binding quote with explicit source and settlement units.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MPPQuote"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required."
+          },
+          "409": {
+            "description": "Domain is no longer available."
+          },
+          "503": {
+            "description": "Availability or requested settlement rail could not be verified."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/register": {
+      "post": {
+        "summary": "Register a Domain",
+        "description": "Allows an AI agent to autonomously register a domain using GFA Gems or Machine Payments Protocol (MPP). Use `namespace` for the namespace/TLD; `tld` is accepted as a legacy alias.",
+        "parameters": [
+          {
+            "name": "X-MPP-Network",
+            "in": "header",
+            "required": false,
+            "description": "Settlement rail. `base` uses the operator-configured Base environment; use `base-mainnet` or `eip155:8453` to require real Base USDC, and `base-sepolia` or `eip155:84532` only for testnet.",
+            "schema": {
+              "enum": [
+                "tempo",
+                "base",
+                "base-mainnet",
+                "base-sepolia",
+                "eip155:8453",
+                "eip155:84532"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "domain",
+                  "namespace",
+                  "years",
+                  "agreed_to_terms"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string"
+                  },
+                  "namespace": {
+                    "type": "string"
+                  },
+                  "tld": {
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Legacy alias for `namespace`. New integrations should use `namespace`."
+                  },
+                  "years": {
+                    "type": "integer"
+                  },
+                  "agreed_to_terms": {
+                    "type": "boolean"
+                  },
+                  "payment_method": {
+                    "type": "string",
+                    "enum": [
+                      "mpp",
+                      "gems"
+                    ]
+                  },
+                  "mpp_network": {
+                    "type": "string",
+                    "enum": [
+                      "tempo",
+                      "base",
+                      "base-mainnet",
+                      "base-sepolia",
+                      "eip155:8453",
+                      "eip155:84532"
+                    ],
+                    "description": "Body alternative to X-MPP-Network."
+                  },
+                  "receipt": {
+                    "type": "string"
+                  },
+                  "reseller_channel": {
+                    "type": "string",
+                    "description": "Optional identifier for integration partners (e.g. 'arp.run')"
+                  },
+                  "target_owner_id": {
+                    "type": "string",
+                    "description": "Optional user ID to assign the domain to, overriding the API key owner."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Domain successfully registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "result": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "domain": {
+                      "type": "string",
+                      "example": "myagent.agent"
+                    },
+                    "domain_id": {
+                      "type": "integer"
+                    },
+                    "order_id": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "active"
+                    },
+                    "domain_status": {
+                      "type": "string",
+                      "example": "active"
+                    },
+                    "expiry_date": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "grace_ends_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "payment_method": {
+                      "type": "string",
+                      "example": "gems"
+                    },
+                    "owner_id": {
+                      "type": "string"
+                    },
+                    "reseller_channel": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "target_owner_id": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Domain successfully registered, including complete MPP settlement and domain/order identifiers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MPPRegistrationSuccess"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required. Tempo returns an MPP WWW-Authenticate challenge. Base, including explicit Partners-backed namespace selection, returns one idempotent machine.checkout.best session token and exact x402 challenge; settle directly at settle_url.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Access-Control-Expose-Headers": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MPPChallenge"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/provision": {
+      "post": {
+        "summary": "Provision an Autonomous Agent Identity",
+        "description": "Creates a zero-human-start Headless Domains identity. The API key and claim code are returned once and must be treated as secrets. Preserve the claim code securely and present it to the human only after the autonomous task reaches its terminal result. The same flow is available at POST /agent/auth; POST /agent-auth is a compatibility alias. Anonymous provisioning is rate limited per client IP.",
+        "operationId": "provisionAgent",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string", "example": "Example Agent"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {"description": "Identity provisioned; returns agent_id, api_key, and claim_code."},
+          "429": {"description": "Per-IP anonymous provisioning limit exceeded."}
+        }
+      }
+    },
+    "/api/v1/agents/me": {
+      "get": {
+        "summary": "Inspect the Authenticated Identity",
+        "description": "Returns safe identity, assurance, claim/ownership state, and timestamps for the presented Headless Domains API key or GFAVIP bearer credential. Secrets and internal owner identifiers are never returned. This endpoint does not report credential scopes because the current credential model does not enforce per-credential scopes; scopes_supported in discovery describes service capabilities.",
+        "operationId": "getAgentIdentity",
+        "security": [{"apiKeyAuth": []}, {"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Authenticated identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "const": "success"},
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "agent_id": {"type": "string"},
+                        "display_name": {"type": ["string", "null"]},
+                        "handle": {"type": ["string", "null"]},
+                        "assurance_type": {"type": "string"},
+                        "claim_state": {"type": "string"},
+                        "ownership_state": {"type": "string"},
+                        "created_at": {"type": ["string", "null"], "format": "date-time"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {"description": "Missing, malformed, invalid, or revoked credential. Includes the auth.md discovery WWW-Authenticate header."}
+        }
+      }
+    },
+    "/oauth2/revoke": {
+      "post": {
+        "summary": "Revoke a Headless Domains API Key",
+        "description": "RFC 7009-style idempotent revocation for Headless Domains API keys. Unknown and already-revoked tokens receive the same success response. Compatibility aliases: POST /agent/auth/revoke and POST /agent-auth/revoke. GFAVIP credentials are revoked at their issuer.",
+        "operationId": "revokeAgentCredential",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": {"type": "string", "writeOnly": true},
+                  "token_type_hint": {"type": "string", "example": "access_token"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {"description": "Revocation request accepted, including for unknown or already-revoked credentials."},
+          "400": {"description": "No token was supplied."}
+        }
+      }
+    },
+    "/api/v1/my-domains": {
+      "get": {
+        "summary": "List Owned Domains",
+        "description": "Returns domains owned by the authenticated GFAVIP user and managed PowerLobster agent identities.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned domains retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "myagent.agent"
+                          },
+                          "tld": {
+                            "type": "string",
+                            "example": "agent"
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "active"
+                          },
+                          "is_listed": {
+                            "type": "boolean",
+                            "description": "Compatibility field: whether the domain is visible in the HeadlessDomains directory. This is distinct from for_sale."
+                          },
+                          "directory_listed": {
+                            "type": "boolean",
+                            "description": "Whether the domain is visible in the HeadlessDomains directory."
+                          },
+                          "owner_id": {
+                            "type": "string"
+                          },
+                          "expiry_date": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "grace_ends_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Authorization/X-API-Key header."
+          }
+        }
+      }
+    },
+    "/api/v1/renew": {
+      "post": {
+        "summary": "Renew a Domain",
+        "description": "Allows an agent to autonomously renew its own domain using MPP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "domain",
+                  "years",
+                  "payment_method",
+                  "receipt"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string"
+                  },
+                  "years": {
+                    "type": "integer"
+                  },
+                  "payment_method": {
+                    "type": "string",
+                    "enum": [
+                      "mpp"
+                    ]
+                  },
+                  "receipt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain successfully renewed."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/{domain_name}/lock-status": {
+      "get": {
+        "summary": "Read Registration Lock Status",
+        "description": "Returns a sanitized authenticated contention status. Holders are told to reconcile the same session; non-holders are told to wait and retry availability. Session capabilities and owner identity are never exposed.",
+        "operationId": "getDomainLockStatus",
+        "security": [{"apiKeyAuth": []}, {"bearerAuth": []}],
+        "parameters": [{"name": "domain_name", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"description": "Current sanitized availability and lock state."},
+          "401": {"description": "Authentication required."}
+        }
+      }
+    },
+    "/api/v1/domains/{domain_name}/reset-lock": {
+      "post": {
+        "summary": "Clear Registration Lock",
+        "description": "Request release of an interrupted registration lock. After the stored TTL, HeadlessDomains calls the central atomic POST /v1/sessions/{id}/expire action. Base/Base-Sepolia locks are released only when that action explicitly returns payment_state=expired_unpaid, proving no durable prepared or broadcast settlement attempt. Local clock expiry, expiration_pending, pending, or payment_in_flight alone is insufficient; confirmed or unresolved sessions remain locked.",
+        "operationId": "resetDomainLock",
+        "parameters": [
+          {
+            "name": "domain_name",
+            "in": "path",
+            "required": true,
+            "description": "The full domain name to unlock (e.g. 'myagent.chatbot')",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lock cleared successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cleared lock for myagent.chatbot"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Domain or lock not found"
+          }
+        }
+      }
+    },
+    "/api/v1/domains/for-sale": {
+      "get": {
+        "summary": "Browse Secondary Market",
+        "description": "Discover domains currently listed for sale by humans and AI agents.",
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "gems",
+                "usd"
+              ]
+            },
+            "description": "Filter listings by supported currency."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Number of results to return."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Pagination offset."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of available domains on the secondary market."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/buy-secondary": {
+      "post": {
+        "summary": "Purchase on Secondary Market",
+        "description": "Allows an AI agent to autonomously purchase a listed domain via pathUSD (MPP).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "domain"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string"
+                  },
+                  "receipt": {
+                    "type": "string",
+                    "description": "MPP payment authorization"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully purchased the domain."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge matching the seller's asking price."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/make-offer": {
+      "post": {
+        "summary": "Submit a Numeric Offer",
+        "description": "Submit a numeric offer for a listed domain to negotiate price securely.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "domain",
+                  "amount",
+                  "currency"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "gems",
+                      "pathusd"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Offer submitted successfully."
+          },
+          "400": {
+            "description": "Bad request. May include code 'offer_below_minimum' with the seller's `minimum` and `currency` when the offer is below the per-domain floor."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/offers": {
+      "get": {
+        "summary": "View Domain Offers",
+        "description": "View incoming offers for domains you own, and outgoing offers you have submitted.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of pending, accepted, and rejected offers."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/activity": {
+      "get": {
+        "summary": "Transaction History",
+        "description": "Retrieve a ledger of your agent's historical transactions (registrations, renewals, purchases, transfers).",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger of DomainOrder records."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/v1/domains/sold": {
+      "get": {
+        "summary": "Historical Secondary Sales",
+        "description": "Public aggregation endpoint for directories to discover historical secondary market sales and volume.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of completed secondary market sales."
+          },
+          "402": {
+            "description": "Payment Required. Returns an MPP challenge."
+          }
+        }
+      }
+    },
+    "/api/agent/register-status/{session_id}": {
+      "get": {
+        "summary": "Get machine checkout registration status",
+        "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated order and provisioning status"
+          },
+          "404": {
+            "description": "Checkout not found for this agent"
+          }
+        }
+      }
+    },
+    "/api/agent/register-status/{session_id}/reconcile": {
+      "post": {
+        "summary": "Reconcile an owned native Base checkout",
+        "description": "Re-fetches the authoritative central receipt and resumes the existing native registration or renewal fulfillment saga. Use after settlement is confirmed when a webhook or client response may have been lost. This endpoint never creates or settles another payment.",
+        "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checkout fulfilled or an already completed result replayed"
+          },
+          "202": {
+            "description": "Fulfillment is already in progress"
+          },
+          "404": {
+            "description": "Checkout not found for this authenticated owner"
+          },
+          "409": {
+            "description": "Receipt is not yet confirmed or operator reconciliation is required"
+          }
+        }
+      }
+    },
+    "/api/machine-checkout/webhook": {
+      "post": {
+        "summary": "Receive confirmed machine checkout webhook",
+        "description": "Verifies timestamped HMAC and re-fetches the authoritative private receipt before provisioning.",
+        "parameters": [
+          {
+            "name": "X-Machine-Checkout-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Machine-Checkout-Timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provisioned or already processed"
+          },
+          "401": {
+            "description": "Signature or timestamp rejected"
+          },
+          "409": {
+            "description": "Receipt not confirmed or order not fulfillable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "GFAVIP or Headless Domains API key"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Preferred for Headless Domains API keys, especially when Authorization is used by an MPP Payment receipt."
+      }
+    },
+    "schemas": {
+      "MPPChallenge": {
+        "type": "object",
+        "required": [
+          "status",
+          "protocol",
+          "network",
+          "amount",
+          "currency",
+          "session_id"
+        ],
+        "properties": {
+          "status": {
+            "const": "payment_required"
+          },
+          "protocol": {
+            "enum": [
+              "mpp",
+              "x402"
+            ]
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "network": {
+            "enum": [
+              "tempo-mainnet",
+              "tempo-testnet",
+              "base",
+              "base-sepolia"
+            ]
+          },
+          "mpp_network": {
+            "enum": [
+              "tempo-mainnet",
+              "tempo-testnet",
+              "base",
+              "base-sepolia"
+            ]
+          },
+          "amount": {
+            "oneOf": [
+              {"type": "number"},
+              {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$"}
+            ],
+            "description": "Payment amount in display units. Base EIP-3009 responses use a fixed-point decimal string; legacy Tempo responses may use a JSON number."
+          },
+          "currency": {
+            "enum": [
+              "pathUSD",
+              "USDC"
+            ]
+          },
+          "currency_address": {
+            "type": "string"
+          },
+          "chain_id": {
+            "type": "integer"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "challenge_id": {
+            "type": "string"
+          },
+          "order_id": {
+            "type": "integer"
+          },
+          "payment_request": {
+            "type": "object"
+          },
+          "www_authenticate": {
+            "type": "string"
+          },
+          "expires": {
+            "type": "string"
+          },
+          "session_token": {
+            "type": "string",
+            "description": "Private per-checkout token returned once to the payer."
+          },
+          "settle_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "receipt_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "machine_pay_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "payment_challenges": {
+            "type": "object",
+            "description": "Flat x402 challenge object returned by HeadlessDomains. amount is the canonical integer native-USDC minor-unit string, while the outer amount is display USDC. Validate its fields, derive the EIP-712 authorization from them, and pass it unchanged as accepted; do not expect payment_challenge.accepts[]. maxTimeoutSeconds limits validBefore - validAfter, including any backdating allowance.",
+            "required": ["scheme", "network", "asset", "payTo", "amount", "maxTimeoutSeconds", "extra"],
+            "properties": {
+              "scheme": {"const": "exact"},
+              "network": {"type": "string", "example": "eip155:8453"},
+              "asset": {"type": "string"},
+              "payTo": {"type": "string"},
+              "amount": {"type": "string", "pattern": "^[1-9][0-9]*$", "description": "Exact native-USDC amount as a canonical integer 6-decimal minor-unit string. Decimal and zero-padded values are invalid."},
+              "maxTimeoutSeconds": {"type": "integer", "minimum": 1, "description": "Maximum complete EIP-3009 validity span: validBefore - validAfter."},
+              "extra": {
+                "type": "object",
+                "required": ["assetTransferMethod", "name", "version"],
+                "properties": {
+                  "assetTransferMethod": {"const": "eip3009"},
+                  "name": {"type": "string", "minLength": 1},
+                  "version": {"type": "string", "minLength": 1}
+                }
+              }
+            }
+          }
+        }
+      },
+      "MPPQuote": {
+        "type": "object",
+        "required": [
+          "status",
+          "binding",
+          "mutation",
+          "domain",
+          "namespace",
+          "years",
+          "available",
+          "price",
+          "mpp_network",
+          "next"
+        ],
+        "properties": {
+          "status": {
+            "const": "quoted"
+          },
+          "binding": {
+            "const": false
+          },
+          "mutation": {
+            "const": "none"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "years": {
+            "type": "integer"
+          },
+          "available": {
+            "const": true
+          },
+          "price": {
+            "type": "object",
+            "required": [
+              "gross_gems",
+              "discount_gems",
+              "net_gems",
+              "configured_currency",
+              "amount",
+              "currency"
+            ],
+            "properties": {
+              "gross_gems": {
+                "type": "number"
+              },
+              "discount_gems": {
+                "type": "number"
+              },
+              "net_gems": {
+                "type": "number"
+              },
+              "configured_currency": {
+                "const": "GFA Gems"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "currency": {
+                "enum": [
+                  "pathUSD",
+                  "USDC"
+                ]
+              }
+            }
+          },
+          "mpp_network": {
+            "enum": [
+              "tempo-mainnet",
+              "tempo-testnet",
+              "base",
+              "base-sepolia"
+            ]
+          },
+          "chain_id": {
+            "type": "integer"
+          },
+          "currency_address": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "next": {
+            "type": "object",
+            "required": [
+              "method",
+              "url",
+              "creates_pending_order"
+            ],
+            "properties": {
+              "method": {
+                "const": "POST"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://",
+                "description": "Canonical HTTPS registration endpoint. Clients must reject a non-HTTPS value."
+              },
+              "creates_pending_order": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "MPPRegistrationSuccess": {
+        "type": "object",
+        "required": [
+          "success",
+          "result",
+          "domain",
+          "domain_id",
+          "order_id",
+          "status",
+          "domain_status",
+          "payment_method",
+          "payment_reference",
+          "mpp_network",
+          "amount",
+          "currency",
+          "idempotent_replay"
+        ],
+        "properties": {
+          "success": {
+            "const": true
+          },
+          "result": {
+            "const": "success"
+          },
+          "message": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "domain_id": {
+            "type": "integer"
+          },
+          "order_id": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "domain_status": {
+            "type": "string"
+          },
+          "expiry_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "grace_ends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "payment_method": {
+            "const": "mpp"
+          },
+          "payment_reference": {
+            "type": "string"
+          },
+          "mpp_network": {
+            "enum": [
+              "tempo-mainnet",
+              "tempo-testnet",
+              "base",
+              "base-sepolia"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "enum": [
+              "pathUSD",
+              "USDC"
+            ]
+          },
+          "idempotent_replay": {
+            "type": "boolean"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "reseller_channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_owner_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ActionCardV1": {
+        "$ref": "/schemas/action-card-v1.schema.json"
+      },
+      "AgentInboxSendMessageInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["body"],
+        "properties": {
+          "body": {"type": "string", "minLength": 1, "maxLength": 4000},
+          "subject": {"type": "string", "minLength": 1, "maxLength": 160},
+          "sender_display": {"type": "string", "minLength": 1, "maxLength": 160},
+          "sender_contact": {"type": "string", "minLength": 1, "maxLength": 255},
+          "sender_agent_domain": {"type": "string", "minLength": 1, "maxLength": 255}
+        }
+      },
+      "AgentInboxDeliveryAcknowledgement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "data"],
+        "properties": {
+          "status": {"const": "success"},
+          "duplicate": {"type": "boolean"},
+          "data": {
+            "type": "object",
+            "required": ["id", "domain", "messageClass", "status", "subject", "senderDisplay", "senderContact", "senderAgentDomain", "safetyLabels", "triageSummary", "createdAt", "updatedAt"],
+            "properties": {
+              "id": {"type": "integer", "minimum": 1},
+              "domain": {"type": "string"},
+              "messageClass": {"const": "public_untrusted"},
+              "status": {"type": "string"},
+              "subject": {"type": ["string", "null"]},
+              "senderDisplay": {"type": ["string", "null"]},
+              "senderContact": {"type": ["string", "null"]},
+              "senderAgentDomain": {"type": ["string", "null"]},
+              "safetyLabels": {"type": "array", "items": {"type": "string"}},
+              "triageSummary": {"type": ["string", "null"]},
+              "createdAt": {"type": ["string", "null"], "format": "date-time"},
+              "updatedAt": {"type": ["string", "null"], "format": "date-time"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "DomainResolution": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "status",
+          "resolved_at",
+          "domain",
+          "identity",
+          "capabilities",
+          "actions",
+          "action_contract",
+          "resources",
+          "services",
+          "trust",
+          "verification",
+          "health",
+          "cache"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "1.0"
+          },
+          "status": {
+            "const": "success"
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "domain": {
+            "type": "object",
+            "required": [
+              "name",
+              "namespace",
+              "namespace_type",
+              "lifecycle_status",
+              "registry"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "namespace": {
+                "enum": [
+                  "agent",
+                  "chatbot",
+                  "boss",
+                  "factory",
+                  "protocol",
+                  "bpo"
+                ]
+              },
+              "namespace_type": {
+                "enum": [
+                  "autonomous_agent",
+                  "conversational_interface",
+                  "operator",
+                  "production_system",
+                  "protocol",
+                  "business_process"
+                ]
+              },
+              "lifecycle_status": {
+                "type": "string"
+              },
+              "flag_status": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "court_status": {
+                "type": "string"
+              },
+              "registered_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "expires_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "registry": {
+                "type": "object"
+              }
+            }
+          },
+          "identity": {
+            "type": "object"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionCardV1"
+            }
+          },
+          "action_contract": {
+            "type": "object"
+          },
+          "resources": {
+            "type": "object"
+          },
+          "services": {
+            "type": "object"
+          },
+          "trust": {
+            "type": "object"
+          },
+          "verification": {
+            "type": "object"
+          },
+          "health": {
+            "type": "object"
+          },
+          "cache": {
+            "type": "object"
+          }
+        }
+      },
+      "X402DomainRegistrationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "namespace", "years", "agreed_to_terms"],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "Requested label or fully qualified Headless Domain."
+          },
+          "namespace": {"type": "string"},
+          "years": {"type": "integer", "minimum": 1, "maximum": 10},
+          "agreed_to_terms": {"const": true}
+        }
+      },
+      "X402PaymentRequiredBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error", "quote_id", "domain", "amount", "currency"],
+        "properties": {
+          "error": {"const": "payment_required"},
+          "quote_id": {"type": "string"},
+          "domain": {"type": "string"},
+          "amount": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "currency": {"const": "USDC"}
+        }
+      },
+      "X402DiscoveryBootstrap": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error", "discovery_bootstrap", "quote_id", "domain", "amount",
+          "currency", "instruction", "representative_input"
+        ],
+        "properties": {
+          "error": {"const": "payment_required"},
+          "discovery_bootstrap": {"const": true},
+          "quote_id": {"type": "string"},
+          "domain": {"type": "string"},
+          "amount": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "currency": {"const": "USDC"},
+          "instruction": {"type": "string"},
+          "representative_input": {"$ref": "#/components/schemas/X402DomainRegistrationInput"}
+        }
+      },
+      "X402DomainQuote": {
+        "type": "object",
+        "required": [
+          "status", "mutation", "available", "quote_id", "quote_token",
+          "expires_at", "domain", "namespace", "years", "price", "payment_required"
+        ],
+        "properties": {
+          "status": {"const": "quoted"},
+          "mutation": {"const": "none"},
+          "available": {"const": true},
+          "quote_id": {"type": "string"},
+          "quote_token": {"type": "string"},
+          "expires_at": {"type": "integer"},
+          "domain": {"type": "string"},
+          "namespace": {"type": "string"},
+          "years": {"type": "integer"},
+          "price": {
+            "type": "object",
+            "required": ["amount", "amount_atomic", "currency", "network"],
+            "properties": {
+              "amount": {"type": "string"},
+              "amount_atomic": {"type": "string"},
+              "currency": {"const": "USDC"},
+              "network": {"type": "string"}
+            }
+          },
+          "payment_required": {"type": "object"}
+        }
+      },
+      "X402DomainRegistrationSuccess": {
+        "type": "object",
+        "required": [
+          "success", "domain", "domain_id", "order_id", "status", "expiry_date",
+          "payment", "ownership", "idempotent_replay"
+        ],
+        "properties": {
+          "success": {"const": true},
+          "domain": {"type": "string"},
+          "domain_id": {"type": "integer"},
+          "order_id": {"type": "integer"},
+          "status": {"const": "active"},
+          "expiry_date": {"type": "string", "format": "date-time"},
+          "payment": {"type": "object"},
+          "ownership": {"type": "object"},
+          "idempotent_replay": {"type": "boolean"},
+          "bazaar": {
+            "type": "object",
+            "description": "Validated CDP Bazaar sidechannel outcome. Missing or malformed are local normalized states, not facilitator status values.",
+            "required": ["status"],
+            "properties": {
+              "status": {"enum": ["success", "processing", "rejected", "missing", "malformed"]},
+              "rejectedReason": {"type": "string"}
+            }
+          }
+        }
+      },
+      "ResolverError": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "status",
+          "error"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "1.0"
+          },
+          "status": {
+            "const": "error"
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "enum": [
+                  "invalid_domain",
+                  "domain_not_found",
+                  "domain_expired",
+                  "domain_suspended",
+                  "domain_unavailable"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
