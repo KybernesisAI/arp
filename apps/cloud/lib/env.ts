@@ -18,6 +18,11 @@ interface EnvShape {
   WEBAUTHN_RP_ID: string;
   WEBAUTHN_RP_NAME: string;
   WEBAUTHN_ORIGINS: string[];
+  /** AgentID S2: Headless Domains registrar credentials (master reseller account). */
+  HEADLESS_API_KEY: string | null;
+  HEADLESS_BASE_URL: string;
+  HEADLESS_RESELLER_CHANNEL: string;
+  HEADLESS_WEBHOOK_SECRET: string | null;
 }
 
 let cached: EnvShape | null = null;
@@ -70,6 +75,10 @@ export function env(): EnvShape {
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
+    HEADLESS_API_KEY: process.env['HEADLESS_API_KEY'] ?? null,
+    HEADLESS_BASE_URL: process.env['HEADLESS_BASE_URL'] ?? 'https://headlessdomains.com',
+    HEADLESS_RESELLER_CHANNEL: process.env['HEADLESS_RESELLER_CHANNEL'] ?? 'arp.run',
+    HEADLESS_WEBHOOK_SECRET: process.env['HEADLESS_WEBHOOK_SECRET'] ?? null,
   };
   return cached;
 }
