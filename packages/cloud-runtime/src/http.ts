@@ -21,7 +21,9 @@
 
 import { Hono, type Context } from 'hono';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
-import { toTenantId, withTenant, agents, agentLinks, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
+import { createHash } from 'node:crypto';
+import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
@@ -50,6 +52,8 @@ export interface GatewayHonoOptions {
   mirrorSuffix?: string | null;
   /** AgentID S2: `GET /` on a mirror host 302s to `${profileBase}/<sld>`. */
   profileBase?: string | null;
+  /** AgentID S4: push delivery + agent-API signer; absent = push disabled. */
+  push?: PushContext;
 }
 
 /**
@@ -350,6 +354,101 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     return c.json({ agent_did: auth.agentDid, connections: out });
   });
 
+  // ---------------------------------------------------------------- AgentID S4
+  // JWKS for push tokens (runtimes verify offline; see @kybernesis/identity).
+  app.get('/.well-known/jwks.json', (c) => {
+    if (!opts.push) return c.json({ keys: [] }, 404);
+    return c.newResponse(JSON.stringify(opts.push.signer.jwks), 200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*',
+    });
+  });
+
+  // Agent-API: an attached runtime acts as its cloud-custody identity.
+  // Bearer = agent credential (random token; only the SHA-256 hash is stored).
+  async function agentFromBearer(c: Context): Promise<{ tenantId: string; row: typeof agents.$inferSelect } | null> {
+    const auth = c.req.header('authorization') ?? '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+    if (!token) return null;
+    const cred = await findAgentCredentialByHash(opts.db, createHash('sha256').update(token).digest('hex'));
+    if (!cred) return null;
+    const rows = await opts.db.select().from(agents).where(eq(agents.did, cred.agentDid)).limit(1);
+    const row = rows[0];
+    if (!row || row.tenantId !== cred.tenantId) return null;
+    void touchAgentCredential(opts.db, cred.id).catch(() => undefined);
+    return { tenantId: cred.tenantId, row };
+  }
+
+  app.get('/agent-api/me', async (c) => {
+    const me = await agentFromBearer(c);
+    if (!me) return c.json({ error: 'unauthorized' }, 401);
+    return c.json({ agent_did: me.row.did, name: me.row.agentName, runtime_kind: me.row.runtimeKind });
+  });
+
+  app.get('/agent-api/connections', async (c) => {
+    const me = await agentFromBearer(c);
+    if (!me) return c.json({ error: 'unauthorized' }, 401);
+    const tenantDb = withTenant(opts.db, toTenantId(me.tenantId));
+    const conns = await tenantDb.listConnections({ agentDid: me.row.did, status: 'active' });
+    return c.json({
+      agent_did: me.row.did,
+      connections: conns.map((k) => ({
+        connection_id: k.connectionId,
+        peer_did: k.peerDid,
+        peer_name: k.peerDid.replace(/^did:web:/, '').replace(/\.agent$/, ''),
+        purpose: k.purpose,
+        label: k.label,
+        expires_at: k.expiresAt?.toISOString() ?? null,
+      })),
+    });
+  });
+
+  app.post('/agent-api/send', async (c) => {
+    const me = await agentFromBearer(c);
+    if (!me) return c.json({ error: 'unauthorized' }, 401);
+    if (!opts.push) return c.json({ error: 'push_disabled' }, 503);
+    let body: { peer_did?: string; connection_id?: string; text?: string; thid?: string; wait_ms?: number };
+    try {
+      body = (await c.req.json()) as typeof body;
+    } catch {
+      return c.json({ error: 'bad_json' }, 400);
+    }
+    const text = typeof body.text === 'string' ? body.text : '';
+    if (!text) return c.json({ error: 'bad_request', message: 'text is required' }, 400);
+    const tenantDb = withTenant(opts.db, toTenantId(me.tenantId));
+    const conns = await tenantDb.listConnections({ agentDid: me.row.did, status: 'active' });
+    const conn = conns.find((k) =>
+      body.connection_id ? k.connectionId === body.connection_id : body.peer_did ? k.peerDid === body.peer_did : false,
+    );
+    if (!conn) return c.json({ error: 'no_connection', message: 'No active connection with that peer.' }, 404);
+    const waitMs = Math.min(Math.max(body.wait_ms ?? 120_000, 1_000), 280_000);
+    try {
+      const sent = await sendFromCloudIdentity(opts.push, me.row, {
+        peerDid: conn.peerDid,
+        text,
+        connectionId: conn.connectionId,
+        ...(body.thid ? { thid: body.thid } : {}),
+      });
+      const fwd = sent.forwarded as { ok?: boolean; decision?: string; reason?: string } | null;
+      if (fwd && fwd.ok === false) {
+        return c.json({ ok: false, error: 'denied', reason: fwd.reason ?? fwd.decision ?? 'denied', msg_id: sent.msgId, thid: sent.thid }, 403);
+      }
+      if (fwd === null) {
+        return c.json({ ok: false, error: 'peer_not_hosted', msg_id: sent.msgId, thid: sent.thid }, 502);
+      }
+      try {
+        const reply = await awaitReply(sent.thid, waitMs);
+        return c.json({ ok: true, msg_id: sent.msgId, thid: sent.thid, reply: reply.text, reply_msg_id: reply.msgId });
+      } catch {
+        return c.json({ ok: true, msg_id: sent.msgId, thid: sent.thid, reply: null, timed_out: true }, 202);
+      }
+    } catch (err) {
+      opts.logger.error({ err: (err as Error).message, agentDid: me.row.did }, 'agent_api_send_failed');
+      return c.json({ ok: false, error: 'send_failed' }, 500);
+    }
+  });
+
   app.post('/didcomm', async (c) => {
     const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
@@ -370,6 +469,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       logger: opts.logger,
       metrics: opts.metrics,
       now,
+      ...(opts.push ? { push: opts.push } : {}),
     };
     const result = await dispatchInbound(dispatchCtx, envelope);
     if (!result.ok) {

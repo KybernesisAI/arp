@@ -25,3 +25,20 @@ export * from './forward.js';
 export * from './logger.js';
 export * from './metrics.js';
 export * from './resolver.js';
+
+// AgentID S4: push delivery + agent-API.
+export { createForwardEnvelope } from './forward.js';
+export {
+  awaitReply,
+  deliverEve,
+  deliverGeneric,
+  deliverPush,
+  extractText,
+  mintPushToken,
+  pendingReplyCount,
+  pushSignerFromJwk,
+  resolvePendingReply,
+  sendFromCloudIdentity,
+} from './push.js';
+export type { PushContext, PushSigner, PushClaims, DeliveryInput, DeliverPushResult } from './push.js';
+export { openPrivateKey, sealingKeyFromEnv } from './custody.js';
