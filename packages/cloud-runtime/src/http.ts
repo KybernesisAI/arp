@@ -21,8 +21,8 @@
 
 import { Hono, type Context } from 'hono';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
-import { toTenantId, withTenant, agents, registrarBindings } from '@kybernesis/arp-cloud-db';
-import { desc, eq } from 'drizzle-orm';
+import { toTenantId, withTenant, agents, agentLinks, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
 import { dispatchInbound } from './dispatch.js';
@@ -237,6 +237,30 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   };
   app.get('/representation.jwt', serveRepresentationJwt);
   app.get('/.well-known/representation.jwt', serveRepresentationJwt);
+
+  // AgentID S3 / L4: NIP-05 identifier document. `_@<sld>.agent` (and the
+  // mirror form) maps to the verified nostr key linked to this identity, so
+  // any nostr client shows the name as verified once the profile sets nip05.
+  app.get('/.well-known/nostr.json', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ names: {} }, 404);
+    const name = c.req.query('name');
+    const rows = await opts.db
+      .select({ value: agentLinks.value })
+      .from(agentLinks)
+      .where(and(eq(agentLinks.agentDid, ctx.agentDid), eq(agentLinks.kind, 'nostr'), eq(agentLinks.status, 'verified')))
+      .orderBy(desc(agentLinks.verifiedAt))
+      .limit(1);
+    const hex = rows[0]?.value;
+    const names: Record<string, string> = {};
+    if (hex && (!name || name === '_')) names['_'] = hex;
+    return c.newResponse(JSON.stringify({ names }), 200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*',
+    });
+  });
 
   app.get('/.well-known/revocations.json', async (c) => {
     const host = effectiveHost(c);

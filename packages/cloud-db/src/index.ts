@@ -38,6 +38,9 @@ export {
   pairingInvitations,
   domainRegistrations,
   DOMAIN_REGISTRATION_STATUSES,
+  agentLinks,
+  AGENT_LINK_KINDS,
+  AGENT_LINK_STATUSES,
 } from './schema.js';
 export type {
   TenantRow,
@@ -58,4 +61,7 @@ export type {
   PairingInvitationRow,
   DomainRegistrationRow,
   DomainRegistrationStatus,
+  AgentLinkRow,
+  AgentLinkKind,
+  AgentLinkStatus,
 } from './schema.js';

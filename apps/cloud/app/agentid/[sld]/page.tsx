@@ -1,7 +1,9 @@
 import type * as React from 'react';
 import { notFound } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
-import { agents, domainRegistrations, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { agentLinks, agents, domainRegistrations, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { and } from 'drizzle-orm';
+import { npubFromHex } from '@/lib/links';
 import { getDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
@@ -30,7 +32,7 @@ export default async function AgentProfilePage(props: {
   const agentDid = `did:web:${domain}`;
 
   const db = await getDb();
-  const [agentRows, bindingRows, regRows] = await Promise.all([
+  const [agentRows, bindingRows, regRows, linkRows] = await Promise.all([
     db.select().from(agents).where(eq(agents.did, agentDid)).limit(1),
     db
       .select({ ownerLabel: registrarBindings.ownerLabel, createdAt: registrarBindings.createdAt })
@@ -44,6 +46,11 @@ export default async function AgentProfilePage(props: {
       .where(eq(domainRegistrations.domain, domain))
       .orderBy(desc(domainRegistrations.createdAt))
       .limit(1),
+    db
+      .select({ kind: agentLinks.kind, value: agentLinks.value, label: agentLinks.label })
+      .from(agentLinks)
+      .where(and(eq(agentLinks.agentDid, agentDid), eq(agentLinks.status, 'verified')))
+      .orderBy(desc(agentLinks.verifiedAt)),
   ]);
   const agent = agentRows[0];
   if (!agent) notFound();
@@ -68,6 +75,11 @@ export default async function AgentProfilePage(props: {
       state: hasRuntime ? 'verified' : 'pending',
     },
     { kind: 'ADDRESS', value: mirror.replace(/^https:\/\//, ''), state: 'verified' },
+    ...linkRows.map((l) => ({
+      kind: l.kind === 'nostr' ? 'BUZZ' : l.kind === 'kybernesis' ? 'CONTROL PLANE' : l.kind === 'runtime' ? 'RUNTIME' : 'WEBSITE',
+      value: l.kind === 'nostr' ? npubFromHex(l.value) : l.value.replace(/^https:\/\//, ''),
+      state: 'verified' as const,
+    })),
   ];
 
   return (

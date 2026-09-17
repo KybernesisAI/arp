@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createPgliteDb, agents, registrarBindings, tenants } from '@kybernesis/arp-cloud-db';
+import { createPgliteDb, agents, agentLinks, registrarBindings, tenants } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { startGateway } from '../src/index.js';
 
@@ -48,6 +48,16 @@ describe('mirror host', () => {
       representationJwt: 'eyJhbGciOiJFZERTQSJ9.e30.c2ln',
     });
 
+    await db.insert(agentLinks).values({
+      tenantId,
+      agentDid: 'did:web:atlas.agent',
+      kind: 'nostr',
+      value: 'ab'.repeat(32),
+      challenge: 'c',
+      status: 'verified',
+      verifiedAt: new Date(),
+    });
+
     const gw = await startGateway(0, {
       db: db as unknown as CloudDbClient,
       cedarSchemaJson: readFileSync(CEDAR_SCHEMA_PATH, 'utf8'),
@@ -68,6 +78,12 @@ describe('mirror host', () => {
     expect(await rep.text()).toBe('eyJhbGciOiJFZERTQSJ9.e30.c2ln');
     const rep2 = await fetch(`${base}/.well-known/representation.jwt`, { headers: host });
     expect(rep2.status).toBe(200);
+
+    const nip05 = await fetch(`${base}/.well-known/nostr.json?name=_`, { headers: host });
+    expect(nip05.status).toBe(200);
+    expect(await nip05.json()).toEqual({ names: { _: 'ab'.repeat(32) } });
+    const nip05Other = await fetch(`${base}/.well-known/nostr.json?name=bob`, { headers: host });
+    expect(await nip05Other.json()).toEqual({ names: {} });
 
     const root = await fetch(`${base}/`, { headers: host, redirect: 'manual' });
     expect(root.status).toBe(302);
