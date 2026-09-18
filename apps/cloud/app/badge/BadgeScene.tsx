@@ -164,7 +164,7 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
 }
 
 function chip(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, ok: boolean): number {
-  ctx.font = `700 30px ${MONO}`;
+  ctx.font = `400 30px ${MONO}`;
   const w = ctx.measureText(text).width + 74;
   ctx.fillStyle = ok ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.06)';
   ctx.beginPath(); ctx.roundRect(x, y - 42, w, 62, 31); ctx.fill();
@@ -246,7 +246,7 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
   ];
   let x = pad;
   for (const [text, ok] of chips) {
-    ctx.font = `700 30px ${MONO}`;
+    ctx.font = `400 30px ${MONO}`;
     const w = ctx.measureText(text).width + 74;
     if (x + w > TEX_W - pad) { x = pad; y += 78; }
     x += chip(ctx, text, x, y, ok);
