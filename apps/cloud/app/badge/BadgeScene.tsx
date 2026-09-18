@@ -536,9 +536,9 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   );
 }
 
-export function BadgeScene({ data, theme }: { data: BadgeData; theme: BadgeTheme }): React.JSX.Element {
+export function BadgeScene({ data, theme, zoom = 1 }: { data: BadgeData; theme: BadgeTheme; zoom?: number }): React.JSX.Element {
   return (
-    <Canvas camera={{ position: [0, 0, 13], fov: 25 }} style={{ backgroundColor: 'transparent' }} dpr={[1, 2]} gl={{ antialias: true }}>
+    <Canvas camera={{ position: [0, 0, 13 / zoom], fov: 25 }} style={{ backgroundColor: 'transparent' }} dpr={[1, 2]} gl={{ antialias: true }}>
       <ambientLight intensity={theme === 'dark' ? 0.9 : Math.PI * 0.8} />
       <directionalLight position={[-4, 6, 8]} intensity={theme === 'dark' ? 1.6 : 1.1} color="#f2f0ea" />
       <directionalLight position={[5, -2, -6]} intensity={0.7} color="#c9d4ff" />
