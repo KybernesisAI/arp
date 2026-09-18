@@ -16,6 +16,8 @@ export const metadata: Metadata = {
 };
 
 const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+/** Portraits checked in under public/assets/badge/avatars/<sld>.png. */
+const LOCAL_AVATARS = new Set(['samantha']);
 
 /**
  * Standalone 3D identity badge (side quest, 2026-09-18): agent.arp.run/badge
@@ -30,7 +32,7 @@ export default async function BadgePage(props: { searchParams: Promise<{ name?: 
   const agentDid = `did:web:${domain}`;
   const db = await getDb();
   const [agentRows, bindingRows, regRows, linkRows] = await Promise.all([
-    db.select({ agentName: agents.agentName, agentDescription: agents.agentDescription, createdAt: agents.createdAt, runtimeKind: agents.runtimeKind, a2a: agents.wellKnownA2aCard }).from(agents).where(eq(agents.did, agentDid)).limit(1),
+    db.select({ agentName: agents.agentName, agentDescription: agents.agentDescription, createdAt: agents.createdAt, runtimeKind: agents.runtimeKind, keyCustody: agents.keyCustody, a2a: agents.wellKnownA2aCard }).from(agents).where(eq(agents.did, agentDid)).limit(1),
     db.select({ ownerLabel: registrarBindings.ownerLabel }).from(registrarBindings).where(eq(registrarBindings.domain, domain)).orderBy(desc(registrarBindings.createdAt)).limit(1),
     db.select({ registeredAt: domainRegistrations.registeredAt }).from(domainRegistrations).where(eq(domainRegistrations.domain, domain)).orderBy(desc(domainRegistrations.createdAt)).limit(1),
     db.select({ kind: agentLinks.kind, value: agentLinks.value }).from(agentLinks).where(and(eq(agentLinks.agentDid, agentDid), eq(agentLinks.status, 'verified'))).orderBy(desc(agentLinks.verifiedAt)),
@@ -38,7 +40,10 @@ export default async function BadgePage(props: { searchParams: Promise<{ name?: 
   const agent = agentRows[0];
   const mirror = mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX);
   const since = (regRows[0]?.registeredAt ?? agent?.createdAt ?? new Date()).toISOString().slice(0, 10);
-  const avatarUrl = avatar && /^https:\/\/[^\s]+$/i.test(avatar) ? avatar : `https://api.dicebear.com/9.x/notionists/png?seed=${encodeURIComponent(safe)}&size=512&backgroundColor=1c1c22`;
+  // Picture: `?avatar=` override → a local portrait in public/assets/badge/avatars/<sld>.png → generated fallback.
+  // (A static list rather than an fs probe: public/ is served by the CDN, not bundled with the function.)
+  const localAvatar = LOCAL_AVATARS.has(safe) ? `/assets/badge/avatars/${safe}.png` : null;
+  const avatarUrl = avatar && /^https:\/\/[^\s]+$/i.test(avatar) ? avatar : localAvatar ?? `https://api.dicebear.com/9.x/notionists/png?seed=${encodeURIComponent(safe)}&size=512&backgroundColor=1c1c22`;
   const data: BadgeData = {
     sld: safe,
     name: agent?.agentName ?? safe,
@@ -52,6 +57,7 @@ export default async function BadgePage(props: { searchParams: Promise<{ name?: 
     ownerVerified: bindingRows.length > 0,
     ownerLabel: bindingRows[0]?.ownerLabel ?? null,
     cardSigned: ((agent?.a2a as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0,
+    selfHeldKey: agent?.keyCustody === 'exported',
     runtime: agent ? agent.runtimeKind !== 'none' : false,
     avatarUrl,
     links: linkRows.map((l) => ({
