@@ -349,6 +349,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   const j3 = useRef<RapierRigidBody>(null!);
   const card = useRef<RapierRigidBody>(null!);
   const visual = useRef<THREE.Group>(null);
+  const strapEnd = useRef<THREE.Object3D>(null);
+  const strapTmp = useMemo(() => new THREE.Vector3(), []);
   const vec = useMemo(() => new THREE.Vector3(), []);
   const ang = useMemo(() => new THREE.Vector3(), []);
   const rot = useMemo(() => new THREE.Vector3(), []);
@@ -403,7 +405,14 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       const clamped = Math.max(0.1, Math.min(1, l.distanceTo(ref.current.translation())));
       return l.lerp(ref.current.translation(), delta * (minSpeed + clamped * (maxSpeed - minSpeed)));
     });
-    curve.points[0]!.copy(j3.current.translation());
+    // The strap ends at the clamp as it actually sits (tilt + flip included),
+    // not at the rope joint, so the lanyard moves with the badge.
+    if (strapEnd.current) {
+      strapEnd.current.getWorldPosition(strapTmp);
+      curve.points[0]!.copy(strapTmp);
+    } else {
+      curve.points[0]!.copy(j3.current.translation());
+    }
     curve.points[1]!.copy(lerped[1]!);
     curve.points[2]!.copy(lerped[0]!);
     curve.points[3]!.copy(fixed.current.translation());
@@ -490,6 +499,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
                 {printMaterial(back)}
               </mesh>
               {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
+              {/* Where the strap enters the clamp: top of the clamp, in the tilting frame. */}
+              <object3D ref={strapEnd} position={[0, 1.229 - CARD_CENTER_Y + 0.055, 0]} />
               <group position={[0, -CARD_CENTER_Y + 0.055, 0]}>
                 <mesh geometry={nodes['clip']!.geometry} material={materials['metal']} material-roughness={0.3} />
                 <mesh geometry={nodes['clamp']!.geometry} material={materials['metal']} />
