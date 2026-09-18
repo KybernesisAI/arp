@@ -1,7 +1,7 @@
 /**
  * AgentID S5: a cloud-custody identity with no stored A2A card gets one
  * built, signed with its own key and persisted on first fetch; exported
- * custody keeps falling back to the ARP card.
+ * custody gets a schema-valid unsigned card.
  */
 
 import { createCipheriv, randomBytes } from 'node:crypto';
@@ -35,7 +35,7 @@ describe('lazy A2A card backfill (AgentID S5)', () => {
     cleanups.length = 0;
   });
 
-  it('builds, signs and persists the card for cloud custody; ARP card fallback for exported', async () => {
+  it('builds, signs and persists the card for cloud custody; unsigned card for exported', async () => {
     const { privateKey } = await generateKeyPair('ES256');
     const jwk = { ...(await exportJWK(privateKey)), kid: 'test-push', alg: 'ES256' };
     const { db, close } = await createPgliteDb();
@@ -76,9 +76,11 @@ describe('lazy A2A card backfill (AgentID S5)', () => {
     const again = A2aAgentCardSchema.parse(await (await fetch(`${base}/.well-known/agent-card.json?target=atlas.agent.arp.run`)).json());
     expect(again.signatures?.[0]?.signature).toBe(card.signatures?.[0]?.signature);
 
-    // Exported custody: nothing to sign with → ARP card fallback, row untouched.
-    const ghost = await (await fetch(`${base}/.well-known/agent-card.json?target=ghost.agent.arp.run`)).json();
-    expect(ghost).toMatchObject({ did: GHOST, name: 'arp-card' });
-    expect((await tdb.getAgent(GHOST))?.wellKnownA2aCard).toBeNull();
+    // Exported custody: nothing to sign with → schema-valid UNSIGNED A2A card, persisted.
+    const ghost = A2aAgentCardSchema.parse(await (await fetch(`${base}/.well-known/agent-card.json?target=ghost.agent.arp.run`)).json());
+    expect(ghost.name).toBe('Ghost');
+    expect(ghost.supportedInterfaces[0]?.url).toBe('https://ghost.agent.arp.run/a2a');
+    expect(ghost.signatures ?? []).toHaveLength(0);
+    expect((await tdb.getAgent(GHOST))?.wellKnownA2aCard).toMatchObject({ name: 'Ghost' });
   }, 30_000);
 });
