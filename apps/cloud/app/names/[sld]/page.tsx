@@ -11,6 +11,7 @@ import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
 import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
 import { AttachRuntimePanel } from '@/app/names/AttachRuntimePanel';
+import { ReprovisionHostedButton } from '@/app/names/ReprovisionHostedButton';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,6 +95,9 @@ export default async function NameRecordsPage(props: {
             <div className="col-span-12 md:col-span-3 flex justify-end gap-2">
               {needsOwner && <FinishSetupButton domain={domain} tenantId={tenantId} />}
               {agent && agent.keyCustody === 'cloud' && <ExportKeyButton agentDid={agent.did} domain={domain} />}
+              {(agent === null ? owner !== null || status === 'active' : agent.keyCustody === 'exported') && (
+                <ReprovisionHostedButton sld={sld} hadKey={agent !== null} />
+              )}
             </div>
             {registration?.error && <p className="col-span-12 text-body-sm text-signal-red m-0">{registration.error}</p>}
           </div>
