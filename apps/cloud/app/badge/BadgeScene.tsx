@@ -90,21 +90,26 @@ const FG_2 = 'rgba(233,231,226,0.62)';
 const FG_3 = 'rgba(233,231,226,0.36)';
 const LINE = 'rgba(233,231,226,0.10)';
 
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(fallback), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, () => { clearTimeout(t); resolve(fallback); });
+  });
+}
+
 async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !('fonts' in document)) return;
-  try {
-    await Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`)]);
-  } catch { /* system fallback */ }
+  await withTimeout(Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`)]).then(() => undefined), 1500, undefined);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
+  return withTimeout(new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = url;
-  });
+  }), 4000, null);
 }
 
 function baseCard(ctx: CanvasRenderingContext2D): void {
@@ -125,18 +130,26 @@ function baseCard(ctx: CanvasRenderingContext2D): void {
   vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, TEX_W, TEX_H);
-  // Brushed grain: fine horizontal strokes + speckle.
-  const noise = ctx.createImageData(TEX_W, TEX_H);
+  // Brushed grain, blended on top (putImageData would replace every pixel).
+  const grain = document.createElement('canvas');
+  grain.width = TEX_W; grain.height = TEX_H;
+  const gctx = grain.getContext('2d')!;
+  const noise = gctx.createImageData(TEX_W, TEX_H);
   for (let y = 0; y < TEX_H; y++) {
     const rowBias = (Math.random() - 0.5) * 10;
     for (let x = 0; x < TEX_W; x++) {
       const i = (y * TEX_W + x) * 4;
       const v = 128 + rowBias + (Math.random() - 0.5) * 14;
       noise.data[i] = noise.data[i + 1] = noise.data[i + 2] = v;
-      noise.data[i + 3] = 22;
+      noise.data[i + 3] = 255;
     }
   }
-  ctx.putImageData(noise, 0, 0);
+  gctx.putImageData(noise, 0, 0);
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.drawImage(grain, 0, 0);
+  ctx.restore();
 }
 
 function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color = FG_3): void {
@@ -160,10 +173,7 @@ function chip(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
   return w + 14;
 }
 
-async function drawFront(data: BadgeData): Promise<THREE.CanvasTexture> {
-  await ensureFonts();
-  const canvas = document.createElement('canvas');
-  canvas.width = TEX_W; canvas.height = TEX_H;
+function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageElement | null): void {
   const ctx = canvas.getContext('2d')!;
   baseCard(ctx);
   const pad = 80;
@@ -177,7 +187,6 @@ async function drawFront(data: BadgeData): Promise<THREE.CanvasTexture> {
   // Profile picture: circle with a thin ring.
   const R = 150;
   const cx = pad + R, cy = 240 + R;
-  const img = await loadImage(data.avatarUrl);
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
   if (img) ctx.drawImage(img, cx - R, cy - R, R * 2, R * 2);
@@ -235,9 +244,22 @@ async function drawFront(data: BadgeData): Promise<THREE.CanvasTexture> {
   ctx.textAlign = 'right';
   ctx.fillText(data.mirrorHost, TEX_W - pad, TEX_H - pad - 44);
   ctx.textAlign = 'left';
+}
 
+/** Front print: shows at once with a monogram; the picture is painted in when it loads. */
+async function drawFront(data: BadgeData, onUpdate: (t: THREE.CanvasTexture) => void): Promise<THREE.CanvasTexture> {
+  await ensureFonts();
+  const canvas = document.createElement('canvas');
+  canvas.width = TEX_W; canvas.height = TEX_H;
+  paintFront(canvas, data, null);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 16;
+  void loadImage(data.avatarUrl).then((img) => {
+    if (!img) return;
+    paintFront(canvas, data, img);
+    tex.needsUpdate = true;
+    onUpdate(tex);
+  });
   return tex;
 }
 
@@ -294,12 +316,12 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
 
 function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 2048; canvas.height = 128;
+  canvas.width = 2048; canvas.height = 160;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = theme === 'dark' ? '#121215' : '#0c0c0e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = 'rgba(233,231,226,0.9)';
-  ctx.font = `600 40px ${FONT}`;
+  ctx.font = `600 62px ${FONT}`;
   ctx.letterSpacing = '10px';
   ctx.textBaseline = 'middle';
   const unit = `AGENTID   ·   ${sld.toUpperCase()}.AGENT   ·   `;
@@ -328,6 +350,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   const ang = useMemo(() => new THREE.Vector3(), []);
   const rot = useMemo(() => new THREE.Vector3(), []);
   const dir = useMemo(() => new THREE.Vector3(), []);
+  const proj = useMemo(() => new THREE.Vector3(), []);
   const [dragged, drag] = useState<THREE.Vector3 | false>(false);
   const [hovered, hover] = useState(false);
   const [flipped, setFlipped] = useState(false);
@@ -343,7 +366,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
 
   useEffect(() => {
     let alive = true;
-    void drawFront(data).then((t) => (alive ? setFront(t) : t.dispose()));
+    void drawFront(data, (t) => { if (alive) setFront(t); }).then((t) => (alive ? setFront(t) : t.dispose()));
     void drawBack(data).then((t) => (alive ? setBack(t) : t.dispose()));
     return () => { alive = false; };
   }, [data]);
@@ -386,9 +409,18 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
     // Flip + parallax tilt happen on the visual group inside the body; the
     // physics never notices. Tilt follows the pointer while hovered.
     if (visual.current) {
-      const k = Math.min(1, delta * 7);
-      const targetY = (flipped ? Math.PI : 0) + (hovered && !dragged ? state.pointer.x * 0.35 : 0);
-      const targetX = hovered && !dragged ? -state.pointer.y * 0.28 : 0;
+      const k = Math.min(1, delta * 9);
+      // Pointer offset from the card's own centre on screen, so the tilt follows
+      // where you are over the badge, not where you are on the page.
+      let dx = 0, dy = 0;
+      if (hovered && !dragged) {
+        const t = card.current.translation();
+        proj.set(t.x, t.y - 0.1, t.z).project(state.camera);
+        dx = Math.max(-1, Math.min(1, (state.pointer.x - proj.x) * 3.2));
+        dy = Math.max(-1, Math.min(1, (state.pointer.y - proj.y) * 2.2));
+      }
+      const targetY = (flipped ? Math.PI : 0) + dx * 0.55;
+      const targetX = -dy * 0.45;
       tilt.current.x += (targetX - tilt.current.x) * k;
       tilt.current.y += (targetY - tilt.current.y) * k;
       visual.current.rotation.set(tilt.current.x, tilt.current.y, 0);
@@ -453,7 +485,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
                 {printMaterial(back)}
               </mesh>
               {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
-              <group position={[0, -CARD_CENTER_Y, 0]}>
+              <group position={[0, -CARD_CENTER_Y + 0.055, 0]}>
                 <mesh geometry={nodes['clip']!.geometry} material={materials['metal']} material-roughness={0.3} />
                 <mesh geometry={nodes['clamp']!.geometry} material={materials['metal']} />
               </group>
@@ -463,7 +495,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       </group>
       <mesh ref={band}>
         <meshLineGeometry />
-        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-4, 1)} lineWidth={1} />
+        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={2.4} />
       </mesh>
     </>
   );
