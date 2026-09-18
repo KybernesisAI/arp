@@ -339,9 +339,11 @@ function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 2048; canvas.height = 112;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = theme === 'dark' ? '#121215' : '#0c0c0e';
+  // White lanyard, black wordmark (both stages).
+  void theme;
+  ctx.fillStyle = '#f2f1ee';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(233,231,226,0.9)';
+  ctx.fillStyle = '#0a0a0a';
   ctx.font = `600 34px ${FONT}`;
   ctx.letterSpacing = '10px';
   ctx.textBaseline = 'middle';

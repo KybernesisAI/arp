@@ -80,7 +80,7 @@ export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
           pointer events come from the section, so the text and search below
           still work except where the card itself is. */}
       <div className="absolute inset-0 z-0">
-        <AgentBadge data={badge} theme="dark" zoom={1.45} anchor="right" eventSource={heroRef} />
+        <AgentBadge data={badge} theme="dark" zoom={1.7} anchor="right" eventSource={heroRef} />
       </div>
       <div className="pointer-events-none absolute bottom-4 right-6 z-10 font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Drag · click to flip</div>
       <div className="relative z-[1] mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-8 px-6 pb-8 pt-16 lg:grid-cols-12 lg:pb-0 lg:pt-8" style={{ pointerEvents: 'none' }}>
