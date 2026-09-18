@@ -40,6 +40,7 @@ export {
   DOMAIN_REGISTRATION_STATUSES,
   agentLinks,
   agentCredentials,
+  agentConnectTickets,
   AGENT_LINK_KINDS,
   AGENT_LINK_STATUSES,
 } from './schema.js';
@@ -64,6 +65,7 @@ export type {
   DomainRegistrationStatus,
   AgentLinkRow,
   AgentCredentialRow,
+  AgentConnectTicketRow,
   AgentLinkKind,
   AgentLinkStatus,
 } from './schema.js';

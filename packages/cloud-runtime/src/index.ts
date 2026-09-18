@@ -47,3 +47,5 @@ export { openPrivateKey, sealingKeyFromEnv } from './custody.js';
 export { handleA2aRequest, parseConnectionTokenBearer, a2aTaskCount } from './a2a.js';
 export type { JsonRpcRequest, JsonRpcResponse, A2aTask, A2aMessage, TaskState } from './a2a.js';
 export { dispatchVerifiedMessage } from './dispatch.js';
+export { handleInternalConnect, handleBootstrap, mintConnectToken } from './connect.js';
+export type { ConnectOutcome, ConnectResult, ConnectContext } from './connect.js';

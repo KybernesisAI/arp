@@ -26,6 +26,7 @@ import { createHash } from 'node:crypto';
 import { awaitReply, cancelPendingReply, sendFromCloudIdentity, type PushContext } from './push.js';
 import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybernesis/arp-transport-a2a';
 import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
+import { handleBootstrap, handleInternalConnect } from './connect.js';
 import { ed25519ToJwk, multibaseEd25519ToRaw, signAgentCard } from '@kybernesis/arp-transport';
 import { buildA2aAgentCard } from '@kybernesis/arp-templates';
 import { openPrivateKey } from './custody.js';
@@ -69,6 +70,8 @@ export interface GatewayHonoOptions {
    * `fetchImpl` is injectable for tests; `enabled: false` turns it off.
    */
   a2aOutbound?: { enabled?: boolean; fetchImpl?: FetchLike; originForDid?: (did: string) => string | null };
+  /** AgentID S6a: per-call timeout when talking to a runtime during connect (ms). Default 10 s. */
+  connectTimeoutMs?: number;
 }
 
 /**
@@ -597,6 +600,30 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       opts.logger.error({ err: (err as Error).message, agentDid: me.row.did }, 'agent_api_send_failed');
       return c.json({ ok: false, error: 'send_failed' }, 500);
     }
+  });
+
+  // AgentID S6a: zero-code connect. The console hands over a single-use
+  // ticket id; the gateway signs the connect token, pushes it to the runtime,
+  // serves the runtime's redemption, and verifies the identity document.
+  app.post('/internal/connect', async (c) => {
+    if (!opts.push) return c.json({ error: 'push_disabled' }, 503);
+    let body: { ticket_id?: string };
+    try {
+      body = (await c.req.json()) as typeof body;
+    } catch {
+      return c.json({ error: 'bad_json' }, 400);
+    }
+    const { status, body: out } = await handleInternalConnect(
+      { db: opts.db, push: opts.push, logger: opts.logger, now, ...(opts.connectTimeoutMs !== undefined ? { timeoutMs: opts.connectTimeoutMs } : {}) },
+      body.ticket_id ?? '',
+    );
+    return c.json(out, status as 200);
+  });
+
+  app.post('/agent-api/bootstrap', async (c) => {
+    if (!opts.push) return c.json({ error: 'push_disabled' }, 503);
+    const { status, body } = await handleBootstrap({ db: opts.db, push: opts.push, logger: opts.logger, now }, c.req.header('authorization'));
+    return c.json(body, status as 200);
   });
 
   // AgentID S5 / A3: A2A v1.0 JSON-RPC endpoint on the identity's host.

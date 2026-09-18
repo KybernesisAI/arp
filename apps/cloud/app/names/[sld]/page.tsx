@@ -10,7 +10,7 @@ import { Badge, Card, Code, Dot, Link, PlateHead, Pre } from '@/components/ui';
 import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
 import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
-import { AttachRuntimePanel } from '@/app/names/AttachRuntimePanel';
+import { ConnectAgentPanel } from '@/app/names/ConnectAgentPanel';
 import { ReprovisionHostedButton } from '@/app/names/ReprovisionHostedButton';
 
 export const runtime = 'nodejs';
@@ -144,11 +144,11 @@ export default async function NameRecordsPage(props: {
       {agent && agent.keyCustody === 'cloud' && (
         <section className="mb-10">
           <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-            <h2 className="font-display font-medium text-h3">Runtime</h2>
+            <h2 className="font-display font-medium text-h3">Your agent</h2>
             <span className="font-mono text-kicker uppercase text-muted">// R · WHERE MESSAGES ARE DELIVERED</span>
           </header>
           <Card tone="paper-2" padded={false} className="border border-rule">
-            <AttachRuntimePanel agentDid={agent.did} attached={agent.runtimeKind === 'push'} pushKind={agent.pushKind} pushUrl={agent.pushUrl} />
+            <ConnectAgentPanel agentDid={agent.did} attached={agent.runtimeKind === 'push'} pushKind={agent.pushKind} pushUrl={agent.pushUrl} />
           </Card>
         </section>
       )}
