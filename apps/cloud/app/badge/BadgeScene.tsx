@@ -51,27 +51,29 @@ function roundedRect(path: THREE.Path, x: number, y: number, w: number, h: numbe
   path.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
 }
 
-/** Cap UVs map the card rectangle to 0..1 so a texture prints edge to edge. */
-const capUVs: THREE.ExtrudeGeometryOptions['UVGenerator'] = {
-  generateTopUV(_geometry, vertices, a, b, c) {
-    const uv = (i: number) => new THREE.Vector2((vertices[i * 3]! + W / 2) / W, (vertices[i * 3 + 1]! + H / 2) / H);
-    return [uv(a), uv(b), uv(c)];
-  },
-  generateSideWallUV(_geometry, vertices, a, b, c, d) {
-    const uv = (i: number) => new THREE.Vector2(0.5, (vertices[i * 3 + 2]! + DEPTH) / DEPTH);
-    return [uv(a), uv(b), uv(c), uv(d)];
-  },
-};
-
-/** One half of the card (front or back), extruded toward -z from z=0, with the slot hole. */
-function halfCard(): THREE.ExtrudeGeometry {
+function cardShape(): THREE.Shape {
   const shape = new THREE.Shape();
   roundedRect(shape, -W / 2, -H / 2, W, H, RADIUS);
   const hole = new THREE.Path();
   roundedRect(hole, -SLOT.w / 2, SLOT.y - SLOT.h / 2, SLOT.w, SLOT.h, SLOT.r);
   shape.holes.push(hole);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: DEPTH / 2, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 3, curveSegments: 24, UVGenerator: capUVs });
+  return shape;
+}
+
+/** The slab: beveled, with the slot, centred on z=0. Unprinted dark metal. */
+function bodyGeometry(): THREE.ExtrudeGeometry {
+  const geo = new THREE.ExtrudeGeometry(cardShape(), { depth: DEPTH, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 3, curveSegments: 24 });
   geo.translate(0, 0, -DEPTH / 2);
+  return geo;
+}
+
+/** A flat print face (same outline + slot) with UVs spanning the card 0..1. */
+function printGeometry(): THREE.ShapeGeometry {
+  const geo = new THREE.ShapeGeometry(cardShape(), 24);
+  const pos = geo.getAttribute('position');
+  const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + W / 2) / W, (pos.getY(i) + H / 2) / H);
+  uv.needsUpdate = true;
   return geo;
 }
 
@@ -227,13 +229,12 @@ async function drawFront(data: BadgeData): Promise<THREE.CanvasTexture> {
   return tex;
 }
 
-/** Back print. Drawn mirrored: the back cap's UVs run right-to-left. */
+/** Back print. */
 async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
   await ensureFonts();
   const canvas = document.createElement('canvas');
   canvas.width = TEX_W; canvas.height = TEX_H;
   const ctx = canvas.getContext('2d')!;
-  ctx.translate(TEX_W, 0); ctx.scale(-1, 1);
   baseCard(ctx);
   const pad = 80;
   label(ctx, 'Connect', pad, 150, FG_2);
@@ -322,8 +323,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   const [front, setFront] = useState<THREE.CanvasTexture | null>(null);
   const [back, setBack] = useState<THREE.CanvasTexture | null>(null);
   const strap = useMemo(() => drawStrap(data.sld, theme), [data.sld, theme]);
-  const frontGeo = useMemo(() => halfCard(), []);
-  const backGeo = useMemo(() => { const g = halfCard(); g.rotateY(Math.PI); return g; }, []);
+  const bodyGeo = useMemo(() => bodyGeometry(), []);
+  const printGeo = useMemo(() => printGeometry(), []);
   const [curve] = useState(() => new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]));
 
   useEffect(() => {
@@ -376,9 +377,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   });
 
   curve.curveType = 'chordal';
-  const capMaterial = (map: THREE.Texture | null) => (
+  const printMaterial = (map: THREE.Texture | null) => (
     <meshPhysicalMaterial
-      attach="material-0"
       map={map ?? undefined}
       color={map ? '#ffffff' : BG_2}
       clearcoat={1}
@@ -387,6 +387,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       metalness={0.5}
       iridescence={1}
       iridescenceThicknessRange={[0, 2400]}
+      side={THREE.FrontSide}
     />
   );
 
@@ -418,15 +419,16 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
             }}
           >
             <group ref={visual} position={[0, 0.5, 0]}>
-              {/* Front half: printed cap faces +z. */}
-              <mesh geometry={frontGeo} position={[0, 0, DEPTH / 2]}>
-                {capMaterial(front)}
-                <meshStandardMaterial attach="material-1" color="#2a2a30" metalness={0.9} roughness={0.35} />
+              {/* Body: dark metal slab with the slot. */}
+              <mesh geometry={bodyGeo}>
+                <meshPhysicalMaterial color="#232328" metalness={0.85} roughness={0.35} clearcoat={0.6} clearcoatRoughness={0.3} />
               </mesh>
-              {/* Back half: rotated so its printed cap faces -z. */}
-              <mesh geometry={backGeo} position={[0, 0, -DEPTH / 2]}>
-                {capMaterial(back)}
-                <meshStandardMaterial attach="material-1" color="#2a2a30" metalness={0.9} roughness={0.35} />
+              {/* Prints: flat faces a hair off the body, front toward the camera (+z). */}
+              <mesh geometry={printGeo} position={[0, 0, DEPTH / 2 + 0.0006]}>
+                {printMaterial(front)}
+              </mesh>
+              <mesh geometry={printGeo} position={[0, 0, -DEPTH / 2 - 0.0006]} rotation={[0, Math.PI, 0]}>
+                {printMaterial(back)}
               </mesh>
               {/* Clip through the slot + clamp above it. */}
               <mesh position={[0, SLOT.y + 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
