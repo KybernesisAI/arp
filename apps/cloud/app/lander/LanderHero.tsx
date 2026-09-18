@@ -91,8 +91,8 @@ export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
             <span>Yours for good</span><span>Works with any agent</span><span>Verified, not claimed</span>
           </div>
         </div>
-        <div className="relative h-[560px] w-full lg:col-span-6 lg:h-[760px]">
-          <AgentBadge data={badge} theme="dark" />
+        <div className="relative h-[620px] w-full lg:col-span-6 lg:h-[820px]">
+          <AgentBadge data={badge} theme="dark" zoom={1.7} />
           <div className="pointer-events-none absolute bottom-4 right-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Drag · click to flip</div>
         </div>
       </div>
