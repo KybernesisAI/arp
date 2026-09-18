@@ -17,7 +17,7 @@ import { Environment, Lightformer, useGLTF } from '@react-three/drei';
 import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint, type RapierRigidBody } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
 import QRCode from 'qrcode';
-import type { BadgeData, BadgeTheme } from './BadgeClient';
+import type { BadgeData, BadgeTheme } from './AgentBadge';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 useGLTF.preload('/assets/badge/card.glb');

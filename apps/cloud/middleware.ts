@@ -161,6 +161,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/names',
     // Standalone 3D identity badge (side quest, 2026-09-18); no lander chrome.
     '/badge',
+    // New AgentID landing page (black hero + badge); app-owned so no lander rewrite.
+    '/lander',
     // Static assets under public/assets (badge model etc.) must never be rewritten.
     '/assets',
     // /legal/* pages are referenced from footers on all three surfaces
