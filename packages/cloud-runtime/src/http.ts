@@ -223,15 +223,15 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   // nothing 404s during the transition.
   /**
    * AgentID S5: identities minted before the A2A card existed (or whose card
-   * was cleared) get one built + signed on first fetch. The gateway holds the
-   * sealing key, so cloud-custody rows can self-heal without the console's
-   * rebuild cron. Exported-custody rows keep serving the ARP card until their
-   * runtime signs a card (S5b).
+   * was cleared) get one built on first fetch and persisted. The gateway
+   * holds the sealing key, so cloud-custody rows get a card signed with the
+   * identity's own key; exported-custody rows get an unsigned card (schema-
+   * valid, discoverable) until their runtime signs it via `arpc` (S5b).
    */
   async function lazyA2aCard(ctx: NonNullable<Awaited<ReturnType<typeof resolveAgentContext>>>): Promise<Record<string, unknown> | null> {
     const row = ctx.agentRow;
     if (row.wellKnownA2aCard) return row.wellKnownA2aCard as Record<string, unknown>;
-    if (row.keyCustody !== 'cloud' || !row.privateKeyEnc || !opts.push) return null;
+    const canSign = row.keyCustody === 'cloud' && !!row.privateKeyEnc && !!opts.push;
     const sld = ctx.agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '');
     const fromDoc = (row.wellKnownDid as { service?: Array<{ type: string; serviceEndpoint: string }> } | null)?.service?.find(
       (svc) => svc.type === 'AgentCard',
@@ -243,7 +243,6 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
     }
     try {
-      const seed = openPrivateKey(row.privateKeyEnc, opts.push.sealingKey);
       const card = buildA2aAgentCard({
         name: row.agentName,
         description: row.agentDescription || 'Personal agent',
@@ -252,12 +251,16 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(ctx.agentDid)}`,
         provider: { organization: sld, url: `https://agent.arp.run/${sld}` },
       }) as Record<string, unknown>;
-      const sig = await signAgentCard(card, { privateKey: seed, kid: `${ctx.agentDid}#key-1`, jku: `${origin}/.well-known/jwks.json` });
-      seed.fill(0);
-      const signed = { ...card, signatures: [sig] };
-      await withTenant(opts.db, toTenantId(ctx.tenantId)).updateAgent(ctx.agentDid, { wellKnownA2aCard: signed });
-      opts.logger.info({ agentDid: ctx.agentDid }, 'a2a_card_backfilled');
-      return signed;
+      let out = card;
+      if (canSign && row.privateKeyEnc && opts.push) {
+        const seed = openPrivateKey(row.privateKeyEnc, opts.push.sealingKey);
+        const sig = await signAgentCard(card, { privateKey: seed, kid: `${ctx.agentDid}#key-1`, jku: `${origin}/.well-known/jwks.json` });
+        seed.fill(0);
+        out = { ...card, signatures: [sig] };
+      }
+      await withTenant(opts.db, toTenantId(ctx.tenantId)).updateAgent(ctx.agentDid, { wellKnownA2aCard: out });
+      opts.logger.info({ agentDid: ctx.agentDid, signed: canSign }, 'a2a_card_backfilled');
+      return out;
     } catch (err) {
       opts.logger.error({ err: (err as Error).message, agentDid: ctx.agentDid }, 'a2a_card_backfill_failed');
       return null;
