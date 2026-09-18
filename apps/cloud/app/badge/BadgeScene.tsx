@@ -102,7 +102,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !('fonts' in document)) return;
-  await withTimeout(Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`), document.fonts.load(`700 30px ${MONO}`)]).then(() => undefined), 1500, undefined);
+  await withTimeout(Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`)]).then(() => undefined), 4000, undefined);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
@@ -229,7 +229,7 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
 
   // Description (max 3 lines).
   y += 80;
-  ctx.font = `400 33px ${FONT}`;
+  ctx.font = `400 38px ${FONT}`;
   ctx.fillStyle = FG_2;
   const words = data.description.split(/\s+/);
   const lines: string[] = [];
@@ -239,8 +239,8 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
     if (ctx.measureText(t).width > TEX_W - pad * 2 && line) { lines.push(line); line = w; if (lines.length === 3) break; } else line = t;
   }
   if (line && lines.length < 3) lines.push(line);
-  lines.forEach((l, i) => ctx.fillText(l, pad, y + i * 46));
-  y += lines.length * 46 + 40;
+  lines.forEach((l, i) => ctx.fillText(l, pad, y + i * 52));
+  y += lines.length * 52 + 40;
 
   // Status chips.
   const chips: Array<[string, boolean]> = [
@@ -297,7 +297,7 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
 
   // QR to the connect link, framed.
   const q = 520;
-  const qx = (TEX_W - q) / 2, qy = 210;
+  const qx = (TEX_W - q) / 2, qy = 250;
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.roundRect(qx - 28, qy - 28, q + 56, q + 56, 28); ctx.fill();
   const qr = document.createElement('canvas');
@@ -324,7 +324,7 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
     if (y > TEX_H - pad - 40) break;
     ctx.fillStyle = LINE; ctx.fillRect(pad, y - 34, TEX_W - pad * 2, 1);
     label(ctx, k, pad, y);
-    ctx.font = `400 27px ${MONO}`; ctx.fillStyle = FG;
+    ctx.font = `400 27px ${MONO}`; ctx.fillStyle = FG_2;
     let val = v;
     while (ctx.measureText(val).width > TEX_W - pad * 2 - 300 && val.length > 4) val = val.slice(0, -2) + '…';
     ctx.fillText(val, pad + 290, y);

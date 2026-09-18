@@ -35,7 +35,7 @@ export function BadgeClient({ data }: { data: BadgeData }): React.JSX.Element {
   return (
     <div style={{ position: 'relative', height: '100dvh', width: '100%', overflow: 'hidden', background: dark ? '#000' : '#fff', color: fg, fontFamily: '"Space Mono", ui-monospace, Menlo, monospace', transition: 'background 300ms ease' }}>
       {/* Small print on the card is set in Space Mono; React hoists this into <head>. */}
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
       <div style={{ position: 'absolute', top: 20, left: 24, right: 24, zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', pointerEvents: 'none' }}>
         <span>AgentID</span>
         <button
