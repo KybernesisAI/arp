@@ -336,20 +336,49 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
 }
 
 function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 2048; canvas.height = 112;
-  const ctx = canvas.getContext('2d')!;
-  // White lanyard, black wordmark (both stages).
   void theme;
-  ctx.fillStyle = '#f2f1ee';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#0a0a0a';
-  ctx.font = `600 34px ${FONT}`;
-  ctx.letterSpacing = '10px';
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048; canvas.height = 256;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d')!;
+  // Black woven nylon: dark base, twill crosshatch, thread grain, a soft
+  // sheen band across the width. The strap material is unlit, so all of the
+  // "shine" is painted here.
+  ctx.fillStyle = '#111113';
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineWidth = 1.2;
+  for (const [dir, alpha] of [[1, 0.075], [-1, 0.05]] as const) {
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    for (let x = -H; x < W + H; x += 7) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + dir * H, H);
+      ctx.stroke();
+    }
+  }
+  // Thread grain along the length.
+  for (let y = 0; y < H; y += 3) {
+    ctx.fillStyle = `rgba(255,255,255,${0.012 + Math.random() * 0.02})`;
+    ctx.fillRect(0, y, W, 1);
+  }
+  // Sheen: a highlight band around 40% across, plus a faint rim at the edges.
+  const sheen = ctx.createLinearGradient(0, 0, 0, H);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.10)');
+  sheen.addColorStop(0.12, 'rgba(255,255,255,0.02)');
+  sheen.addColorStop(0.38, 'rgba(255,255,255,0.16)');
+  sheen.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+  sheen.addColorStop(0.88, 'rgba(255,255,255,0.02)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0.10)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, W, H);
+  // Wordmark, slightly inked into the weave.
+  ctx.fillStyle = 'rgba(236,234,229,0.88)';
+  ctx.font = `600 78px ${FONT}`;
+  ctx.letterSpacing = '12px';
   ctx.textBaseline = 'middle';
   const unit = `AGENTID   ·   ${sld.toUpperCase()}.AGENT   ·   `;
   const w = ctx.measureText(unit).width;
-  for (let x = -w; x < canvas.width + w; x += w) ctx.fillText(unit, x, canvas.height / 2 + 2);
+  for (let x = -w; x < W + w; x += w) ctx.fillText(unit, x, H / 2 + 3);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
