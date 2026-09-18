@@ -40,6 +40,8 @@ interface ParsedArgs {
     via: string | null;
     cloudHost: string | null;
     tenant: string | null;
+    resolver: string | null;
+    mirrorSuffix: string | null;
   };
 }
 
@@ -56,6 +58,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     via: null as string | null,
     cloudHost: null as string | null,
     tenant: null as string | null,
+    resolver: null as string | null,
+    mirrorSuffix: null as string | null,
   };
   const positional: string[] = [];
   let command: string | null = null;
@@ -72,6 +76,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     else if (a === '--via') flags.via = argv[++i] ?? null;
     else if (a === '--cloud-host') flags.cloudHost = argv[++i] ?? null;
     else if (a === '--tenant') flags.tenant = argv[++i] ?? null;
+    else if (a === '--resolver') flags.resolver = argv[++i] ?? null;
+    else if (a === '--mirror-suffix') flags.mirrorSuffix = argv[++i] ?? null;
     else if (a.startsWith('--')) {
       // Unknown long flag — swallow with a warning on stderr.
       // eslint-disable-next-line no-console
@@ -91,6 +97,7 @@ function usage(): string {
 USAGE
   arp-testkit audit <domain> [--json] [--jsonl] [--verbose] [--base <url>] [--timeout <ms>] [--doh <url>]
                              [--via cloud [--cloud-host <url>] [--tenant <tenant-id>]]
+                             [--resolver mirror [--mirror-suffix .agent.arp.run]]
   arp-testkit probe <name> <domain> [--json] [--base <url>] [--timeout <ms>]
   arp-testkit compare <a> <b> [--json]
   arp-testkit --version | --help
@@ -102,6 +109,7 @@ EXAMPLES
   arp-testkit audit samantha.agent
   arp-testkit audit localhost:4501 --base http://127.0.0.1:4501
   arp-testkit audit atlas.agent --via cloud
+  arp-testkit audit samantha.agent --resolver mirror
   arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.cloud.arp.run
   arp-testkit probe dns samantha.agent --doh https://hnsdoh.com/dns-query
   arp-testkit compare samantha.agent ghost.agent --json
@@ -127,6 +135,9 @@ async function main(argv: string[]): Promise<number> {
   }
   if (args.flags.doh !== null) {
     contextOverrides.dohEndpoint = args.flags.doh;
+  }
+  if (args.flags.resolver === 'mirror') {
+    contextOverrides.resolver = 'mirror';
   }
   // --via cloud: route through the cloud gateway. The gateway uses
   // ?target=<host> to identify the target tenant (works through reverse
@@ -173,6 +184,11 @@ async function audit(
   // still target URLs like `<base>/.well-known/*` but requests carry the
   // x-forwarded-host override set above.
   let baseUrl: string | undefined = args.flags.base ?? undefined;
+  // AgentID S5: --resolver mirror audits https://<sld>.agent.arp.run (the
+  // ICANN face of the identity) — no HNS resolution anywhere.
+  if (args.flags.resolver === 'mirror' && !baseUrl) {
+    baseUrl = mirrorBaseUrl(target, args.flags.mirrorSuffix ?? '.agent.arp.run');
+  }
   if (args.flags.via === 'cloud' && !baseUrl) {
     baseUrl = args.flags.cloudHost ?? 'https://cloud.arp.run';
   }
@@ -329,6 +345,12 @@ function emitSingle(result: ProbeResult, args: ParsedArgs): void {
       console.log(JSON.stringify(result.details, null, 2));
     }
   }
+}
+
+/** `samantha.agent` → `https://samantha.agent.arp.run` (AgentID S5 mirror). */
+function mirrorBaseUrl(target: string, suffix: string): string {
+  const sld = target.replace(/^https?:\/\//, '').replace(/\.agent$/, '').split('.').pop() ?? target;
+  return `https://${sld}${suffix.startsWith('.') ? suffix : `.${suffix}`}`;
 }
 
 function defaultBaseUrl(target: string): string {

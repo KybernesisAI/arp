@@ -101,7 +101,10 @@ describe('createRuntime — well-known + health', () => {
     };
     expect(didDoc.id).toBe('did:web:samantha.agent');
 
-    const card = (await (await fetch(`${base}/.well-known/agent-card.json`)).json()) as {
+    // AgentID S5: agent-card.json is the A2A card; ARP's card is arp-card.json.
+    const a2a = (await (await fetch(`${base}/.well-known/agent-card.json`)).json()) as { protocolVersion?: string };
+    expect(a2a.protocolVersion).toBe('1.0');
+    const card = (await (await fetch(`${base}/.well-known/arp-card.json`)).json()) as {
       did: string;
     };
     expect(card.did).toBe('did:web:samantha.agent');

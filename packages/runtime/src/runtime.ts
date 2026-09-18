@@ -382,6 +382,7 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
 
   const didDocumentJson = JSON.stringify(wellKnown.didDocument);
   const agentCardJson = JSON.stringify(wellKnown.agentCard);
+  const a2aCardJson = JSON.stringify(wellKnown.a2aCard);
   const arpJsonPayload = JSON.stringify(wellKnown.arpJson);
 
   let draining = false;
@@ -542,7 +543,11 @@ export async function createRuntime(opts: RuntimeOptions): Promise<Runtime> {
     };
     return c.newResponse(JSON.stringify(dualDoc), 200, wellKnownHeaders());
   });
+  // AgentID S5: the standard's path serves the A2A card; ARP's card moved.
   app.get('/.well-known/agent-card.json', (c) =>
+    c.newResponse(a2aCardJson, 200, wellKnownHeaders()),
+  );
+  app.get('/.well-known/arp-card.json', (c) =>
     c.newResponse(agentCardJson, 200, wellKnownHeaders()),
   );
   app.get('/.well-known/arp.json', (c) =>

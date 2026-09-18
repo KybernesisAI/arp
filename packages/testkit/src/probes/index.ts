@@ -35,3 +35,4 @@ export {
   createRepresentationJwtSignerBindingProbe,
   type RepresentationJwtProbeOptions,
 } from './representation-jwt-signer-binding.js';
+export { a2aCardProbe } from './a2a-card.js';

@@ -54,9 +54,9 @@ describe('runAudit', () => {
     expect(seen[0]).toBe('http://localhost:4501');
   });
 
-  it('DEFAULT_PROBE_SUITE has 11 probes (Phase 9 v2.1 additions)', () => {
+  it('DEFAULT_PROBE_SUITE has 12 probes (Phase 9 v2.1 + AgentID S5 a2a-card)', () => {
     const keys = DEFAULT_PROBE_SUITE.map((x) => x.key);
-    expect(keys).toHaveLength(11);
+    expect(keys).toHaveLength(12);
     expect(keys).toContain('principal-identity-method');
     expect(keys).toContain('no-selfxyz-prompt');
     expect(keys).toContain('representation-jwt-signer-binding');

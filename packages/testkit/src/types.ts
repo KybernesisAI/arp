@@ -21,7 +21,8 @@ export type ProbeName =
   | 'cross-connection'
   | 'principal-identity-method'
   | 'no-selfxyz-prompt'
-  | 'representation-jwt-signer-binding';
+  | 'representation-jwt-signer-binding'
+  | 'a2a-card';
 
 export interface ProbeResult {
   name: ProbeName;
@@ -50,6 +51,11 @@ export interface ProbeContext {
   fetchImpl?: typeof fetch;
   /** DNS DoH endpoint for the `dns` probe. Defaults to hnsdoh.com. */
   dohEndpoint?: string;
+  /**
+   * AgentID S5: `mirror` audits the ICANN mirror host (`<sld>.agent<suffix>`)
+   * and skips HNS-dependent probes; `hns` (default) is the classic path.
+   */
+  resolver?: 'hns' | 'mirror';
   /**
    * Pre-built DoH client. When provided, the `dns` probe uses it directly
    * instead of constructing one from `fetchImpl + dohEndpoint`. Tests inject

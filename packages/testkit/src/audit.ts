@@ -1,3 +1,4 @@
+import { a2aCardProbe } from './probes/a2a-card.js';
 import type { AuditSummary, Probe, ProbeContext, ProbeResult } from './types.js';
 import {
   crossConnectionProbe,
@@ -20,6 +21,9 @@ import {
  * added the v2.1 trio: principal-identity-method, no-selfxyz-prompt (warn-
  * only), representation-jwt-signer-binding.
  */
+/** Probes that only make sense against a Handshake-resolved apex. */
+const HNS_DEPENDENT_PROBES = new Set(['dns', 'did-resolution', 'tls-fingerprint', 'principal-identity-method', 'representation-jwt-signer-binding']);
+
 export const DEFAULT_PROBE_SUITE: ReadonlyArray<{ key: string; probe: Probe }> = [
   { key: 'dns', probe: dnsProbe },
   { key: 'well-known', probe: wellKnownProbe },
@@ -32,6 +36,7 @@ export const DEFAULT_PROBE_SUITE: ReadonlyArray<{ key: string; probe: Probe }> =
   { key: 'principal-identity-method', probe: principalIdentityMethodProbe },
   { key: 'no-selfxyz-prompt', probe: noSelfxyzPromptProbe },
   { key: 'representation-jwt-signer-binding', probe: representationJwtSignerBindingProbe },
+  { key: 'a2a-card', probe: a2aCardProbe },
 ];
 
 export interface AuditOptions {
@@ -61,6 +66,24 @@ export async function runAudit(
   const results: ProbeResult[] = [];
   const suiteStart = Date.now();
   for (const probe of suite) {
+    // AgentID S5: auditing the ICANN mirror — HNS-dependent probes (DNS TXT
+    // records, DoH DID resolution, DID-pinned TLS) have nothing to check on
+    // an ICANN host and public HNS resolvers are unreliable; skip them
+    // explicitly rather than failing on infrastructure that isn't in play.
+    if (ctx.resolver === 'mirror') {
+      const key = DEFAULT_PROBE_SUITE.find((x) => x.probe === probe)?.key;
+      if (key && HNS_DEPENDENT_PROBES.has(key)) {
+        results.push({
+          name: key as ProbeResult['name'],
+          pass: true,
+          skipped: true,
+          skipReason: 'resolver=mirror: probe depends on HNS DNS',
+          durationMs: 0,
+          details: {},
+        });
+        continue;
+      }
+    }
     const r = await probe(ctx);
     results.push(r);
   }
