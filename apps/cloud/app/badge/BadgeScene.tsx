@@ -13,13 +13,14 @@
 import * as THREE from 'three';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, extend, useFrame, type ThreeElement } from '@react-three/fiber';
-import { Environment, Lightformer } from '@react-three/drei';
+import { Environment, Lightformer, useGLTF } from '@react-three/drei';
 import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint, type RapierRigidBody } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
 import QRCode from 'qrcode';
 import type { BadgeData, BadgeTheme } from './BadgeClient';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
+useGLTF.preload('/assets/badge/card.glb');
 
 declare module '@react-three/fiber' {
   interface ThreeElements {
@@ -35,7 +36,8 @@ const W = 1.6 / 2.25;
 const H = 1.0;
 const DEPTH = 0.02;
 const RADIUS = 0.06;
-const SLOT = { w: 0.19, h: 0.038, y: H / 2 - 0.075, r: 0.019 };
+const CARD_CENTER_Y = 0.523; // reference card spans local y 0.023..1.023
+const SLOT = { w: 0.17, h: 0.036, y: H / 2 - 0.035, r: 0.018 };
 const TEX_W = 1024;
 const TEX_H = Math.round((TEX_W * H) / W);
 
@@ -81,12 +83,12 @@ function printGeometry(): THREE.ShapeGeometry {
 
 const FONT = 'Inter, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif';
 const MONO = '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace';
-const BG = '#0b0b0d';
-const BG_2 = '#141417';
-const FG = '#f5f5f5';
-const FG_2 = 'rgba(245,245,245,0.6)';
-const FG_3 = 'rgba(245,245,245,0.35)';
-const LINE = 'rgba(255,255,255,0.10)';
+const BG = '#050506';
+const BG_2 = '#0d0d10';
+const FG = '#e9e7e2'; // platinum
+const FG_2 = 'rgba(233,231,226,0.62)';
+const FG_3 = 'rgba(233,231,226,0.36)';
+const LINE = 'rgba(233,231,226,0.10)';
 
 async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !('fonts' in document)) return;
@@ -106,25 +108,35 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 }
 
 function baseCard(ctx: CanvasRenderingContext2D): void {
-  // Near-black card with a soft radial sheen and fine grain, like anodized metal.
-  const g = ctx.createRadialGradient(TEX_W * 0.3, TEX_H * 0.15, 50, TEX_W * 0.5, TEX_H * 0.5, TEX_H * 0.9);
-  g.addColorStop(0, '#1a1a1e');
-  g.addColorStop(0.5, BG_2);
-  g.addColorStop(1, BG);
-  ctx.fillStyle = g;
+  // Onyx: near-black with a cool, brushed-platinum sheen running diagonally.
+  ctx.fillStyle = BG;
   ctx.fillRect(0, 0, TEX_W, TEX_H);
+  const sheen = ctx.createLinearGradient(0, 0, TEX_W, TEX_H);
+  sheen.addColorStop(0, 'rgba(120,122,130,0.00)');
+  sheen.addColorStop(0.28, 'rgba(120,122,130,0.05)');
+  sheen.addColorStop(0.42, 'rgba(190,192,198,0.14)');
+  sheen.addColorStop(0.5, 'rgba(120,122,130,0.05)');
+  sheen.addColorStop(0.72, 'rgba(90,92,100,0.03)');
+  sheen.addColorStop(1, 'rgba(120,122,130,0.00)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+  const vignette = ctx.createRadialGradient(TEX_W / 2, TEX_H / 2, TEX_H * 0.2, TEX_W / 2, TEX_H / 2, TEX_H * 0.85);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+  // Brushed grain: fine horizontal strokes + speckle.
   const noise = ctx.createImageData(TEX_W, TEX_H);
-  for (let i = 0; i < noise.data.length; i += 4) {
-    const v = 128 + (Math.random() - 0.5) * 22;
-    noise.data[i] = noise.data[i + 1] = noise.data[i + 2] = v;
-    noise.data[i + 3] = 18;
+  for (let y = 0; y < TEX_H; y++) {
+    const rowBias = (Math.random() - 0.5) * 10;
+    for (let x = 0; x < TEX_W; x++) {
+      const i = (y * TEX_W + x) * 4;
+      const v = 128 + rowBias + (Math.random() - 0.5) * 14;
+      noise.data[i] = noise.data[i + 1] = noise.data[i + 2] = v;
+      noise.data[i + 3] = 22;
+    }
   }
   ctx.putImageData(noise, 0, 0);
-  // Slot (drawn dark so the hole reads even where the print covers the cap edge).
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.roundRect(TEX_W / 2 - (SLOT.w / W) * TEX_W / 2, TEX_H * (1 - (SLOT.y + H / 2 + SLOT.h / 2) / H), (SLOT.w / W) * TEX_W, (SLOT.h / H) * TEX_H, 40);
-  ctx.fill();
 }
 
 function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color = FG_3): void {
@@ -284,10 +296,10 @@ function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 2048; canvas.height = 128;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = theme === 'dark' ? '#1c1c20' : '#111114';
+  ctx.fillStyle = theme === 'dark' ? '#121215' : '#0c0c0e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.font = `600 44px ${FONT}`;
+  ctx.fillStyle = 'rgba(233,231,226,0.9)';
+  ctx.font = `600 40px ${FONT}`;
   ctx.letterSpacing = '10px';
   ctx.textBaseline = 'middle';
   const unit = `AGENTID   ·   ${sld.toUpperCase()}.AGENT   ·   `;
@@ -319,6 +331,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   const [dragged, drag] = useState<THREE.Vector3 | false>(false);
   const [hovered, hover] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const { nodes, materials } = useGLTF('/assets/badge/card.glb') as unknown as { nodes: Record<string, THREE.Mesh>; materials: Record<string, THREE.Material> };
+  const tilt = useRef({ x: 0, y: 0 });
   const press = useRef<{ x: number; y: number; t: number } | null>(null);
   const [front, setFront] = useState<THREE.CanvasTexture | null>(null);
   const [back, setBack] = useState<THREE.CanvasTexture | null>(null);
@@ -369,10 +383,17 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
     ang.copy(card.current.angvel());
     rot.copy(card.current.rotation());
     card.current.setAngvel({ x: ang.x, y: ang.y - rot.y * 0.25, z: ang.z }, false);
-    // Flip: the print turns inside the body, the physics never notices.
+    // Flip + parallax tilt happen on the visual group inside the body; the
+    // physics never notices. Tilt follows the pointer while hovered.
     if (visual.current) {
-      const target = flipped ? Math.PI : 0;
-      visual.current.rotation.y += (target - visual.current.rotation.y) * Math.min(1, delta * 7);
+      const k = Math.min(1, delta * 7);
+      const targetY = (flipped ? Math.PI : 0) + (hovered && !dragged ? state.pointer.x * 0.35 : 0);
+      const targetX = hovered && !dragged ? -state.pointer.y * 0.28 : 0;
+      tilt.current.x += (targetX - tilt.current.x) * k;
+      tilt.current.y += (targetY - tilt.current.y) * k;
+      visual.current.rotation.set(tilt.current.x, tilt.current.y, 0);
+      const s = hovered && !dragged ? 1.025 : 1;
+      visual.current.scale.setScalar(visual.current.scale.x + (s - visual.current.scale.x) * k);
     }
   });
 
@@ -382,11 +403,12 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       map={map ?? undefined}
       color={map ? '#ffffff' : BG_2}
       clearcoat={1}
-      clearcoatRoughness={0.15}
-      roughness={0.3}
-      metalness={0.5}
-      iridescence={1}
-      iridescenceThicknessRange={[0, 2400]}
+      clearcoatRoughness={0.12}
+      roughness={0.32}
+      metalness={0.42}
+      iridescence={0.22}
+      iridescenceThicknessRange={[100, 900]}
+      envMapIntensity={0.9}
       side={THREE.FrontSide}
     />
   );
@@ -418,10 +440,10 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
               drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())));
             }}
           >
-            <group ref={visual} position={[0, 0.5, 0]}>
-              {/* Body: dark metal slab with the slot. */}
+            <group ref={visual} position={[0, CARD_CENTER_Y, 0]}>
+              {/* Body: onyx slab with the slot. */}
               <mesh geometry={bodyGeo}>
-                <meshPhysicalMaterial color="#232328" metalness={0.85} roughness={0.35} clearcoat={0.6} clearcoatRoughness={0.3} />
+                <meshPhysicalMaterial color="#141417" metalness={0.8} roughness={0.32} clearcoat={0.7} clearcoatRoughness={0.25} envMapIntensity={0.8} />
               </mesh>
               {/* Prints: flat faces a hair off the body, front toward the camera (+z). */}
               <mesh geometry={printGeo} position={[0, 0, DEPTH / 2 + 0.0006]}>
@@ -430,22 +452,18 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
               <mesh geometry={printGeo} position={[0, 0, -DEPTH / 2 - 0.0006]} rotation={[0, Math.PI, 0]}>
                 {printMaterial(back)}
               </mesh>
-              {/* Clip through the slot + clamp above it. */}
-              <mesh position={[0, SLOT.y + 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.045, 0.011, 16, 48]} />
-                <meshStandardMaterial color="#e6e6e6" metalness={1} roughness={0.25} />
-              </mesh>
-              <mesh position={[0, SLOT.y + 0.075, 0]}>
-                <boxGeometry args={[0.15, 0.04, 0.03]} />
-                <meshStandardMaterial color="#d4d4d4" metalness={1} roughness={0.3} />
-              </mesh>
+              {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
+              <group position={[0, -CARD_CENTER_Y, 0]}>
+                <mesh geometry={nodes['clip']!.geometry} material={materials['metal']} material-roughness={0.3} />
+                <mesh geometry={nodes['clamp']!.geometry} material={materials['metal']} />
+              </group>
             </group>
           </group>
         </RigidBody>
       </group>
       <mesh ref={band}>
         <meshLineGeometry />
-        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-4, 1)} lineWidth={0.62} />
+        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-4, 1)} lineWidth={1} />
       </mesh>
     </>
   );
@@ -454,15 +472,18 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
 export function BadgeScene({ data, theme }: { data: BadgeData; theme: BadgeTheme }): React.JSX.Element {
   return (
     <Canvas camera={{ position: [0, 0, 13], fov: 25 }} style={{ backgroundColor: 'transparent' }} dpr={[1, 2]} gl={{ antialias: true }}>
-      <ambientLight intensity={Math.PI} />
+      <ambientLight intensity={theme === 'dark' ? 0.9 : Math.PI * 0.8} />
+      <directionalLight position={[-4, 6, 8]} intensity={theme === 'dark' ? 1.6 : 1.1} color="#f2f0ea" />
+      <directionalLight position={[5, -2, -6]} intensity={0.7} color="#c9d4ff" />
       <Physics interpolate gravity={[0, -40, 0]} timeStep={1 / 60}>
         <Band data={data} theme={theme} />
       </Physics>
-      <Environment blur={0.75}>
-        <Lightformer intensity={2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-        <Lightformer intensity={3} color="white" position={[-1, -1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-        <Lightformer intensity={3} color="white" position={[1, 1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
-        <Lightformer intensity={10} color="white" position={[-10, 0, 14]} rotation={[0, Math.PI / 2, Math.PI / 3]} scale={[100, 10, 1]} />
+      <Environment blur={0.8}>
+        <Lightformer intensity={theme === 'dark' ? 1.4 : 2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
+        <Lightformer intensity={theme === 'dark' ? 2.2 : 3} color="white" position={[-1, -1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
+        <Lightformer intensity={theme === 'dark' ? 2.2 : 3} color="white" position={[1, 1, 1]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
+        <Lightformer intensity={theme === 'dark' ? 6 : 10} color="white" position={[-10, 0, 14]} rotation={[0, Math.PI / 2, Math.PI / 3]} scale={[100, 10, 1]} />
+        <Lightformer intensity={theme === 'dark' ? 1.5 : 0.6} color="#dfe6ff" position={[8, 4, -6]} rotation={[0, -Math.PI / 3, 0]} scale={[30, 3, 1]} />
       </Environment>
     </Canvas>
   );
