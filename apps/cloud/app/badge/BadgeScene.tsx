@@ -36,6 +36,9 @@ const W = 1.6 / 2.25;
 const H = 1.0;
 const DEPTH = 0.02;
 const RADIUS = 0.06;
+const BEVEL = 0.004;
+// Print faces sit just outside the beveled caps (the bevel pushes each cap out by BEVEL).
+const PRINT_Z = DEPTH / 2 + BEVEL + 0.0008;
 const CARD_CENTER_Y = 0.523; // reference card spans local y 0.023..1.023
 const SLOT = { w: 0.17, h: 0.036, y: H / 2 - 0.035, r: 0.018 };
 const TEX_W = 1024;
@@ -64,7 +67,7 @@ function cardShape(): THREE.Shape {
 
 /** The slab: beveled, with the slot, centred on z=0. Unprinted dark metal. */
 function bodyGeometry(): THREE.ExtrudeGeometry {
-  const geo = new THREE.ExtrudeGeometry(cardShape(), { depth: DEPTH, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 3, curveSegments: 24 });
+  const geo = new THREE.ExtrudeGeometry(cardShape(), { depth: DEPTH, bevelEnabled: true, bevelThickness: BEVEL, bevelSize: BEVEL, bevelSegments: 3, curveSegments: 24 });
   geo.translate(0, 0, -DEPTH / 2);
   return geo;
 }
@@ -316,12 +319,12 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
 
 function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 2048; canvas.height = 160;
+  canvas.width = 2048; canvas.height = 140;
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = theme === 'dark' ? '#121215' : '#0c0c0e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = 'rgba(233,231,226,0.9)';
-  ctx.font = `600 62px ${FONT}`;
+  ctx.font = `600 50px ${FONT}`;
   ctx.letterSpacing = '10px';
   ctx.textBaseline = 'middle';
   const unit = `AGENTID   ·   ${sld.toUpperCase()}.AGENT   ·   `;
@@ -374,7 +377,9 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
-  useSphericalJoint(j3, card, [[0, 0, 0], [0, 1.45, 0]]);
+  // Anchor at the top of the clamp (clip group is raised 0.055 local), so the
+  // strap ends where the swivel starts instead of lying over it.
+  useSphericalJoint(j3, card, [[0, 0, 0], [0, 1.6, 0]]);
 
   useEffect(() => {
     if (hovered) {
@@ -478,10 +483,10 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
                 <meshPhysicalMaterial color="#141417" metalness={0.8} roughness={0.32} clearcoat={0.7} clearcoatRoughness={0.25} envMapIntensity={0.8} />
               </mesh>
               {/* Prints: flat faces a hair off the body, front toward the camera (+z). */}
-              <mesh geometry={printGeo} position={[0, 0, DEPTH / 2 + 0.0006]}>
+              <mesh geometry={printGeo} position={[0, 0, PRINT_Z]}>
                 {printMaterial(front)}
               </mesh>
-              <mesh geometry={printGeo} position={[0, 0, -DEPTH / 2 - 0.0006]} rotation={[0, Math.PI, 0]}>
+              <mesh geometry={printGeo} position={[0, 0, -PRINT_Z]} rotation={[0, Math.PI, 0]}>
                 {printMaterial(back)}
               </mesh>
               {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
@@ -495,7 +500,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       </group>
       <mesh ref={band}>
         <meshLineGeometry />
-        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={2.4} />
+        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={1.45} />
       </mesh>
     </>
   );
