@@ -43,6 +43,7 @@ describe('surfaceForHost (host → surface dispatch)', () => {
   it('keeps /names/* on the app surface for every host', () => {
     expect(isAppOwnedPath('/names/samantha')).toBe(true);
     expect(isAppOwnedPath('/names')).toBe(true);
+    expect(isAppOwnedPath('/badge')).toBe(true);
     expect(isAppOwnedPath('/namesake')).toBe(false);
   });
   it('routes agent.arp.run to agentid', () => {
