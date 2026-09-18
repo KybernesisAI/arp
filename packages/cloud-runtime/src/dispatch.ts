@@ -89,7 +89,22 @@ export async function dispatchInbound(
     log.warn({ error: verified.error, peerDid }, 'envelope_verify_failed');
     return { ok: false, decision: 'deny', reason: 'invalid_signature' };
   }
-  const msg = verified.message;
+  return dispatchVerifiedMessage(ctx, verified.message, peerDid, envelope);
+}
+
+/**
+ * AgentID S5: the policy + delivery half of dispatch, for callers whose
+ * identity was established some other way (an A2A caller presenting an ARP
+ * connection token). `envelope` is what gets persisted for audit; for
+ * non-envelope callers pass a labelled encoding (e.g. `a2a:<base64url json>`).
+ */
+export async function dispatchVerifiedMessage(
+  ctx: DispatchContext,
+  msg: DidCommMessage,
+  peerDid: string,
+  envelope: string,
+): Promise<DispatchResult> {
+  const log = ctx.logger.child({ tenantId: ctx.tenantId, agentDid: ctx.agentDid });
 
   // ---- lookup connection -------------------------------------------
   // Prefer an explicit `connection_id` in the message body; fall back to

@@ -35,6 +35,7 @@
   "dependencies": {
     "@kybernesis/arp-audit": "workspace:*",
     "@kybernesis/arp-cloud-db": "workspace:*",
+    "@kybernesis/arp-pairing": "workspace:*",
     "@kybernesis/arp-pdp": "workspace:*",
     "@kybernesis/arp-scope-catalog": "workspace:*",
     "@kybernesis/arp-spec": "workspace:*",

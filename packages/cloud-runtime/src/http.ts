@@ -24,6 +24,7 @@ import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
 import { createHash } from 'node:crypto';
 import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
+import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
 import { ed25519ToJwk, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
@@ -55,6 +56,8 @@ export interface GatewayHonoOptions {
   profileBase?: string | null;
   /** AgentID S4: push delivery + agent-API signer; absent = push disabled. */
   push?: PushContext;
+  /** AgentID S5: how long message/send waits for a reply (ms). Default 120s. */
+  a2aWaitMs?: number;
 }
 
 /**
@@ -472,6 +475,45 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       opts.logger.error({ err: (err as Error).message, agentDid: me.row.did }, 'agent_api_send_failed');
       return c.json({ ok: false, error: 'send_failed' }, 500);
     }
+  });
+
+  // AgentID S5 / A3: A2A v1.0 JSON-RPC endpoint on the identity's host.
+  app.post('/a2a', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ jsonrpc: '2.0', id: null, error: { code: -32004, message: 'Unknown agent' } }, 404);
+    let req: JsonRpcRequest;
+    try {
+      req = (await c.req.json()) as JsonRpcRequest;
+    } catch {
+      return c.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400);
+    }
+    const tenantDb = withTenant(opts.db, toTenantId(ctx.tenantId));
+    const dispatchCtx: DispatchContext = {
+      tenantDb,
+      tenantId: ctx.tenantId,
+      agentDid: ctx.agentDid,
+      audit: opts.auditFactory(tenantDb),
+      pdp: opts.pdp,
+      resolver: opts.resolver,
+      sessions: opts.sessions,
+      logger: opts.logger,
+      metrics: opts.metrics,
+      now,
+      ...(opts.push ? { push: opts.push } : {}),
+    };
+    const res = await handleA2aRequest(
+      { resolver: opts.resolver, now, ...(opts.a2aWaitMs !== undefined ? { waitMs: opts.a2aWaitMs } : {}) },
+      { agentDid: ctx.agentDid, card: (ctx.agentRow.wellKnownA2aCard as Record<string, unknown> | null) ?? null, ctx: dispatchCtx },
+      req,
+      c.req.header('authorization'),
+    );
+    const ext = c.req.header('a2a-extensions');
+    return c.newResponse(JSON.stringify(res), res.error && res.error.code === -32600 ? 400 : 200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      ...(ext ? { 'A2A-Extensions': ext } : {}),
+    });
   });
 
   app.post('/didcomm', async (c) => {

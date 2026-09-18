@@ -13,7 +13,7 @@
 
 import { agents, toTenantId, withTenant, type CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { eq } from 'drizzle-orm';
-import type { PushContext } from './push.js';
+import { resolvePendingFromEnvelope, type PushContext } from './push.js';
 import { dispatchInbound, type DispatchContext, type PeerResolver } from './dispatch.js';
 import type { PostgresAudit } from './audit.js';
 import type { SessionRegistry } from './sessions.js';
@@ -51,7 +51,14 @@ export function createForwardEnvelope(opts: ForwardOptions) {
       .where(eq(agents.did, params.peerDid))
       .limit(1);
     const recipient = rows[0];
-    if (!recipient) return null;
+    if (!recipient) {
+      // AgentID S5: an external (non-hosted) caller may be waiting on this
+      // reply via the A2A endpoint or the agent-API.
+      if (resolvePendingFromEnvelope(params.envelope)) {
+        return { ok: true, decision: 'allow', queued: false };
+      }
+      return null;
+    }
     const recipientTenantDb = withTenant(opts.db, toTenantId(recipient.tenantId));
     const ctx: DispatchContext = {
       tenantDb: recipientTenantDb,

@@ -291,6 +291,9 @@ importers:
         specifier: ^8.18.0
         version: 8.20.0
     devDependencies:
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../../packages/pairing
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../../packages/transport
@@ -838,6 +841,9 @@ importers:
       '@kybernesis/arp-cloud-db':
         specifier: workspace:*
         version: link:../cloud-db
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../pairing
       '@kybernesis/arp-pdp':
         specifier: workspace:*
         version: link:../pdp
