@@ -568,15 +568,16 @@ function Band({ data, theme, offsetX = 0, maxSpeed = 50, minSpeed = 10 }: { data
 }
 
 /** Places the whole rig: centred, or in the right half of a wide viewport (hero). */
-function Anchored({ anchor, data, theme }: { anchor: 'center' | 'right'; data: BadgeData; theme: BadgeTheme }): React.JSX.Element {
+function Anchored({ anchorX, data, theme }: { anchorX: number; data: BadgeData; theme: BadgeTheme }): React.JSX.Element {
   const width = useThree((st) => st.viewport.width);
-  const x = anchor === 'right' && width > 7 ? width * 0.26 : 0;
+  // anchorX is a fraction of the canvas width (0.5 = centre) → world x on the z=0 plane.
+  const x = (anchorX - 0.5) * width;
   // The offset goes on the physics rig only: the strap is drawn from world
   // positions, so it must not inherit the shift (it would be offset twice).
   return <Band data={data} theme={theme} offsetX={x} />;
 }
 
-export function BadgeScene({ data, theme, zoom = 1, anchor = 'center', eventSource }: { data: BadgeData; theme: BadgeTheme; zoom?: number; anchor?: 'center' | 'right'; eventSource?: HTMLElement | React.RefObject<HTMLElement> }): React.JSX.Element {
+export function BadgeScene({ data, theme, zoom = 1, anchorX = 0.5, eventSource }: { data: BadgeData; theme: BadgeTheme; zoom?: number; anchorX?: number; eventSource?: HTMLElement | React.RefObject<HTMLElement> }): React.JSX.Element {
   return (
     <Canvas
       camera={{ position: [0, 0, 13 / zoom], fov: 25 }}
@@ -589,7 +590,7 @@ export function BadgeScene({ data, theme, zoom = 1, anchor = 'center', eventSour
       <directionalLight position={[-4, 6, 8]} intensity={theme === 'dark' ? 1.6 : 1.1} color="#f2f0ea" />
       <directionalLight position={[5, -2, -6]} intensity={0.7} color="#c9d4ff" />
       <Physics interpolate gravity={[0, -40, 0]} timeStep={1 / 60}>
-        <Anchored anchor={anchor} data={data} theme={theme} />
+        <Anchored anchorX={anchorX} data={data} theme={theme} />
       </Physics>
       <Environment blur={0.8}>
         <Lightformer intensity={theme === 'dark' ? 1.4 : 2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />

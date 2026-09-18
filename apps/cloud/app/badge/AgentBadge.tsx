@@ -16,16 +16,16 @@ const BadgeScene = dynamic(() => import('./BadgeScene').then((m) => m.BadgeScene
  */
 /** `zoom` scales the badge in its frame (1 = the standalone stage; 1.6 ≈ hero size). */
 /**
- * `anchor="right"` hangs the rig in the right half of a wide frame. `eventSource`
+ * `anchorX` (fraction of the frame width, 0.5 = centre) is where the rig hangs. `eventSource`
  * lets the canvas sit over other content with `pointer-events: none` while
  * still receiving drags: R3F listens on that element and only reacts when
  * the pointer is actually on the card, so the content underneath keeps working.
  */
-export function AgentBadge({ data, theme = 'dark', zoom = 1, anchor = 'center', eventSource, className, style }: { data: BadgeData; theme?: BadgeTheme; zoom?: number; anchor?: 'center' | 'right'; eventSource?: React.RefObject<HTMLElement | null>; className?: string; style?: React.CSSProperties }): React.JSX.Element {
+export function AgentBadge({ data, theme = 'dark', zoom = 1, anchorX = 0.5, eventSource, className, style }: { data: BadgeData; theme?: BadgeTheme; zoom?: number; anchorX?: number; eventSource?: React.RefObject<HTMLElement | null>; className?: string; style?: React.CSSProperties }): React.JSX.Element {
   return (
     <div className={className} style={{ position: 'relative', width: '100%', height: '100%', ...(eventSource ? { pointerEvents: 'none' } : {}), ...style }}>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
-      <BadgeScene data={data} theme={theme} zoom={zoom} anchor={anchor} {...(eventSource ? { eventSource: eventSource as React.RefObject<HTMLElement> } : {})} />
+      <BadgeScene data={data} theme={theme} zoom={zoom} anchorX={anchorX} {...(eventSource ? { eventSource: eventSource as React.RefObject<HTMLElement> } : {})} />
     </div>
   );
 }
