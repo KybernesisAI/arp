@@ -291,6 +291,9 @@ importers:
         specifier: ^8.18.0
         version: 8.20.0
     devDependencies:
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../../packages/pairing
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../../packages/transport
@@ -838,6 +841,9 @@ importers:
       '@kybernesis/arp-cloud-db':
         specifier: workspace:*
         version: link:../cloud-db
+      '@kybernesis/arp-pairing':
+        specifier: workspace:*
+        version: link:../pairing
       '@kybernesis/arp-pdp':
         specifier: workspace:*
         version: link:../pdp
@@ -853,6 +859,9 @@ importers:
       '@kybernesis/arp-transport':
         specifier: workspace:*
         version: link:../transport
+      '@kybernesis/arp-transport-a2a':
+        specifier: workspace:*
+        version: link:../transport-a2a
       '@noble/ed25519':
         specifier: ^2.2.3
         version: 2.3.0
@@ -1154,6 +1163,9 @@ importers:
       better-sqlite3:
         specifier: ^11.5.0
         version: 11.10.0
+      canonicalize:
+        specifier: ^2.1.0
+        version: 2.1.0
       jose:
         specifier: ^5.9.6
         version: 5.10.0
@@ -1161,6 +1173,31 @@ importers:
       '@types/better-sqlite3':
         specifier: ^7.6.11
         version: 7.6.13
+
+  packages/transport-a2a:
+    dependencies:
+      '@kybernesis/arp-spec':
+        specifier: workspace:*
+        version: link:../spec
+      '@kybernesis/arp-transport':
+        specifier: workspace:*
+        version: link:../transport
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.19.17
+      hono:
+        specifier: ^4.6.12
+        version: 4.12.14
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.5.4)(yaml@2.8.3)
+      typescript:
+        specifier: ~5.5.4
+        version: 5.5.4
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.19.17)
 
   packages/ui:
     devDependencies:

@@ -13,6 +13,7 @@
 export * from './util.js';
 export * from './did-document.js';
 export * from './agent-card.js';
+export * from './a2a-agent-card.js';
 export * from './arp-json.js';
 export * from './representation-vc.js';
 export * from './revocations.js';

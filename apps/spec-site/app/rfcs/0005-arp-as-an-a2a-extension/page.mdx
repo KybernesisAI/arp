@@ -1,0 +1,161 @@
+export const metadata = {
+  title: "RFC-0005: ARP as an A2A extension",
+  description: "How an ARP identity is discovered and addressed by any A2A v1.0 client, and how ARP's consent, policy, audit and revocation ride inside A2A's own extension and auth slots.",
+};
+
+# RFC-0005: ARP as an A2A extension
+
+- **Status:** accepted (implemented in AgentID slice S5, 2026-09)
+- **Author(s):** @ianborders
+- **Created:** 2026-09-18
+- **Related:** `docs/ARP-agentid-s5-a2a-transport.md`, `packages/spec/src/schemas/a2a-agent-card.ts`, `packages/transport/src/card-signing.ts`, `packages/transport-a2a/`, `packages/cloud-runtime/src/a2a.ts`
+
+## Summary
+
+An ARP identity (`did:web:<name>.agent`) publishes a **signed A2A v1.0
+agent card** at the standard path and answers **A2A JSON-RPC** at `/a2a`
+on its identity host. ARP itself — pairing, scoped Cedar policy,
+obligations, the audit chain, revocation — is carried as the A2A
+extension `https://arp.run/ext/arp/v1`, and the ARP **Connection Token**
+is the bearer credential A2A callers present. A stock A2A client needs
+no ARP code to discover and talk to a named agent; an ARP agent needs no
+A2A code to accept the call, because the gateway maps it onto the normal
+inbound `request` path.
+
+## Motivation
+
+A2A owns the discovery and messaging shape most agent frameworks are
+converging on: a card at `/.well-known/agent-card.json`, `message/send`,
+tasks with lifecycle states. What A2A does not specify is *who is
+allowed to talk to whom, about what, and with what record*. That is
+exactly what ARP is. Rather than compete on the wire, ARP rides inside
+the two slots A2A leaves open for it — `capabilities.extensions[]` and
+`securitySchemes` — so both sides keep their guarantees.
+
+## Design
+
+### Documents on the identity host
+
+| Path | Document |
+|---|---|
+| `/.well-known/agent-card.json` | **A2A v1.0 AgentCard** (this RFC). |
+| `/.well-known/arp-card.json` | ARP's own card (unchanged schema; previously served at `agent-card.json`). |
+| `/.well-known/jwks.json` | The identity's public key as an OKP JWK (`kid` = `<did>#key-1`). Card signatures point here with `jku`. |
+| `/.well-known/did.json` | The DID document (unchanged). |
+| `/a2a` | JSON-RPC 2.0 endpoint. |
+
+For `.agent` names the identity host is the name itself when the
+resolver can reach it, and otherwise the ICANN mirror
+(`<name>.agent.arp.run`), which serves the same documents.
+
+### The card
+
+The card follows the A2A v1.0 proto in JSON (camelCase). ARP adds:
+
+```json
+{
+  "supportedInterfaces": [
+    { "url": "https://<host>/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }
+  ],
+  "capabilities": {
+    "extensions": [
+      {
+        "uri": "https://arp.run/ext/arp/v1",
+        "required": false,
+        "params": {
+          "did": "did:web:<name>.agent",
+          "arpCard": "https://<host>/.well-known/arp-card.json",
+          "pair": "https://cloud.arp.run/pair?peer=did:web:<name>.agent",
+          "scopes": ["..."]
+        }
+      }
+    ]
+  },
+  "securitySchemes": {
+    "arp": { "type": "http", "scheme": "bearer", "bearerFormat": "ARP connection token" }
+  },
+  "securityRequirements": [{ "arp": [] }],
+  "signatures": [{ "protected": "<b64url header>", "signature": "<b64url>" }]
+}
+```
+
+### Signing
+
+Cards are signed per A2A §8.4: JCS (RFC 8785) over the card **without**
+`signatures`, protobuf presence rules (unset optionals and empty
+non-required fields omitted), then a detached JWS with
+`protected = { alg: "EdDSA", typ: "JOSE", kid: "<did>#key-1", jku: "<host>/.well-known/jwks.json" }`.
+The signing key is the identity's own Ed25519 key — the same key in the
+DID document — so the card, the DID and the name are bound by one
+signature. Verifiers fetch `jku` (or the DID document) and need nothing
+else. Identities whose key is held by their owner rather than by ARP
+Cloud publish an unsigned card until their runtime signs it.
+
+### Calling an ARP identity from A2A
+
+1. Fetch the card; pick the JSONRPC interface; read the ARP extension.
+2. If you hold a Connection Token for this peer, send it as
+   `Authorization: Bearer <base64url(JSON token)>`.
+3. `message/send` as usual. The endpoint verifies the token (audience =
+   this agent, both signatures, connection active and unrevoked), derives
+   the caller's DID from it, builds an ARP `request` message from the
+   A2A message's text parts, and runs the normal inbound path: Cedar
+   policy, obligations, audit entry, delivery to the runtime.
+4. The result is a `Task`:
+   - `COMPLETED` with the reply in `status.message` when the runtime
+     answered within the request window;
+   - `SUBMITTED` when the runtime is asynchronous (poll `tasks/get`);
+   - `REJECTED` when policy denied the request (the denial is in the
+     audit log);
+   - `AUTH_REQUIRED` when no valid token was presented. The status
+     message carries the pair URL from the extension params.
+
+`agent/getAuthenticatedExtendedCard` returns the same card. Requests
+may negotiate the extension with the `A2A-Extensions` header; the
+server echoes it.
+
+### Calling an A2A agent from ARP
+
+`@kybernesis/arp-transport-a2a` implements the outbound half behind
+ARP's `Transport` seam: resolve the peer's card from its `did:web`
+origin, `message/send` with the Connection Token as bearer, and map the
+returned task onto an ARP `response` message (or a denial). ARP Cloud's
+agent API uses it automatically when the peer is not an ARP-hosted
+agent, so an ARP agent can address any A2A agent that accepts the
+token — or, for agents that do not know ARP, any A2A agent at all,
+subject to that agent's own auth.
+
+### Testkit
+
+The `a2a-card` probe fetches the card, validates it against the A2A
+schema, requires a JSONRPC interface and the ARP extension, and verifies
+the signature against `jku`. The `well-known` probe now reads
+`arp-card.json`. `--resolver mirror` audits a name through its ICANN
+mirror.
+
+## Alternatives considered
+
+- **DIDComm as the only wire.** Keeps ARP self-contained but makes every
+  A2A framework write an adapter. Rejected; DIDComm stays available as
+  the transport ARP agents use between themselves.
+- **A2A card without signatures.** Simpler, but the card is the document
+  third parties trust first; an unsigned card lets a mirror or a CDN
+  impersonate a name. Rejected.
+- **Custom bearer format.** A2A's `HTTPAuth` scheme already carries an
+  opaque bearer; reusing the Connection Token means no new credential.
+
+## Adoption path
+
+- Non-breaking for ARP agents: `arp-card.json` keeps the old schema; the
+  testkit count grows from 11 to 12 probes.
+- Breaking for anything that read ARP's card at `agent-card.json`: the
+  reference packages, testkit, templates and the console all moved in
+  the same release.
+
+## Drawbacks
+
+- Two card documents per identity. Mitigated by the ARP card being
+  linked from the A2A card's extension params.
+- Reply latency is bounded by the request window (default 120 s) for
+  `COMPLETED`; longer work degrades to `SUBMITTED` + polling.
+  `message/stream` and push-notification configs are follow-ups.

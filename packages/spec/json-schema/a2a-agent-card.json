@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arp.spec/schema/a2a-agent-card/v0.1.json",
+  "title": "a2a-agent-card",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "supportedInterfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Endpoint URL for this binding"
+          },
+          "protocolBinding": {
+            "type": "string",
+            "enum": [
+              "JSONRPC",
+              "GRPC",
+              "HTTP+JSON"
+            ],
+            "description": "Transport binding"
+          },
+          "protocolVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A2A protocol version, e.g. \"1.0\""
+          },
+          "tenant": {
+            "type": "string",
+            "description": "Tenant selector for multi-tenant endpoints"
+          }
+        },
+        "required": [
+          "url",
+          "protocolBinding",
+          "protocolVersion"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "organization"
+      ],
+      "additionalProperties": true
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "documentationUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "streaming": {
+          "type": "boolean"
+        },
+        "pushNotifications": {
+          "type": "boolean"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uri": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Extension URI"
+              },
+              "description": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "uri"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "extendedAgentCard": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "securitySchemes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "bearerFormat": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "securityRequirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "defaultInputModes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "defaultOutputModes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inputModes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputModes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "protected": {
+            "type": "string",
+            "minLength": 1,
+            "description": "base64url JWS protected header"
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1,
+            "description": "base64url JWS signature"
+          },
+          "header": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "JWS unprotected header"
+          }
+        },
+        "required": [
+          "protected",
+          "signature"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "iconUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "protocolVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "supportedInterfaces",
+    "version",
+    "capabilities",
+    "defaultInputModes",
+    "defaultOutputModes",
+    "skills"
+  ],
+  "additionalProperties": true
+}

@@ -1,5 +1,12 @@
 {
   "crons": [
-    { "path": "/api/cron/registrar-reconcile", "schedule": "17 4 * * *" }
+    {
+      "path": "/api/cron/registrar-reconcile",
+      "schedule": "17 4 * * *"
+    },
+    {
+      "path": "/api/cron/rebuild-cards?only=missing",
+      "schedule": "41 4 * * 1"
+    }
   ]
 }

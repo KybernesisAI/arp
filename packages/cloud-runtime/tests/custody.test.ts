@@ -1,4 +1,4 @@
-import { createCipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createHash, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { openPrivateKey, sealingKeyFromEnv } from '../src/custody.js';
 
@@ -24,7 +24,7 @@ describe('custody opener (format-compatible with the cloud app)', () => {
     const dev = sealingKeyFromEnv({} as NodeJS.ProcessEnv);
     expect(Buffer.from(dev).toString('hex')).toBe(
       // sha256('arp-cloud-dev-sealing-key') — must match apps/cloud/lib/key-custody.ts
-      require('node:crypto').createHash('sha256').update('arp-cloud-dev-sealing-key').digest('hex'),
+      createHash('sha256').update('arp-cloud-dev-sealing-key').digest('hex'),
     );
     expect(() => sealingKeyFromEnv({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)).toThrow(/must be set/);
     expect(sealingKeyFromEnv({ ARP_CLOUD_KEY_ENCRYPTION_KEY: 'ab'.repeat(32) } as NodeJS.ProcessEnv)).toEqual(

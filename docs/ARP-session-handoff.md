@@ -8,7 +8,7 @@
 
 > ## ⚠️ State as of 2026-09-17 (read this block first; everything below is historical)
 >
-> - **Direction changed.** The product is now **AgentID**: identity-first `.agent` registration on top of ARP Cloud. Canonical plan: `docs/ARP-agentid-plan.md`. Slices S0–S6; S0 (lander at `agent.arp.run`, PR #150) is live; S1 (this revival) in progress.
+> - **Direction changed.** The product is now **AgentID**: identity-first `.agent` registration on top of ARP Cloud. Canonical plan: `docs/ARP-agentid-plan.md`. Slices S0–S6; S0–S4 merged + live (see `CLAUDE.md §5` AgentID row); S5 (A2A transport, signed cards, `packages/transport-a2a`, RFC-0005) built 2026-09-18 on `agentid-s5-a2a`; S6 (ecosystem tiers + commerce) next. Slice briefs: `docs/ARP-agentid-s<N>-*.md`.
 > - **Phase 10 shipped** (PRs #40–#44), then ~105 more PRs through #149 (2026-04-26 → 05-03): changesets consumed + packages on `latest` at 0.x (#47), Headless pre-flight (#45–#58), `apps/cloud-gateway` live at `gateway.arp.run` (#59–#74), `packages/cloud-bridge` + `@kybernesis/arp` umbrella CLI `arpc` with launchd supervisor (#67–#85), bidirectional pairing consent (#107), typed actions (#114–#117, #131), per-agent Stripe pricing + quota (#132), PostHog (#134, #144–#146), README rewritten as a runbook (#147), delete-agent + unbind-domain (#149). Repo idle 2026-05-03 → 2026-09-17.
 > - **PR #35 (v1.0.0 bump) is still open** and stale; Ian decides merge-at-S6 vs close.
 > - **KyberBot is no longer the reference implementation** (`docs/ARP-KyberBot-unification-roadmap.md` is superseded); Kybernesis Eve agents via `@kybernesis/identity` are (plan §6 S4).

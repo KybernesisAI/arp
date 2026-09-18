@@ -117,6 +117,35 @@ export function resolvePendingReply(thid: string | undefined, msg: DidCommMessag
   return true;
 }
 
+/**
+ * Resolve a pending reply straight from a signed `/response` envelope our own
+ * hosted agent produced — used before the peer lookup so replies to callers
+ * that are NOT hosted here (external A2A clients) still reach the waiter.
+ * Decodes without verifying: the envelope was signed by this gateway's own
+ * paths (push reply or WS outbound), never by an external party.
+ */
+export function resolvePendingFromEnvelope(compact: string): boolean {
+  const parts = compact.split('.');
+  if (parts.length !== 3) return false;
+  try {
+    const msg = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as DidCommMessage;
+    if (!msg || typeof msg.type !== 'string') return false;
+    if (!(msg.type.endsWith('/response') || msg.type.endsWith('.response'))) return false;
+    return resolvePendingReply(msg.thid, msg);
+  } catch {
+    return false;
+  }
+}
+
+/** Drop a pending wait (e.g. the request was rejected before delivery). */
+export function cancelPendingReply(thid: string): void {
+  const p = pending.get(thid);
+  if (!p) return;
+  pending.delete(thid);
+  clearTimeout(p.timer);
+  p.reject(new Error('cancelled'));
+}
+
 export function pendingReplyCount(): number {
   return pending.size;
 }

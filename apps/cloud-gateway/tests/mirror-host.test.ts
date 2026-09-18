@@ -9,6 +9,8 @@ import { resolve } from 'node:path';
 import { createPgliteDb, agents, agentLinks, registrarBindings, tenants } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { startGateway } from '../src/index.js';
+import { ed25519RawToMultibase } from '@kybernesis/arp-transport';
+import * as ed25519 from '@noble/ed25519';
 
 const CEDAR_SCHEMA_PATH = resolve(__dirname, '..', '..', '..', 'packages', 'spec', 'src', 'cedar-schema.json');
 
@@ -24,13 +26,15 @@ describe('mirror host', () => {
     cleanups.push(close);
     const t = await db.insert(tenants).values({ principalDid: 'did:key:z6MkT' }).returning({ id: tenants.id });
     const tenantId = t[0]!.id;
+    const atlasPub = await ed25519.getPublicKeyAsync(ed25519.utils.randomPrivateKey());
     await db.insert(agents).values({
       did: 'did:web:atlas.agent',
       tenantId,
       principalDid: 'did:key:z6MkT',
       agentName: 'Atlas',
       agentDescription: '',
-      publicKeyMultibase: 'z6MkAtlas',
+      publicKeyMultibase: ed25519RawToMultibase(atlasPub),
+      wellKnownA2aCard: { name: 'Atlas', protocolVersion: '1.0', supportedInterfaces: [{ url: 'https://atlas.agent.arp.run/a2a', protocolBinding: 'JSONRPC', protocolVersion: '1.0' }] },
       handoffJson: {},
       wellKnownDid: { id: 'did:web:atlas.agent', alsoKnownAs: ['https://atlas.agent.arp.run'] },
       wellKnownAgentCard: { name: 'Atlas' },
@@ -71,6 +75,15 @@ describe('mirror host', () => {
     const did = await fetch(`${base}/.well-known/did.json`, { headers: host });
     expect(did.status).toBe(200);
     expect(((await did.json()) as { alsoKnownAs: string[] }).alsoKnownAs).toEqual(['https://atlas.agent.arp.run']);
+
+    // AgentID S5: agent-card.json = A2A card, arp-card.json = ARP card, jwks = identity key.
+    const a2a = (await (await fetch(`${base}/.well-known/agent-card.json`, { headers: host })).json()) as { protocolVersion?: string; name?: string };
+    expect(a2a.protocolVersion).toBe('1.0');
+    const arp = (await (await fetch(`${base}/.well-known/arp-card.json`, { headers: host })).json()) as { name?: string; protocolVersion?: string };
+    expect(arp.name).toBe('Atlas');
+    expect(arp.protocolVersion).toBeUndefined();
+    const idJwks = (await (await fetch(`${base}/.well-known/jwks.json`, { headers: host })).json()) as { keys: Array<{ kty: string; crv: string; kid: string }> };
+    expect(idJwks.keys).toEqual([expect.objectContaining({ kty: 'OKP', crv: 'Ed25519', kid: 'did:web:atlas.agent#key-1' })]);
 
     const rep = await fetch(`${base}/representation.jwt`, { headers: host });
     expect(rep.status).toBe(200);

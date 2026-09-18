@@ -3,7 +3,7 @@
  *
  * Routes:
  *   GET  /.well-known/did.json              — per-tenant agent DID doc
- *   GET  /.well-known/agent-card.json       — per-tenant agent card
+ *   GET  /.well-known/agent-card.json       — per-tenant A2A card (S5); arp-card.json = ARP card
  *   GET  /.well-known/arp.json              — per-tenant arp.json
  *   GET  /.well-known/revocations.json      — per-tenant revocation list
  *   POST /didcomm                           — inbound DIDComm envelope
@@ -24,6 +24,9 @@ import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
 import { createHash } from 'node:crypto';
 import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
+import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybernesis/arp-transport-a2a';
+import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
+import { ed25519ToJwk, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
@@ -54,6 +57,16 @@ export interface GatewayHonoOptions {
   profileBase?: string | null;
   /** AgentID S4: push delivery + agent-API signer; absent = push disabled. */
   push?: PushContext;
+  /** AgentID S5: how long message/send waits for a reply (ms). Default 120s. */
+  a2aWaitMs?: number;
+  /**
+   * AgentID S5 / A4: outbound A2A for peers not hosted on this gateway.
+   * The agent-API `send` falls back to the peer's signed A2A card
+   * (`https://<did:web host>/.well-known/agent-card.json`, or the mirror for
+   * `.agent` names) and `message/send` with the Connection Token as bearer.
+   * `fetchImpl` is injectable for tests; `enabled: false` turns it off.
+   */
+  a2aOutbound?: { enabled?: boolean; fetchImpl?: FetchLike; originForDid?: (did: string) => string | null };
 }
 
 /**
@@ -202,7 +215,19 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownDid), 200, wellKnownHeaders);
   });
 
+  // AgentID S5: /.well-known/agent-card.json is the A2A v1.0 card (the
+  // standard's path); ARP's own card lives at /.well-known/arp-card.json.
+  // Rows minted before S5 have no A2A card yet → fall back to the ARP card so
+  // nothing 404s during the transition.
   app.get('/.well-known/agent-card.json', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
+    const card = ctx.agentRow.wellKnownA2aCard ?? ctx.agentRow.wellKnownAgentCard;
+    return c.newResponse(JSON.stringify(card), 200, wellKnownHeaders);
+  });
+
+  app.get('/.well-known/arp-card.json', async (c) => {
     const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
@@ -356,7 +381,19 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
 
   // ---------------------------------------------------------------- AgentID S4
   // JWKS for push tokens (runtimes verify offline; see @kybernesis/identity).
-  app.get('/.well-known/jwks.json', (c) => {
+  app.get('/.well-known/jwks.json', async (c) => {
+    // AgentID S5: on an identity host (mirror / HNS), the JWKS is the
+    // identity's own Ed25519 key — the `jku` its signed A2A card points at.
+    // On the bare gateway host it is the push-token signer.
+    const ctx = await resolveAgentContext(effectiveHost(c));
+    if (ctx) {
+      const jwk = ed25519ToJwk(multibaseEd25519ToRaw(ctx.agentRow.publicKeyMultibase), `${ctx.agentDid}#key-1`);
+      return c.newResponse(JSON.stringify({ keys: [jwk] }), 200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+        'Access-Control-Allow-Origin': '*',
+      });
+    }
     if (!opts.push) return c.json({ keys: [] }, 404);
     return c.newResponse(JSON.stringify(opts.push.signer.jwks), 200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -435,7 +472,53 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         return c.json({ ok: false, error: 'denied', reason: fwd.reason ?? fwd.decision ?? 'denied', msg_id: sent.msgId, thid: sent.thid }, 403);
       }
       if (fwd === null) {
-        return c.json({ ok: false, error: 'peer_not_hosted', msg_id: sent.msgId, thid: sent.thid }, 502);
+        // AgentID S5 / A4: the peer is not hosted here — try its A2A card.
+        if (opts.a2aOutbound?.enabled === false) {
+          return c.json({ ok: false, error: 'peer_not_hosted', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
+        const a2a = createA2aTransport({
+          did: me.row.did,
+          bearerFor: () => connectionTokenBearer(conn.tokenJson as Record<string, unknown>),
+          waitMs,
+          now,
+          ...(opts.a2aOutbound?.fetchImpl ? { fetchImpl: opts.a2aOutbound.fetchImpl } : {}),
+          ...(opts.a2aOutbound?.originForDid ? { originForDid: opts.a2aOutbound.originForDid } : {}),
+          ...(opts.mirrorSuffix ? { mirrorSuffix: opts.mirrorSuffix } : {}),
+        });
+        const iface = await a2a.resolve(conn.peerDid);
+        if (!iface) {
+          return c.json({ ok: false, error: 'peer_unreachable', message: 'Peer is not hosted here and publishes no A2A card.', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
+        try {
+          const out = await a2a.sendAndCollect(conn.peerDid, {
+            id: sent.msgId,
+            type: 'https://didcomm.org/arp/1.0/request',
+            from: me.row.did,
+            to: [conn.peerDid],
+            thid: sent.thid,
+            body: { text, connection_id: conn.connectionId },
+          });
+          if (out.denied) {
+            opts.logger.info({ agentDid: me.row.did, peerDid: conn.peerDid, state: out.denied.state }, 'agent_api_a2a_denied');
+            return c.json({ ok: false, error: 'denied', reason: out.denied.reason, a2a_state: out.denied.state, msg_id: sent.msgId, thid: sent.thid }, 403);
+          }
+          if (!out.response) {
+            return c.json({ ok: true, msg_id: sent.msgId, thid: sent.thid, reply: null, timed_out: true, via: 'a2a', a2a_task_id: out.task.id }, 202);
+          }
+          await tenantDb.touchConnection(conn.connectionId);
+          return c.json({
+            ok: true,
+            msg_id: sent.msgId,
+            thid: sent.thid,
+            reply: out.response.body['text'],
+            reply_msg_id: out.response.id,
+            via: 'a2a',
+            a2a_task_id: out.task.id,
+          });
+        } catch (err) {
+          opts.logger.error({ err: (err as Error).message, agentDid: me.row.did, peerDid: conn.peerDid }, 'agent_api_a2a_failed');
+          return c.json({ ok: false, error: 'send_failed', via: 'a2a', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
       }
       try {
         const reply = await awaitReply(sent.thid, waitMs);
@@ -447,6 +530,45 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       opts.logger.error({ err: (err as Error).message, agentDid: me.row.did }, 'agent_api_send_failed');
       return c.json({ ok: false, error: 'send_failed' }, 500);
     }
+  });
+
+  // AgentID S5 / A3: A2A v1.0 JSON-RPC endpoint on the identity's host.
+  app.post('/a2a', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ jsonrpc: '2.0', id: null, error: { code: -32004, message: 'Unknown agent' } }, 404);
+    let req: JsonRpcRequest;
+    try {
+      req = (await c.req.json()) as JsonRpcRequest;
+    } catch {
+      return c.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400);
+    }
+    const tenantDb = withTenant(opts.db, toTenantId(ctx.tenantId));
+    const dispatchCtx: DispatchContext = {
+      tenantDb,
+      tenantId: ctx.tenantId,
+      agentDid: ctx.agentDid,
+      audit: opts.auditFactory(tenantDb),
+      pdp: opts.pdp,
+      resolver: opts.resolver,
+      sessions: opts.sessions,
+      logger: opts.logger,
+      metrics: opts.metrics,
+      now,
+      ...(opts.push ? { push: opts.push } : {}),
+    };
+    const res = await handleA2aRequest(
+      { resolver: opts.resolver, now, ...(opts.a2aWaitMs !== undefined ? { waitMs: opts.a2aWaitMs } : {}) },
+      { agentDid: ctx.agentDid, card: (ctx.agentRow.wellKnownA2aCard as Record<string, unknown> | null) ?? null, ctx: dispatchCtx },
+      req,
+      c.req.header('authorization'),
+    );
+    const ext = c.req.header('a2a-extensions');
+    return c.newResponse(JSON.stringify(res), res.error && res.error.code === -32600 ? 400 : 200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      ...(ext ? { 'A2A-Extensions': ext } : {}),
+    });
   });
 
   app.post('/didcomm', async (c) => {

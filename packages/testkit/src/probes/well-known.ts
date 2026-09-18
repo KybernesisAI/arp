@@ -18,7 +18,8 @@ export const wellKnownProbe: Probe = async (ctx: ProbeContext): Promise<ProbeRes
   const base = ctx.baseUrl.replace(/\/$/, '');
   const urls = {
     did: `${base}/.well-known/did.json`,
-    agentCard: `${base}/.well-known/agent-card.json`,
+    // AgentID S5: ARP's card moved; /.well-known/agent-card.json is the A2A card.
+    agentCard: `${base}/.well-known/arp-card.json`,
     arp: `${base}/.well-known/arp.json`,
   } as const;
 

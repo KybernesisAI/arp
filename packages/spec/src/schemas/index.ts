@@ -8,3 +8,4 @@ export * from './handoff-bundle.js';
 export * from './scope-catalog.js';
 export * from './cedar-schema.js';
 export * from './agent-resource-metadata.js';
+export * from './a2a-agent-card.js';

@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as ed25519 from '@noble/ed25519';
 import { createPgliteDb, tenants, toTenantId, withTenant } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient, TenantDb } from '@kybernesis/arp-cloud-db';
-import { DidDocumentSchema, AgentCardSchema } from '@kybernesis/arp-spec';
+import { DidDocumentSchema, AgentCardSchema, A2aAgentCardSchema, ARP_A2A_EXTENSION_URI } from '@kybernesis/arp-spec';
+import { ed25519ToJwk, verifyAgentCardSignature } from '@kybernesis/arp-transport';
 import {
   IdentityExistsError,
   exportPrivateKey,
@@ -112,6 +113,14 @@ describe('mintIdentity', () => {
 
     const card = AgentCardSchema.parse(minted.row.wellKnownAgentCard);
     expect(card.name).toBe('Atlas');
+    // AgentID S5: a signed A2A card, verifiable with the identity's own key.
+    const a2a = A2aAgentCardSchema.parse(minted.row.wellKnownA2aCard);
+    expect(a2a.supportedInterfaces[0]?.url).toBe('https://atlas.agent.arp.run/a2a');
+    expect(a2a.capabilities.extensions?.[0]?.uri).toBe(ARP_A2A_EXTENSION_URI);
+    expect(a2a.signatures).toHaveLength(1);
+    const pub = await ed25519.getPublicKeyAsync(minted.privateKeyRaw);
+    const verdict = await verifyAgentCardSignature(a2a as Record<string, unknown>, { keys: [ed25519ToJwk(pub, 'did:web:atlas.agent#key-1')] });
+    expect(verdict).toEqual({ ok: true, kid: 'did:web:atlas.agent#key-1', alg: 'EdDSA' });
     expect(card.endpoints.pairing).toBe('https://atlas.agent.arp.run/pairing');
     expect(minted.wellKnownUrls.did).toBe('https://atlas.agent.arp.run/.well-known/did.json');
     expect(minted.handoff['key_custody']).toBe('cloud');

@@ -42,7 +42,7 @@ const AGENTID_HOSTS = new Set<string>(['agent.arp.run']);
 const MIRROR_SUFFIX = (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run').toLowerCase();
 const GATEWAY_ORIGIN = (process.env['ARP_CLOUD_GATEWAY_ORIGIN'] ?? 'https://gateway.arp.run').replace(/\/+$/, '');
 /** Paths on a mirror host that belong to the identity's machine surface (served by the gateway). */
-const MIRROR_GATEWAY_PATHS = ['/.well-known/', '/representation.jwt', '/didcomm', '/pairing', '/agent-connections'];
+const MIRROR_GATEWAY_PATHS = ['/.well-known/', '/representation.jwt', '/didcomm', '/pairing', '/agent-connections', '/a2a'];
 
 export function middleware(req: NextRequest): NextResponse {
   const host = (req.headers.get('host') ?? '').toLowerCase();

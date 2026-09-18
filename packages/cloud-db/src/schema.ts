@@ -117,6 +117,8 @@ export const agents = pgTable(
     // AgentID S4: push delivery target (runtime_kind = 'push').
     pushUrl: text('push_url'),
     pushKind: text('push_kind').$type<'eve' | 'generic'>(),
+    // AgentID S5: signed A2A v1.0 card served at /.well-known/agent-card.json.
+    wellKnownA2aCard: jsonb('well_known_a2a_card'),
   },
   (t) => ({
     idxTenant: index('idx_agents_tenant').on(t.tenantId),

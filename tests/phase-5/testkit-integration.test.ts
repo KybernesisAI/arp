@@ -132,7 +132,7 @@ describe('phase 5 — testkit integration', () => {
     // _principal TXT or representation JWT, so the two owner-scoped
     // probes skip by design; no-selfxyz-prompt also skips without a
     // registrar URL in context.
-    expect(summary.total).toBe(11);
+    expect(summary.total).toBe(12); // AgentID S5 added a2a-card
     const failed = summary.probes.filter((p) => !p.pass);
     expect(failed, JSON.stringify(summary.probes, null, 2)).toHaveLength(0);
   });

@@ -42,3 +42,8 @@ export {
 } from './push.js';
 export type { PushContext, PushSigner, PushClaims, DeliveryInput, DeliverPushResult } from './push.js';
 export { openPrivateKey, sealingKeyFromEnv } from './custody.js';
+
+// AgentID S5: A2A endpoint.
+export { handleA2aRequest, parseConnectionTokenBearer, a2aTaskCount } from './a2a.js';
+export type { JsonRpcRequest, JsonRpcResponse, A2aTask, A2aMessage, TaskState } from './a2a.js';
+export { dispatchVerifiedMessage } from './dispatch.js';

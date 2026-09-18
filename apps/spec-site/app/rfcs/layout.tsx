@@ -19,6 +19,11 @@ const RFCS: Array<{ id: string; title: string; status: string }> = [
     title: 'RFC-0004: Scope catalog versioning',
     status: 'accepted',
   },
+  {
+    id: '0005-arp-as-an-a2a-extension',
+    title: 'RFC-0005: ARP as an A2A extension',
+    status: 'accepted',
+  },
 ];
 
 export default function RfcLayout({

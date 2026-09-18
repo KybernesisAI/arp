@@ -62,6 +62,7 @@ export default async function AgentProfilePage(props: {
   const hasRuntime = agent.runtimeKind !== 'none';
   const mirror = mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX);
   const since = (registration?.registeredAt ?? agent.createdAt).toISOString().slice(0, 10);
+  const cardSigned = ((agent.wellKnownA2aCard as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0;
 
   const links: Array<{ kind: string; value: string; state: 'verified' | 'pending' }> = [
     {
@@ -166,6 +167,8 @@ export default async function AgentProfilePage(props: {
                 {[
                   ['Identity document', `${mirror}/.well-known/did.json`],
                   ['Agent card', `${mirror}/.well-known/agent-card.json`],
+                  ['A2A endpoint', `${mirror}/a2a`],
+                  ['Connect record', `${mirror}/.well-known/arp-card.json`],
                   ['Owner proof', `${mirror}/representation.jwt`],
                 ].map(([label, url]) => (
                   <li key={label} className="grid grid-cols-[140px_1fr] gap-3 py-3 border-t border-rule last:border-b">
@@ -177,10 +180,18 @@ export default async function AgentProfilePage(props: {
                 ))}
               </ul>
             </div>
-            <p className="col-span-12 md:col-span-5 text-body-sm text-ink-2">
-              Standard identity and agent-card documents, signed by the name&apos;s own key. Any agent
-              framework that reads agent cards can address this name with no custom integration.
-            </p>
+            <div className="col-span-12 md:col-span-5">
+              <div className="mb-3">
+                <Badge tone={cardSigned ? 'blue' : 'yellow'} className="text-[9px] px-2 py-0.5">
+                  {cardSigned ? 'VERIFIED CARD · SIGNED BY THIS NAME' : 'CARD NOT YET SIGNED'}
+                </Badge>
+              </div>
+              <p className="text-body-sm text-ink-2">
+                A standard A2A agent card, signed by the name&apos;s own key and verifiable against its
+                published key set. Any agent framework that reads agent cards can address this name at
+                its A2A endpoint with no custom integration.
+              </p>
+            </div>
           </Grid12>
         </Container>
       </Section>

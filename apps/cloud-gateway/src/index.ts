@@ -58,6 +58,10 @@ export interface GatewayOptions {
   sealingKey?: Uint8Array;
   /** AgentID S4: fetch override for push delivery (tests). */
   pushFetch?: typeof fetch;
+  /** AgentID S5: A2A message/send reply wait (ms); default from ARP_A2A_WAIT_MS or 120s. */
+  a2aWaitMs?: number;
+  /** AgentID S5 / A4: fetch override for outbound A2A (tests). */
+  a2aFetch?: typeof fetch;
 }
 
 export interface GatewayHandle {
@@ -103,6 +107,8 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     auditFactory,
     ...(opts.now ? { now: opts.now } : {}),
     ...(push ? { push } : {}),
+    a2aWaitMs: opts.a2aWaitMs ?? Number(process.env['ARP_A2A_WAIT_MS'] ?? 120_000),
+    ...(opts.a2aFetch ? { a2aOutbound: { fetchImpl: opts.a2aFetch } } : {}),
     mirrorSuffix:
       opts.mirrorSuffix !== undefined
         ? opts.mirrorSuffix

@@ -1,14 +1,18 @@
 import {
   buildDidDocument,
   buildAgentCard,
+  buildA2aAgentCard,
   buildArpJson,
 } from '@kybernesis/arp-templates';
-import type { AgentCard, ArpJson, DidDocument } from '@kybernesis/arp-spec';
+import type { A2aAgentCard, AgentCard, ArpJson, DidDocument } from '@kybernesis/arp-spec';
 import type { RuntimeConfig } from './types.js';
 
 export interface WellKnownDocs {
   didDocument: DidDocument;
+  /** ARP's own card — served at /.well-known/arp-card.json (AgentID S5). */
   agentCard: AgentCard;
+  /** A2A v1.0 card — served at /.well-known/agent-card.json (unsigned on local runtimes in v1). */
+  a2aCard: A2aAgentCard;
   arpJson: ArpJson;
 }
 
@@ -47,7 +51,15 @@ export function buildWellKnownDocs(config: RuntimeConfig): WellKnownDocs {
 
   const arpJson = buildArpJson({ agentOrigin });
 
-  return { didDocument, agentCard, arpJson };
+  const a2aCard = buildA2aAgentCard({
+    name: config.agentName,
+    description: config.agentDescription,
+    did: config.did,
+    origin: agentOrigin,
+    pairUrl: pairingUrl,
+  });
+
+  return { didDocument, agentCard, a2aCard, arpJson };
 }
 
 function originFromUrl(fullUrl: string): string {

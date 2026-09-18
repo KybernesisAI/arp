@@ -22,6 +22,7 @@ export * from './types.js';
  */
 import { DidDocumentSchema } from './schemas/did-document.js';
 import { AgentCardSchema } from './schemas/agent-card.js';
+import { A2aAgentCardSchema } from './schemas/a2a-agent-card.js';
 import { ArpJsonSchema } from './schemas/arp-json.js';
 import { RepresentationVcSchema } from './schemas/representation-vc.js';
 import { RevocationsSchema } from './schemas/revocations.js';
@@ -32,8 +33,8 @@ import { CedarSchemaSchema } from './schemas/cedar-schema.js';
 import type { ZodTypeAny } from 'zod';
 
 /**
- * Schema registry used by the emit-json-schema build step. Exactly 9 entries
- * — one JSON Schema file per ARP document shape.
+ * Schema registry used by the emit-json-schema build step. One JSON Schema
+ * file per ARP document shape (10 entries since AgentID S5 added the A2A card).
  *
  * `scope-catalog` is the manifest shape; it transitively references the
  * `ScopeTemplate` shape inside its `scopes` array so downstream consumers get
@@ -42,6 +43,7 @@ import type { ZodTypeAny } from 'zod';
 export const SCHEMA_REGISTRY: Readonly<Record<string, ZodTypeAny>> = Object.freeze({
   'did-document': DidDocumentSchema,
   'agent-card': AgentCardSchema,
+  'a2a-agent-card': A2aAgentCardSchema,
   'arp-json': ArpJsonSchema,
   'representation-vc': RepresentationVcSchema,
   'revocations': RevocationsSchema,
