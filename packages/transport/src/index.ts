@@ -39,3 +39,14 @@ export {
   type TransportKeyStore,
   type TransportResolver,
 } from './types.js';
+
+// AgentID S5: A2A agent-card signing (spec §8.4).
+export {
+  canonicalizeAgentCard,
+  signAgentCard,
+  verifyAgentCardSignature,
+  ed25519ToJwk,
+  type CardSignature,
+  type CardVerifyResult,
+  type Jwk,
+} from './card-signing.js';

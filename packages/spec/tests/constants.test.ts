@@ -28,7 +28,11 @@ describe('constants', () => {
 
   it('exposes canonical well-known paths', () => {
     expect(WELL_KNOWN_PATHS.DID).toBe('/.well-known/did.json');
-    expect(WELL_KNOWN_PATHS.AGENT_CARD).toBe('/.well-known/agent-card.json');
+    // AgentID S5: the A2A card owns agent-card.json; ARP's card moved.
+    expect(WELL_KNOWN_PATHS.AGENT_CARD).toBe('/.well-known/arp-card.json');
+    expect(WELL_KNOWN_PATHS.A2A_AGENT_CARD).toBe('/.well-known/agent-card.json');
+    expect(WELL_KNOWN_PATHS.A2A_ENDPOINT).toBe('/a2a');
+    expect(WELL_KNOWN_PATHS.JWKS).toBe('/.well-known/jwks.json');
     expect(WELL_KNOWN_PATHS.ARP).toBe('/.well-known/arp.json');
   });
 
