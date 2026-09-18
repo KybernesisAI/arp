@@ -58,7 +58,7 @@ describe('agent API with both agents in one tenant', () => {
     // One row, oriented from the accepting agent (sid), exactly as /pair/accept stores it.
     const token: ConnectionToken = {
       connection_id: 'conn_same_1', issuer: 'did:key:z1', subject: KYBER, audience: SID, purpose: 'same-tenant',
-      cedar_policies: ['permit(principal, action, resource);'], obligations: [], scope_catalog_version: 'v1',
+      cedar_policies: ['permit(principal, action == Action::"relay_to_principal", resource);'], obligations: [], scope_catalog_version: 'v1',
       expires: new Date(Date.now() + 3600_000).toISOString(), sigs: { issuer: 'sig', audience: 'sig' },
     };
     await tdb.createConnection({
@@ -83,5 +83,13 @@ describe('agent API with both agents in one tenant', () => {
       body: JSON.stringify({ peer_did: SID, text: 'hi', wait_ms: 1_000 }),
     });
     expect(sent.status).not.toBe(404);
+    // An action outside the granted scope is a DENIAL to the caller (403),
+    // not a reply that timed out — the PDP result is { ok: true, decision: 'deny' }.
+    const denied = await fetch(`${base}/agent-api/send`, {
+      method: 'POST', headers: { authorization: `Bearer ${creds[KYBER]}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ peer_did: SID, text: 'read the calendar', action: 'calendar.events.read', wait_ms: 1_000 }),
+    });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ ok: false, error: 'denied' });
   }, 30_000);
 });

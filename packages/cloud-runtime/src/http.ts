@@ -23,7 +23,7 @@ import { Hono, type Context } from 'hono';
 import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
 import { createHash } from 'node:crypto';
-import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
+import { awaitReply, cancelPendingReply, sendFromCloudIdentity, type PushContext } from './push.js';
 import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybernesis/arp-transport-a2a';
 import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
 import { ed25519ToJwk, multibaseEd25519ToRaw, signAgentCard } from '@kybernesis/arp-transport';
@@ -531,7 +531,11 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         ...(action ? { action } : {}),
       });
       const fwd = sent.forwarded as { ok?: boolean; decision?: string; reason?: string } | null;
-      if (fwd && fwd.ok === false) {
+      // A PDP deny comes back as `{ ok: true, decision: 'deny' }` (the dispatch
+      // succeeded; the policy said no) — it is a denial to the caller, not a
+      // reply that never arrived.
+      if (fwd && (fwd.ok === false || fwd.decision === 'deny')) {
+        cancelPendingReply(sent.thid);
         return c.json({ ok: false, error: 'denied', reason: fwd.reason ?? fwd.decision ?? 'denied', msg_id: sent.msgId, thid: sent.thid }, 403);
       }
       if (fwd === null) {
