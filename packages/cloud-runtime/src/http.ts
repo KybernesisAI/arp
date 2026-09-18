@@ -471,17 +471,30 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     return c.json({ agent_did: me.row.did, name: me.row.agentName, runtime_kind: me.row.runtimeKind });
   });
 
+  /**
+   * Active connections for an agent, seen from that agent's side. When both
+   * agents live in one tenant the (tenant_id, connection_id) PK permits a
+   * single row, oriented from the accepting agent — so a connection where
+   * this agent is the `peer_did` is equally its own. `peer` is the other side.
+   */
+  async function activeConnectionsFor(tenantDb: ReturnType<typeof withTenant>, did: string) {
+    const all = await tenantDb.listConnections({ status: 'active' });
+    return all
+      .filter((k) => k.agentDid === did || k.peerDid === did)
+      .map((k) => ({ row: k, peer: k.agentDid === did ? k.peerDid : k.agentDid }));
+  }
+
   app.get('/agent-api/connections', async (c) => {
     const me = await agentFromBearer(c);
     if (!me) return c.json({ error: 'unauthorized' }, 401);
     const tenantDb = withTenant(opts.db, toTenantId(me.tenantId));
-    const conns = await tenantDb.listConnections({ agentDid: me.row.did, status: 'active' });
+    const conns = await activeConnectionsFor(tenantDb, me.row.did);
     return c.json({
       agent_did: me.row.did,
-      connections: conns.map((k) => ({
+      connections: conns.map(({ row: k, peer }) => ({
         connection_id: k.connectionId,
-        peer_did: k.peerDid,
-        peer_name: k.peerDid.replace(/^did:web:/, '').replace(/\.agent$/, ''),
+        peer_did: peer,
+        peer_name: peer.replace(/^did:web:/, '').replace(/\.agent$/, ''),
         purpose: k.purpose,
         label: k.label,
         expires_at: k.expiresAt?.toISOString() ?? null,
@@ -493,7 +506,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     const me = await agentFromBearer(c);
     if (!me) return c.json({ error: 'unauthorized' }, 401);
     if (!opts.push) return c.json({ error: 'push_disabled' }, 503);
-    let body: { peer_did?: string; connection_id?: string; text?: string; thid?: string; wait_ms?: number };
+    let body: { peer_did?: string; connection_id?: string; text?: string; thid?: string; wait_ms?: number; action?: string };
     try {
       body = (await c.req.json()) as typeof body;
     } catch {
@@ -502,11 +515,12 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     const text = typeof body.text === 'string' ? body.text : '';
     if (!text) return c.json({ error: 'bad_request', message: 'text is required' }, 400);
     const tenantDb = withTenant(opts.db, toTenantId(me.tenantId));
-    const conns = await tenantDb.listConnections({ agentDid: me.row.did, status: 'active' });
-    const conn = conns.find((k) =>
-      body.connection_id ? k.connectionId === body.connection_id : body.peer_did ? k.peerDid === body.peer_did : false,
+    const match = (await activeConnectionsFor(tenantDb, me.row.did)).find(({ row: k, peer }) =>
+      body.connection_id ? k.connectionId === body.connection_id : body.peer_did ? peer === body.peer_did : false,
     );
-    if (!conn) return c.json({ error: 'no_connection', message: 'No active connection with that peer.' }, 404);
+    if (!match) return c.json({ error: 'no_connection', message: 'No active connection with that peer.' }, 404);
+    const conn = { ...match.row, peerDid: match.peer };
+    const action = typeof body.action === 'string' && body.action ? body.action : undefined;
     const waitMs = Math.min(Math.max(body.wait_ms ?? 120_000, 1_000), 280_000);
     try {
       const sent = await sendFromCloudIdentity(opts.push, me.row, {
@@ -514,6 +528,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         text,
         connectionId: conn.connectionId,
         ...(body.thid ? { thid: body.thid } : {}),
+        ...(action ? { action } : {}),
       });
       const fwd = sent.forwarded as { ok?: boolean; decision?: string; reason?: string } | null;
       if (fwd && fwd.ok === false) {
