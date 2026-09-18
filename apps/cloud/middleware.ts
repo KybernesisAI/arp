@@ -161,6 +161,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/names',
     // Standalone 3D identity badge (side quest, 2026-09-18); no lander chrome.
     '/badge',
+    // Static assets under public/assets (badge model etc.) must never be rewritten.
+    '/assets',
     // /legal/* pages are referenced from footers on all three surfaces
     // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
     // /legal layout regardless of which host the user is on.
