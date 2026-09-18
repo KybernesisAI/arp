@@ -281,7 +281,6 @@ function Band({ data, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; maxSpee
               <meshPhysicalMaterial
                 map={face ?? undefined}
                 color={face ? '#ffffff' : PAPER_2}
-                map-anisotropy={16}
                 clearcoat={1}
                 clearcoatRoughness={0.15}
                 roughness={0.35}
