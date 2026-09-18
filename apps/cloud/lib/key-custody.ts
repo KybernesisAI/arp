@@ -24,8 +24,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import * as ed25519 from '@noble/ed25519';
 import type { AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
-import { buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
-import { base64urlEncode, ed25519RawToMultibase } from '@kybernesis/arp-transport';
+import { buildA2aAgentCard, buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
+import { base64urlEncode, ed25519RawToMultibase, signAgentCard } from '@kybernesis/arp-transport';
 
 // ------------------------------------------------------------------ sealing
 
@@ -198,6 +198,13 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     agentOrigin: origin,
   });
   const arpJson = buildArpJson({ agentOrigin: origin });
+  const a2aCard = await buildSignedA2aCard({
+    did: agentDid,
+    name: input.agentName,
+    description: input.agentDescription ?? 'Personal agent',
+    origin,
+    privateKeyRaw,
+  });
 
   const handoff: Record<string, unknown> = {
     agent_did: agentDid,
@@ -237,9 +244,44 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     privateKeyEnc: sealed,
     runtimeKind: input.runtimeKind,
     domainRegistrationId: input.domainRegistrationId ?? null,
+    wellKnownA2aCard: a2aCard,
   });
 
   return { agentDid, row, publicKeyMultibase, privateKeyRaw, handoff, wellKnownUrls };
+}
+
+/**
+ * AgentID S5: build the A2A v1.0 card for an identity and sign it with the
+ * identity's own Ed25519 key when the seed is available (unsigned otherwise —
+ * exported-custody identities re-sign via arpc in S5b).
+ */
+export async function buildSignedA2aCard(input: {
+  did: string;
+  name: string;
+  description: string;
+  origin: string;
+  privateKeyRaw?: Uint8Array | null;
+  scopes?: readonly string[];
+  provider?: { organization: string; url?: string };
+}): Promise<Record<string, unknown>> {
+  const origin = input.origin.replace(/\/+$/, '');
+  const sld = input.did.replace(/^did:web:/, '').replace(/\.agent$/, '');
+  const card = buildA2aAgentCard({
+    name: input.name,
+    description: input.description,
+    did: input.did,
+    origin,
+    pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(input.did)}`,
+    provider: input.provider ?? { organization: sld, url: `https://agent.arp.run/${sld}` },
+    ...(input.scopes ? { scopes: input.scopes } : {}),
+  }) as Record<string, unknown>;
+  if (!input.privateKeyRaw) return card;
+  const sig = await signAgentCard(card, {
+    privateKey: input.privateKeyRaw,
+    kid: `${input.did}#key-1`,
+    jku: `${origin}/.well-known/jwks.json`,
+  });
+  return { ...card, signatures: [sig] };
 }
 
 /** `https://<sld><suffix>` — the ICANN mirror origin for a `.agent` name. */

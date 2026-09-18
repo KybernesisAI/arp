@@ -38,7 +38,7 @@ export function buildHandoffBundle(input: BuildHandoffBundleInput): HandoffBundl
     well_known_urls: {
       did: input.wellKnownUrls?.did ?? `${origin}/.well-known/did.json`,
       agent_card:
-        input.wellKnownUrls?.agentCard ?? `${origin}/.well-known/agent-card.json`,
+        input.wellKnownUrls?.agentCard ?? `${origin}/.well-known/arp-card.json`,
       arp: input.wellKnownUrls?.arp ?? `${origin}/.well-known/arp.json`,
     },
     dns_records_published: [...input.dnsRecordsPublished],

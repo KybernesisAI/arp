@@ -15,7 +15,7 @@ function fakeFetch(
     if (url.endsWith('/did.json')) {
       return json(docs.did, docs.status?.did ?? 200, docs.contentType?.did);
     }
-    if (url.endsWith('/agent-card.json')) {
+    if (url.endsWith('/arp-card.json') || url.endsWith('/agent-card.json')) {
       return json(docs.agentCard, docs.status?.agentCard ?? 200, docs.contentType?.agentCard);
     }
     if (url.endsWith('/arp.json')) {

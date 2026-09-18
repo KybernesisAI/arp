@@ -23,6 +23,7 @@ import { bech32 } from '@scure/base';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AgentLinkKind, AgentLinkRow, AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
 import { buildDidDocument } from '@kybernesis/arp-templates';
+import { buildSignedA2aCard, openPrivateKey, sealingKey } from './key-custody';
 
 // ------------------------------------------------------------------ errors
 
@@ -368,6 +369,28 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
     doc['service'] = [...((doc['service'] as unknown[]) ?? []), ...extraServices];
   }
 
-  await tenantDb.updateAgent(agentDid, { wellKnownDid: doc });
-  return { ...agent, wellKnownDid: doc };
+  // AgentID S5: the A2A card follows the DID doc — rebuilt and re-signed
+  // (cloud custody) whenever links change so scopes/provider stay current.
+  let a2aCard: Record<string, unknown> | undefined;
+  try {
+    const originFromCard = (agent.wellKnownA2aCard as { supportedInterfaces?: Array<{ url?: string }> } | null)?.supportedInterfaces?.[0]?.url;
+    const origin = originFromCard ? new URL(originFromCard).origin : new URL(agentCard).origin;
+    const seed =
+      agent.keyCustody === 'cloud' && agent.privateKeyEnc
+        ? openPrivateKey(agent.privateKeyEnc, sealingKey({ ARP_CLOUD_KEY_ENCRYPTION_KEY: process.env['ARP_CLOUD_KEY_ENCRYPTION_KEY'] ?? null }))
+        : null;
+    a2aCard = await buildSignedA2aCard({
+      did: agentDid,
+      name: agent.agentName,
+      description: agent.agentDescription || 'Personal agent',
+      origin,
+      privateKeyRaw: seed,
+    });
+    seed?.fill(0);
+  } catch {
+    a2aCard = undefined;
+  }
+
+  await tenantDb.updateAgent(agentDid, { wellKnownDid: doc, ...(a2aCard ? { wellKnownA2aCard: a2aCard } : {}) });
+  return { ...agent, wellKnownDid: doc, ...(a2aCard ? { wellKnownA2aCard: a2aCard } : {}) };
 }

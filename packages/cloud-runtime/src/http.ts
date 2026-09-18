@@ -3,7 +3,7 @@
  *
  * Routes:
  *   GET  /.well-known/did.json              — per-tenant agent DID doc
- *   GET  /.well-known/agent-card.json       — per-tenant agent card
+ *   GET  /.well-known/agent-card.json       — per-tenant A2A card (S5); arp-card.json = ARP card
  *   GET  /.well-known/arp.json              — per-tenant arp.json
  *   GET  /.well-known/revocations.json      — per-tenant revocation list
  *   POST /didcomm                           — inbound DIDComm envelope
@@ -24,6 +24,7 @@ import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
 import { createHash } from 'node:crypto';
 import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
+import { ed25519ToJwk, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
@@ -202,7 +203,19 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     return c.newResponse(JSON.stringify(ctx.agentRow.wellKnownDid), 200, wellKnownHeaders);
   });
 
+  // AgentID S5: /.well-known/agent-card.json is the A2A v1.0 card (the
+  // standard's path); ARP's own card lives at /.well-known/arp-card.json.
+  // Rows minted before S5 have no A2A card yet → fall back to the ARP card so
+  // nothing 404s during the transition.
   app.get('/.well-known/agent-card.json', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
+    const card = ctx.agentRow.wellKnownA2aCard ?? ctx.agentRow.wellKnownAgentCard;
+    return c.newResponse(JSON.stringify(card), 200, wellKnownHeaders);
+  });
+
+  app.get('/.well-known/arp-card.json', async (c) => {
     const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
@@ -356,7 +369,19 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
 
   // ---------------------------------------------------------------- AgentID S4
   // JWKS for push tokens (runtimes verify offline; see @kybernesis/identity).
-  app.get('/.well-known/jwks.json', (c) => {
+  app.get('/.well-known/jwks.json', async (c) => {
+    // AgentID S5: on an identity host (mirror / HNS), the JWKS is the
+    // identity's own Ed25519 key — the `jku` its signed A2A card points at.
+    // On the bare gateway host it is the push-token signer.
+    const ctx = await resolveAgentContext(effectiveHost(c));
+    if (ctx) {
+      const jwk = ed25519ToJwk(multibaseEd25519ToRaw(ctx.agentRow.publicKeyMultibase), `${ctx.agentDid}#key-1`);
+      return c.newResponse(JSON.stringify({ keys: [jwk] }), 200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+        'Access-Control-Allow-Origin': '*',
+      });
+    }
     if (!opts.push) return c.json({ keys: [] }, 404);
     return c.newResponse(JSON.stringify(opts.push.signer.jwks), 200, {
       'Content-Type': 'application/json; charset=utf-8',

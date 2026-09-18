@@ -69,6 +69,7 @@ export interface TenantDb {
       | 'domainRegistrationId'
       | 'pushUrl'
       | 'pushKind'
+      | 'wellKnownA2aCard'
     > & {
       wsSessionId?: string | null;
       lastSeenAt?: Date | null;
@@ -78,6 +79,7 @@ export interface TenantDb {
       domainRegistrationId?: string | null;
       pushUrl?: string | null;
       pushKind?: AgentRow['pushKind'];
+      wellKnownA2aCard?: unknown;
     },
   ): Promise<AgentRow>;
   updateAgent(
@@ -97,6 +99,7 @@ export interface TenantDb {
         | 'agentDescription'
         | 'pushUrl'
         | 'pushKind'
+        | 'wellKnownA2aCard'
       >
     >,
   ): Promise<void>;
