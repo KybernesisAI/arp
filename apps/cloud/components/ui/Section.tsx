@@ -42,7 +42,10 @@ export function Section({
   children,
   ...props
 }: SectionProps): React.JSX.Element {
-  const Component = As as React.ElementType;
+  // A union of HTML tags, not React.ElementType: @react-three/fiber augments
+  // JSX.IntrinsicElements, and an unconstrained ElementType would union in the
+  // three.js elements and collapse `children` to never.
+  const Component = As;
   return (
     <Component
       className={cn(sectionVariants({ tone, spacing, rule }), className)}
