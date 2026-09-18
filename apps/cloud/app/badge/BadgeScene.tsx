@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, extend, useFrame, type ThreeElement } from '@react-three/fiber';
+import { Canvas, extend, useFrame, useThree, type ThreeElement } from '@react-three/fiber';
 import { Environment, Lightformer, useGLTF } from '@react-three/drei';
 import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint, type RapierRigidBody } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
@@ -536,14 +536,29 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
   );
 }
 
-export function BadgeScene({ data, theme, zoom = 1 }: { data: BadgeData; theme: BadgeTheme; zoom?: number }): React.JSX.Element {
+/** Places the whole rig: centred, or in the right half of a wide viewport (hero). */
+function Anchored({ anchor, children }: { anchor: 'center' | 'right'; children: React.ReactNode }): React.JSX.Element {
+  const width = useThree((st) => st.viewport.width);
+  const x = anchor === 'right' && width > 7 ? width * 0.26 : 0;
+  return <group position={[x, 0, 0]}>{children}</group>;
+}
+
+export function BadgeScene({ data, theme, zoom = 1, anchor = 'center', eventSource }: { data: BadgeData; theme: BadgeTheme; zoom?: number; anchor?: 'center' | 'right'; eventSource?: HTMLElement | React.RefObject<HTMLElement> }): React.JSX.Element {
   return (
-    <Canvas camera={{ position: [0, 0, 13 / zoom], fov: 25 }} style={{ backgroundColor: 'transparent' }} dpr={[1, 2]} gl={{ antialias: true }}>
+    <Canvas
+      camera={{ position: [0, 0, 13 / zoom], fov: 25 }}
+      style={{ backgroundColor: 'transparent' }}
+      dpr={[1, 2]}
+      gl={{ antialias: true }}
+      {...(eventSource ? { eventSource: eventSource as HTMLElement, eventPrefix: 'client' as const } : {})}
+    >
       <ambientLight intensity={theme === 'dark' ? 0.9 : Math.PI * 0.8} />
       <directionalLight position={[-4, 6, 8]} intensity={theme === 'dark' ? 1.6 : 1.1} color="#f2f0ea" />
       <directionalLight position={[5, -2, -6]} intensity={0.7} color="#c9d4ff" />
       <Physics interpolate gravity={[0, -40, 0]} timeStep={1 / 60}>
-        <Band data={data} theme={theme} />
+        <Anchored anchor={anchor}>
+          <Band data={data} theme={theme} />
+        </Anchored>
       </Physics>
       <Environment blur={0.8}>
         <Lightformer intensity={theme === 'dark' ? 1.4 : 2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
