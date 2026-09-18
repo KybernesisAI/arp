@@ -1,0 +1,261 @@
+import type * as React from 'react';
+import type { Metadata } from 'next';
+import { loadBadgeData } from '@/lib/badge-data';
+import { LanderHero } from './LanderHero';
+
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'AgentID — Give your agent an identity',
+  description: 'One permanent .agent name for your AI agent: a page people can find, an address other agents can trust, and keys you control.',
+};
+
+const CLAIM = 'https://cloud.arp.run/dashboard';
+const LOGIN = 'https://cloud.arp.run/onboarding';
+
+function Kicker({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-zinc-500">{children}</div>;
+}
+function Tag({ children, tone = 'zinc' }: { children: React.ReactNode; tone?: 'zinc' | 'emerald' | 'dark' }): React.JSX.Element {
+  const cls =
+    tone === 'emerald' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' :
+    tone === 'dark' ? 'border-white/15 bg-white/[0.06] text-white/80' :
+    'border-zinc-200 bg-zinc-50 text-zinc-600';
+  return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.14em] ${cls}`}>{tone === 'emerald' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}{children}</span>;
+}
+function H2({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">{children}</h2>;
+}
+function Lead({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-zinc-600">{children}</p>;
+}
+
+export default async function LanderPage(): Promise<React.JSX.Element> {
+  const badge = await loadBadgeData('samantha');
+  return (
+    <div className="min-h-screen bg-white text-zinc-950 antialiased" style={{ fontFamily: 'Inter, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Mono&display=swap" />
+
+      {/* NAV */}
+      <header className="bg-black text-white">
+        <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-6">
+          <a href="/lander" className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
+            <span className="inline-block h-4 w-4 rounded-[4px] bg-white" /> AgentID
+          </a>
+          <nav className="hidden items-center gap-7 text-[14px] text-white/70 md:flex">
+            <a href="#how" className="hover:text-white">How it works</a>
+            <a href="#get" className="hover:text-white">What you get</a>
+            <a href="#addons" className="hover:text-white">Add-ons</a>
+            <a href="#pricing" className="hover:text-white">Pricing</a>
+            <a href="#faq" className="hover:text-white">FAQ</a>
+          </nav>
+          <div className="flex items-center gap-3">
+            <a href={LOGIN} className="hidden text-[14px] text-white/70 hover:text-white sm:inline">Log in</a>
+            <a href={CLAIM} className="rounded-full bg-white px-4 py-2 text-[14px] font-medium text-black hover:bg-zinc-200">Claim a name</a>
+          </div>
+        </div>
+      </header>
+
+      <LanderHero badge={badge} />
+
+      {/* WORKS WITH */}
+      <section className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center gap-x-10 gap-y-3 px-6 py-6">
+          <Kicker>Works with</Kicker>
+          {['Kybernesis Eve', 'OpenClaw', 'Hermes', 'LangGraph', 'Any agent with a URL'].map((n) => (
+            <span key={n} className="text-[14px] font-medium text-zinc-700">{n}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* PROBLEM */}
+      <section className="mx-auto w-full max-w-[1200px] px-6 py-24">
+        <Kicker>The problem</Kicker>
+        <H2>Agents have URLs, API keys and usernames. None of that is an identity.</H2>
+        <Lead>Every platform gives your agent a different name and none of them prove anything. A bot handle here, a deployment URL there, a key in an env file. Move hosts and the identity is gone. Talk to another agent and nobody can check who is on the other end.</Lead>
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 md:grid-cols-3">
+          {[
+            ['Not portable', "Your agent's name is owned by whichever platform issued it. Leave, and you start over."],
+            ['Not verified', 'Anyone can claim to be your agent. There is no way for a person or another agent to check.'],
+            ['Not reachable', 'People and agents who want to work with yours have no address to use. Just a form, or nothing.'],
+          ].map(([t, b]) => (
+            <div key={t} className="bg-white p-8">
+              <div className="mb-3 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">{t}</div>
+              <p className="text-[15px] leading-relaxed text-zinc-700">{b}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how" className="border-t border-zinc-200 bg-zinc-50">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
+          <Kicker>How it works</Kicker>
+          <H2>Claim it. Connect it. Link everything to it.</H2>
+          <Lead>Three steps, a few minutes. The name is the root; everything your agent is, and everywhere it lives, hangs off that one name.</Lead>
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {[
+              ['01', 'Claim your name.', 'Pick a name like samantha.agent. It is registered to you, renews on your terms, and never belongs to a platform.', 'Name · registered'],
+              ['02', 'Connect your agent.', 'Paste where your agent runs and click Connect. Kybernesis agents are ready as they are; any other agent with a URL takes one package.', 'Agent · connected'],
+              ['03', 'Link everything to it.', 'Its workspace identity, its control plane, its public endpoint. Each link is verified from both sides, so a checkmark means something.', 'Links · verified'],
+            ].map(([n, t, b, f]) => (
+              <div key={n} className="rounded-2xl border border-zinc-200 bg-white p-8">
+                <div className="font-mono text-[12px] tracking-[0.14em] text-zinc-400">STEP {n}</div>
+                <h3 className="mt-4 text-[22px] font-medium tracking-[-0.02em]">{t}</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
+                <div className="mt-6"><Tag tone="emerald">{f}</Tag></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* WHAT YOU GET */}
+      <section id="get" className="mx-auto w-full max-w-[1200px] px-6 py-24">
+        <Kicker>What you get</Kicker>
+        <H2>One name. Everything attached.</H2>
+        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            ['The name', 'A name that is yours.', 'samantha.agent is registered to you, not leased from a platform. Renew it for as long as you want it. Nobody can take it or reassign it.'],
+            ['The profile', 'A public page people can find.', 'What your agent does, who it represents, how to reach it, and whether it is online right now. Shareable like a business card.'],
+            ['Verified links', 'Proof, not claims.', "Link the agent's workspace account, control plane and endpoints. Each link is confirmed from both sides before it shows as verified."],
+            ['Reachable', 'An address other agents can use.', 'Any agent, on any platform, can look up your agent by name and knock. You decide who gets in. That part is the Connect add-on.'],
+            ['Portable', 'Move hosts. Keep the identity.', 'Redeploy to a new cloud, switch frameworks, hand the agent to a teammate. The name, the profile and the verified links all come along.'],
+            ['Owner control', 'You hold the keys.', 'The owner is always visible and always in charge. Rotate, transfer or retire the identity from one place, and every link updates.'],
+          ].map(([k, t, b]) => (
+            <div key={t} className="bg-white p-8">
+              <Kicker>{k}</Kicker>
+              <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">{t}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ADD-ONS */}
+      <section id="addons" className="border-t border-zinc-200 bg-zinc-50">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
+          <Kicker>Add-ons</Kicker>
+          <H2>Start with a name. Add what you need.</H2>
+          <Lead>The identity is the base layer. Everything that makes an agent useful to other agents installs on top of it, when you want it.</Lead>
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="rounded-2xl bg-black p-8 text-white">
+              <Tag tone="dark">Included</Tag>
+              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Identity</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/65">Your name, your public profile, verified links, health status and the owner controls. This is what you register.</p>
+              <ul className="mt-6 space-y-2 text-[14px] text-white/80">{['Registered name', 'Public profile page', 'Verified links', 'Owner dashboard'].map((x) => <li key={x}>— {x}</li>)}</ul>
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-white p-8">
+              <Tag tone="emerald">Add-on · Connect</Tag>
+              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Connect</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">Let your agent work with other agents. Approve each relationship once, set what it can and cannot do, see every message, revoke any time.</p>
+              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Pair with any agent by name', 'Permissions in plain English', 'Full activity log', 'One-click revoke'].map((x) => <li key={x}>— {x}</li>)}</ul>
+              <div className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Powered by ARP</div>
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-white p-8">
+              <Tag>Add-on · Payments</Tag>
+              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Payments</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">Let your agent earn and spend. Accept machine payments, pay other agents, with limits and approvals you set.</p>
+              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'].map((x) => <li key={x}>— {x}</li>)}</ul>
+              <div className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Coming soon</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* WHO IT'S FOR */}
+      <section className="mx-auto w-full max-w-[1200px] px-6 py-24">
+        <Kicker>Who it's for</Kicker>
+        <H2>Builders, businesses and platforms.</H2>
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {[
+            ['Builders', 'For developers building agents.', 'You already have an agent. Give it a name it can keep, a page people can find, and an address other agents can reach.'],
+            ['Companies', 'For businesses putting an agent in front of customers.', 'support.yourbrand.agent is easier to trust than a chat widget. Verified ownership, a public profile, and a clear record of what it is allowed to do.'],
+            ['Platforms', 'For agent platforms and frameworks.', 'Give every agent on your platform a portable identity without building an identity system. Open standards, one adapter, no lock-in for your users.'],
+          ].map(([k, t, b]) => (
+            <div key={k} className="rounded-2xl border border-zinc-200 p-8">
+              <Kicker>{k}</Kicker>
+              <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">{t}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" className="border-t border-zinc-200 bg-zinc-50">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
+          <Kicker>Pricing</Kicker>
+          <H2>One name, one price. Add-ons when you need them.</H2>
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {[
+              { name: 'Name', price: '$29', period: '/ year', desc: 'A registered name with everything attached.', feats: ['Your .agent name', 'Public profile page', 'Verified links', 'Owner dashboard + health'], cta: 'Claim a name', href: CLAIM, primary: true },
+              { name: 'Connect', price: '$5', period: '/ month', desc: 'Agent-to-agent, with you in control.', feats: ['Pair with any agent', 'Permissions + approvals', 'Full activity log', 'Instant revoke'], cta: 'Add Connect', href: 'https://cloud.arp.run/pricing', primary: false },
+              { name: 'Payments', price: 'Soon', period: '', desc: 'Let your agent earn and spend.', feats: ['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'], cta: 'Join the waitlist', href: CLAIM, primary: false },
+            ].map((p) => (
+              <div key={p.name} className={`rounded-2xl border p-8 ${p.primary ? 'border-black bg-black text-white' : 'border-zinc-200 bg-white'}`}>
+                <div className={`font-mono text-[12px] uppercase tracking-[0.14em] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.name}</div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="text-[44px] font-medium tracking-[-0.03em]">{p.price}</span>
+                  <span className={`text-[14px] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.period}</span>
+                </div>
+                <p className={`mt-2 text-[15px] ${p.primary ? 'text-white/70' : 'text-zinc-600'}`}>{p.desc}</p>
+                <ul className={`mt-6 space-y-2 text-[14px] ${p.primary ? 'text-white/85' : 'text-zinc-700'}`}>{p.feats.map((x) => <li key={x}>— {x}</li>)}</ul>
+                <a href={p.href} className={`mt-8 inline-block rounded-full px-5 py-2.5 text-[14px] font-medium ${p.primary ? 'bg-white text-black hover:bg-zinc-200' : 'border border-zinc-300 text-zinc-900 hover:border-zinc-900'}`}>{p.cta}</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="mx-auto w-full max-w-[1200px] px-6 py-24">
+        <Kicker>FAQ</Kicker>
+        <H2>Questions.</H2>
+        <div className="mt-10 divide-y divide-zinc-200 border-y border-zinc-200">
+          {[
+            ['What can a name look like?', 'Lowercase letters, numbers and hyphens, up to 63 characters. It always ends in .agent.'],
+            ['Do I need to change my agent’s code?', 'Not for Kybernesis agents. For any other agent with a URL, a developer adds one package once; after that the owner does everything from the console.'],
+            ['Can I move my agent to another host?', 'Yes. Reconnect from the name’s page with the new address. The name, the profile and the verified links stay exactly as they were.'],
+            ['Who holds the keys?', 'By default we hold the name’s key for you so hosted delivery works. You can export it at any time and hold it yourself.'],
+            ['What is Connect?', 'The add-on that lets other agents talk to yours. You approve each relationship, set what it may do in plain English, see every message, and can revoke instantly.'],
+          ].map(([q, a]) => (
+            <details key={q} className="group py-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between text-[17px] font-medium">
+                {q}
+                <span className="ml-4 text-zinc-400 transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 max-w-[70ch] text-[15px] leading-relaxed text-zinc-600">{a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-black text-white">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
+          <Kicker>Get started</Kicker>
+          <h2 className="mt-3 max-w-[20ch] text-[40px] font-medium leading-[1.05] tracking-[-0.03em] sm:text-[56px]">Claim your agent’s name.</h2>
+          <p className="mt-5 max-w-[50ch] text-[17px] text-white/65">Pick a name, connect your agent, and it has an identity it can keep.</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={CLAIM} className="rounded-full bg-white px-6 py-3 text-[15px] font-medium text-black hover:bg-zinc-200">Claim a name</a>
+            <a href="/badge" className="rounded-full border border-white/25 px-6 py-3 text-[15px] font-medium text-white hover:border-white">See a live badge</a>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-zinc-200 bg-white">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-8 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">
+          <span>AgentID · by Kybernesis</span>
+          <div className="flex flex-wrap gap-6">
+            <a href="https://cloud.arp.run/terms" className="hover:text-zinc-900">Terms</a>
+            <a href="https://cloud.arp.run/privacy" className="hover:text-zinc-900">Privacy</a>
+            <a href="https://cloud.arp.run/support" className="hover:text-zinc-900">Support</a>
+            <a href="https://spec.arp.run" className="hover:text-zinc-900">Open protocol</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

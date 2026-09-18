@@ -2,30 +2,9 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
+import { AgentBadge, type BadgeData, type BadgeTheme } from './AgentBadge';
 
-export interface BadgeData {
-  sld: string;
-  name: string;
-  description: string;
-  did: string;
-  profileUrl: string;
-  connectUrl: string;
-  mirrorHost: string;
-  a2aEndpoint: string;
-  since: string;
-  ownerVerified: boolean;
-  ownerLabel: string | null;
-  cardSigned: boolean;
-  selfHeldKey: boolean;
-  runtime: boolean;
-  avatarUrl: string;
-  links: Array<{ kind: string; value: string }>;
-}
-
-export type BadgeTheme = 'dark' | 'light';
-
-const BadgeScene = dynamic(() => import('./BadgeScene').then((m) => m.BadgeScene), { ssr: false, loading: () => null });
+export type { BadgeData, BadgeTheme };
 
 /** Plain stage: black (or white) page, the badge, a theme switch. Nothing else. */
 export function BadgeClient({ data }: { data: BadgeData }): React.JSX.Element {
@@ -34,8 +13,6 @@ export function BadgeClient({ data }: { data: BadgeData }): React.JSX.Element {
   const fg = dark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)';
   return (
     <div style={{ position: 'relative', height: '100dvh', width: '100%', overflow: 'hidden', background: dark ? '#000' : '#fff', color: fg, fontFamily: '"Space Mono", ui-monospace, Menlo, monospace', transition: 'background 300ms ease' }}>
-      {/* Small print on the card is set in Space Mono; React hoists this into <head>. */}
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" />
       <div style={{ position: 'absolute', top: 20, left: 24, right: 24, zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', pointerEvents: 'none' }}>
         <span>AgentID</span>
         <button
@@ -50,7 +27,7 @@ export function BadgeClient({ data }: { data: BadgeData }): React.JSX.Element {
           {dark ? 'Light' : 'Dark'}
         </button>
       </div>
-      <BadgeScene data={data} theme={theme} />
+      <AgentBadge data={data} theme={theme} />
       <div style={{ position: 'absolute', bottom: 20, left: 24, right: 24, zIndex: 10, display: 'flex', justifyContent: 'space-between', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', pointerEvents: 'none' }}>
         <a href={data.profileUrl} style={{ pointerEvents: 'auto', color: fg, textDecoration: 'none' }}>
           {data.sld}.agent
