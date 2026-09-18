@@ -26,7 +26,9 @@ import { createHash } from 'node:crypto';
 import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
 import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybernesis/arp-transport-a2a';
 import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
-import { ed25519ToJwk, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
+import { ed25519ToJwk, multibaseEd25519ToRaw, signAgentCard } from '@kybernesis/arp-transport';
+import { buildA2aAgentCard } from '@kybernesis/arp-templates';
+import { openPrivateKey } from './custody.js';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
 import type { DispatchContext, PeerResolver } from './dispatch.js';
@@ -219,11 +221,54 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   // standard's path); ARP's own card lives at /.well-known/arp-card.json.
   // Rows minted before S5 have no A2A card yet → fall back to the ARP card so
   // nothing 404s during the transition.
+  /**
+   * AgentID S5: identities minted before the A2A card existed (or whose card
+   * was cleared) get one built + signed on first fetch. The gateway holds the
+   * sealing key, so cloud-custody rows can self-heal without the console's
+   * rebuild cron. Exported-custody rows keep serving the ARP card until their
+   * runtime signs a card (S5b).
+   */
+  async function lazyA2aCard(ctx: NonNullable<Awaited<ReturnType<typeof resolveAgentContext>>>): Promise<Record<string, unknown> | null> {
+    const row = ctx.agentRow;
+    if (row.wellKnownA2aCard) return row.wellKnownA2aCard as Record<string, unknown>;
+    if (row.keyCustody !== 'cloud' || !row.privateKeyEnc || !opts.push) return null;
+    const sld = ctx.agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '');
+    const fromDoc = (row.wellKnownDid as { service?: Array<{ type: string; serviceEndpoint: string }> } | null)?.service?.find(
+      (svc) => svc.type === 'AgentCard',
+    )?.serviceEndpoint;
+    let origin: string;
+    try {
+      origin = fromDoc ? new URL(fromDoc).origin : `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+    } catch {
+      origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+    }
+    try {
+      const seed = openPrivateKey(row.privateKeyEnc, opts.push.sealingKey);
+      const card = buildA2aAgentCard({
+        name: row.agentName,
+        description: row.agentDescription || 'Personal agent',
+        did: ctx.agentDid,
+        origin,
+        pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(ctx.agentDid)}`,
+        provider: { organization: sld, url: `https://agent.arp.run/${sld}` },
+      }) as Record<string, unknown>;
+      const sig = await signAgentCard(card, { privateKey: seed, kid: `${ctx.agentDid}#key-1`, jku: `${origin}/.well-known/jwks.json` });
+      seed.fill(0);
+      const signed = { ...card, signatures: [sig] };
+      await withTenant(opts.db, toTenantId(ctx.tenantId)).updateAgent(ctx.agentDid, { wellKnownA2aCard: signed });
+      opts.logger.info({ agentDid: ctx.agentDid }, 'a2a_card_backfilled');
+      return signed;
+    } catch (err) {
+      opts.logger.error({ err: (err as Error).message, agentDid: ctx.agentDid }, 'a2a_card_backfill_failed');
+      return null;
+    }
+  }
+
   app.get('/.well-known/agent-card.json', async (c) => {
     const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
     if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
-    const card = ctx.agentRow.wellKnownA2aCard ?? ctx.agentRow.wellKnownAgentCard;
+    const card = (await lazyA2aCard(ctx)) ?? ctx.agentRow.wellKnownAgentCard;
     return c.newResponse(JSON.stringify(card), 200, wellKnownHeaders);
   });
 
