@@ -359,7 +359,7 @@ function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
 
 const segmentProps = { type: 'dynamic', canSleep: true, colliders: false, angularDamping: 2, linearDamping: 2 } as const;
 
-function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; theme: BadgeTheme; maxSpeed?: number; minSpeed?: number }): React.JSX.Element {
+function Band({ data, theme, offsetX = 0, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; theme: BadgeTheme; offsetX?: number; maxSpeed?: number; minSpeed?: number }): React.JSX.Element {
   const band = useRef<THREE.Mesh<MeshLineGeometry, MeshLineMaterial>>(null);
   const fixed = useRef<RapierRigidBody>(null!);
   const j1 = useRef<RapierRigidBody>(null!);
@@ -479,7 +479,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
 
   return (
     <>
-      <group position={[0, 4.6, 0]}>
+      <group position={[offsetX, 4.6, 0]}>
         <RigidBody ref={fixed} {...segmentProps} type="fixed" />
         <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}><BallCollider args={[0.1]} /></RigidBody>
         <RigidBody position={[1, 0, 0]} ref={j2} {...segmentProps}><BallCollider args={[0.1]} /></RigidBody>
@@ -537,10 +537,12 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
 }
 
 /** Places the whole rig: centred, or in the right half of a wide viewport (hero). */
-function Anchored({ anchor, children }: { anchor: 'center' | 'right'; children: React.ReactNode }): React.JSX.Element {
+function Anchored({ anchor, data, theme }: { anchor: 'center' | 'right'; data: BadgeData; theme: BadgeTheme }): React.JSX.Element {
   const width = useThree((st) => st.viewport.width);
   const x = anchor === 'right' && width > 7 ? width * 0.26 : 0;
-  return <group position={[x, 0, 0]}>{children}</group>;
+  // The offset goes on the physics rig only: the strap is drawn from world
+  // positions, so it must not inherit the shift (it would be offset twice).
+  return <Band data={data} theme={theme} offsetX={x} />;
 }
 
 export function BadgeScene({ data, theme, zoom = 1, anchor = 'center', eventSource }: { data: BadgeData; theme: BadgeTheme; zoom?: number; anchor?: 'center' | 'right'; eventSource?: HTMLElement | React.RefObject<HTMLElement> }): React.JSX.Element {
@@ -556,9 +558,7 @@ export function BadgeScene({ data, theme, zoom = 1, anchor = 'center', eventSour
       <directionalLight position={[-4, 6, 8]} intensity={theme === 'dark' ? 1.6 : 1.1} color="#f2f0ea" />
       <directionalLight position={[5, -2, -6]} intensity={0.7} color="#c9d4ff" />
       <Physics interpolate gravity={[0, -40, 0]} timeStep={1 / 60}>
-        <Anchored anchor={anchor}>
-          <Band data={data} theme={theme} />
-        </Anchored>
+        <Anchored anchor={anchor} data={data} theme={theme} />
       </Physics>
       <Environment blur={0.8}>
         <Lightformer intensity={theme === 'dark' ? 1.4 : 2} color="white" position={[0, -1, 5]} rotation={[0, 0, Math.PI / 3]} scale={[100, 0.1, 1]} />
