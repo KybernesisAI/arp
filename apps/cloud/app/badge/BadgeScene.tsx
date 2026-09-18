@@ -85,7 +85,7 @@ function printGeometry(): THREE.ShapeGeometry {
 // ------------------------------------------------------------------ textures
 
 const FONT = 'Inter, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif';
-const MONO = '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace';
+const MONO = '"Space Mono", "SF Mono", Menlo, Consolas, monospace';
 const BG = '#050506';
 const BG_2 = '#0d0d10';
 const FG = '#e9e7e2'; // platinum
@@ -102,7 +102,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !('fonts' in document)) return;
-  await withTimeout(Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`)]).then(() => undefined), 1500, undefined);
+  await withTimeout(Promise.all([document.fonts.load(`600 100px ${FONT}`), document.fonts.load(`400 40px ${FONT}`), document.fonts.load(`400 30px ${MONO}`), document.fonts.load(`700 30px ${MONO}`)]).then(() => undefined), 1500, undefined);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
@@ -164,16 +164,16 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
 }
 
 function chip(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, ok: boolean): number {
-  ctx.font = `500 24px ${FONT}`;
-  const w = ctx.measureText(text).width + 56;
+  ctx.font = `700 30px ${MONO}`;
+  const w = ctx.measureText(text).width + 74;
   ctx.fillStyle = ok ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.06)';
-  ctx.beginPath(); ctx.roundRect(x, y - 30, w, 44, 22); ctx.fill();
-  ctx.strokeStyle = ok ? 'rgba(52,211,153,0.35)' : LINE; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(x, y - 42, w, 62, 31); ctx.fill();
+  ctx.strokeStyle = ok ? 'rgba(52,211,153,0.4)' : LINE; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = ok ? '#34d399' : FG_3;
-  ctx.beginPath(); ctx.arc(x + 22, y - 8, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 30, y - 11, 7, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = ok ? FG : FG_2;
-  ctx.fillText(text, x + 38, y);
-  return w + 14;
+  ctx.fillText(text, x + 50, y);
+  return w + 16;
 }
 
 function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageElement | null): void {
@@ -192,7 +192,11 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
   const cx = pad + R, cy = 240 + R;
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
-  if (img) ctx.drawImage(img, cx - R, cy - R, R * 2, R * 2);
+  if (img) {
+    // Kybernesis portraits are a white disc inset in a black square; scale so the disc fills the circle.
+    const z = data.avatarUrl.startsWith('/assets/badge/avatars/') ? 1.18 : 1;
+    ctx.drawImage(img, cx - R * z, cy - R * z, R * 2 * z, R * 2 * z);
+  }
   else {
     const g = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
     g.addColorStop(0, '#3a3a44'); g.addColorStop(1, '#17171b');
@@ -235,10 +239,18 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
   y += lines.length * 46 + 40;
 
   // Status chips.
+  const chips: Array<[string, boolean]> = [
+    [data.ownerVerified ? 'Owner verified' : 'Owner pending', data.ownerVerified],
+    [data.runtime ? 'Connected' : 'Identity only', data.runtime],
+    data.cardSigned ? ['Signed card', true] : data.selfHeldKey ? ['Self-held key', true] : ['Card unsigned', false],
+  ];
   let x = pad;
-  x += chip(ctx, data.ownerVerified ? 'Owner verified' : 'Owner pending', x, y, data.ownerVerified);
-  x += chip(ctx, data.cardSigned ? 'Signed' : 'Unsigned', x, y, data.cardSigned);
-  chip(ctx, data.runtime ? 'Connected' : 'Identity only', x, y, data.runtime);
+  for (const [text, ok] of chips) {
+    ctx.font = `700 30px ${MONO}`;
+    const w = ctx.measureText(text).width + 74;
+    if (x + w > TEX_W - pad) { x = pad; y += 78; }
+    x += chip(ctx, text, x, y, ok);
+  }
 
   // Footer: DID and a hairline.
   ctx.fillStyle = LINE; ctx.fillRect(pad, TEX_H - pad - 92, TEX_W - pad * 2, 1);
@@ -298,7 +310,7 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
     ['Owner', data.ownerVerified ? (data.ownerLabel ?? 'verified') : 'not verified'],
     ['Reachable at', data.mirrorHost],
     ['A2A endpoint', data.a2aEndpoint.replace(/^https:\/\//, '')],
-    ['Card', data.cardSigned ? 'signed by this name' : 'unsigned'],
+    ['Key', data.cardSigned ? 'hosted · card signed by this name' : data.selfHeldKey ? 'self-held by the owner' : 'hosted · card not yet signed'],
     ['Since', data.since],
     ...data.links.slice(0, 3).map((l) => [l.kind, l.value] as [string, string]),
   ];
