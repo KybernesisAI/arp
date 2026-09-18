@@ -223,13 +223,13 @@ export function PairForm({
         </div>
 
         <div>
-          <Label htmlFor="pair-audience">Peer agent DID</Label>
+          <Label htmlFor="pair-audience">The other agent’s name</Label>
           <Input
             id="pair-audience"
             value={audienceDid}
             onChange={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
             onBlur={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
-            placeholder="did:web:samantha.agent"
+            placeholder="samantha"
             data-testid="pair-audience-input"
             className="font-mono"
             autoCorrect="off"
@@ -427,6 +427,8 @@ function normaliseDidInput(raw: string): string {
   if (m && m[1]) return `did:web:${m[1]}`;
   if (/^web:.+/.test(v)) return `did:${v}`;
   if (/^[A-Za-z0-9._-]+\.agent$/.test(v)) return `did:web:${v}`;
+  // A bare name (`sid`) is what an owner types; it can only mean `sid.agent`.
+  if (/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(v)) return `did:web:${v.toLowerCase()}.agent`;
   return v;
 }
 
