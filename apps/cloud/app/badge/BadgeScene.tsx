@@ -165,14 +165,18 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
 
 function chip(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, ok: boolean): number {
   ctx.font = `400 30px ${MONO}`;
-  const w = ctx.measureText(text).width + 74;
+  ctx.letterSpacing = '2px';
+  const w = ctx.measureText(text.toUpperCase()).width + 74;
+  ctx.letterSpacing = '0px';
   ctx.fillStyle = ok ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.06)';
   ctx.beginPath(); ctx.roundRect(x, y - 42, w, 62, 31); ctx.fill();
   ctx.strokeStyle = ok ? 'rgba(52,211,153,0.4)' : LINE; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = ok ? '#34d399' : FG_3;
   ctx.beginPath(); ctx.arc(x + 30, y - 11, 7, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = ok ? FG : FG_2;
-  ctx.fillText(text, x + 50, y);
+  ctx.letterSpacing = '2px';
+  ctx.fillText(text.toUpperCase(), x + 50, y);
+  ctx.letterSpacing = '0px';
   return w + 16;
 }
 
@@ -247,7 +251,9 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
   let x = pad;
   for (const [text, ok] of chips) {
     ctx.font = `400 30px ${MONO}`;
-    const w = ctx.measureText(text).width + 74;
+    ctx.letterSpacing = '2px';
+    const w = ctx.measureText(text.toUpperCase()).width + 74;
+    ctx.letterSpacing = '0px';
     if (x + w > TEX_W - pad) { x = pad; y += 78; }
     x += chip(ctx, text, x, y, ok);
   }
@@ -512,7 +518,8 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
               </mesh>
               {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
               {/* Where the strap enters the clamp: top of the clamp, in the tilting frame. */}
-              <object3D ref={strapEnd} position={[0, 1.229 - CARD_CENTER_Y + 0.055 + 0.04, 0]} />
+              {/* Strap ends at the centre of the swivel loop (loop spans ~1.12–1.23 local, clip group raised 0.055). */}
+              <object3D ref={strapEnd} position={[0, 1.175 - CARD_CENTER_Y + 0.055, 0]} />
               <group position={[0, -CARD_CENTER_Y + 0.055, 0]}>
                 <mesh geometry={nodes['clip']!.geometry} material={materials['metal']} material-roughness={0.3} />
                 <mesh geometry={nodes['clamp']!.geometry} material={materials['metal']} />
