@@ -625,3 +625,9 @@ The phase can build all the code without these; deployment to real infra waits f
 ---
 
 *Session handoff v1.0 — generated at end of Phase 6. Update §1 after each phase merge. Update §7 when external coordination changes.*
+
+## 2026-09-19 — lilly.agent + published-package cutover
+
+- `lilly.agent` registered upstream (order 939, domain 390, 1 Gem, expires 2027-09-18), `domain_registrations` row active in Ian's tenant, hosted identity minted (cloud custody; mirror `lilly.agent.arp.run`, profile `agent.arp.run/lilly`). Not yet connected to a runtime — connect from `/names/lilly` when there is an agent for it.
+- Kyber + Sid VMs now run `@kybernesis/identity@0.2.0` from npm (tarball retired); local `~/kyber` + `~/sid` `agentid-identity` branches bumped to `^0.2.0` (local commits, not pushed).
+- Ian's tenant names: agentid-test, kyber, sid, lilly (all active, 1-year).
