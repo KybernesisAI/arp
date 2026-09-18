@@ -263,7 +263,7 @@ function paintFront(canvas: HTMLCanvasElement, data: BadgeData, img: HTMLImageEl
   ctx.font = `400 26px ${MONO}`; ctx.fillStyle = FG_3;
   ctx.fillText(data.did, pad, TEX_H - pad - 44);
   ctx.textAlign = 'right';
-  ctx.fillText(data.mirrorHost, TEX_W - pad, TEX_H - pad - 44);
+  ctx.fillText(`${data.sld}.agent`, TEX_W - pad, TEX_H - pad - 44);
   ctx.textAlign = 'left';
 }
 
@@ -314,8 +314,8 @@ async function drawBack(data: BadgeData): Promise<THREE.CanvasTexture> {
   let y = qy + q + 215;
   const rows: Array<[string, string]> = [
     ['Owner', data.ownerVerified ? (data.ownerLabel ?? 'verified') : 'not verified'],
-    ['Reachable at', data.mirrorHost],
-    ['A2A endpoint', data.a2aEndpoint.replace(/^https:\/\//, '')],
+    ['Reachable at', `${data.sld}.agent`],
+    ['A2A endpoint', `${data.sld}.agent/a2a`],
     ['Key', data.cardSigned ? 'hosted · card signed by this name' : data.selfHeldKey ? 'self-held by the owner' : 'hosted · card not yet signed'],
     ['Since', data.since],
     ...data.links.slice(0, 3).map((l) => [l.kind, l.value] as [string, string]),
