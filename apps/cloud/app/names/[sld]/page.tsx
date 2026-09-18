@@ -52,13 +52,17 @@ export default async function NameRecordsPage(props: {
   const needsOwner = !owner && (status === 'registered' || status === 'owner_pending' || (agent !== null && !registration));
   const badgeTone = status === 'active' ? 'blue' : status === 'failed' || status === 'expired' ? 'red' : 'yellow';
 
-  const records: Array<{ kind: string; name: string; value: string; href?: string; state: 'live' | 'pending' }> = [
+  const cardSigned = ((agent?.wellKnownA2aCard as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0;
+  const records: Array<{ kind: string; name: string; value: string; href?: string; state: 'live' | 'pending' | 'signed' }> = [
     { kind: 'ADDRESS', name: 'Reachable at', value: mirror.replace(/^https:\/\//, ''), href: mirror, state: agent ? 'live' : 'pending' },
     { kind: 'IDENTITY', name: 'Identity document', value: `${mirror}/.well-known/did.json`, href: `${mirror}/.well-known/did.json`, state: agent ? 'live' : 'pending' },
-    { kind: 'CARD', name: 'Agent card', value: `${mirror}/.well-known/agent-card.json`, href: `${mirror}/.well-known/agent-card.json`, state: agent ? 'live' : 'pending' },
+    { kind: 'CARD', name: 'Agent card (A2A)', value: `${mirror}/.well-known/agent-card.json`, href: `${mirror}/.well-known/agent-card.json`, state: cardSigned ? 'signed' : agent ? 'live' : 'pending' },
+    { kind: 'A2A', name: 'A2A endpoint', value: `${mirror}/a2a`, href: `${mirror}/.well-known/agent-card.json`, state: agent ? 'live' : 'pending' },
+    { kind: 'KEYS', name: 'Public key set', value: `${mirror}/.well-known/jwks.json`, href: `${mirror}/.well-known/jwks.json`, state: agent ? 'live' : 'pending' },
+    { kind: 'CONNECT', name: 'Connect record', value: `${mirror}/.well-known/arp-card.json`, href: `${mirror}/.well-known/arp-card.json`, state: agent ? 'live' : 'pending' },
     { kind: 'OWNER', name: 'Owner proof', value: owner ? `${mirror}/representation.jwt` : 'not yet verified', href: owner ? `${mirror}/representation.jwt` : undefined, state: owner ? 'live' : 'pending' },
     { kind: 'PROFILE', name: 'Public profile', value: `${env().AGENTID_PROFILE_BASE}/${sld}`, href: `${env().AGENTID_PROFILE_BASE}/${sld}`, state: agent ? 'live' : 'pending' },
-    { kind: 'CONNECT', name: 'Connect link', value: `https://cloud.arp.run/pair?peer=did:web:${domain}`, href: `https://cloud.arp.run/pair?peer=did:web:${domain}`, state: agent ? 'live' : 'pending' },
+    { kind: 'PAIR', name: 'Connect link', value: `https://cloud.arp.run/pair?peer=did:web:${domain}`, href: `https://cloud.arp.run/pair?peer=did:web:${domain}`, state: agent ? 'live' : 'pending' },
   ];
 
   return (
@@ -111,7 +115,7 @@ export default async function NameRecordsPage(props: {
                   {r.href ? <a href={r.href} className="underline decoration-rule hover:decoration-ink">{r.value}</a> : r.value}
                 </div>
                 <div className="col-span-2 md:col-span-1 text-right">
-                  <span className={`font-mono text-[10px] tracking-[0.14em] uppercase px-1.5 py-0.5 border ${r.state === 'live' ? 'border-signal-blue text-signal-blue' : 'border-rule text-muted'}`}>
+                  <span className={`font-mono text-[10px] tracking-[0.14em] uppercase px-1.5 py-0.5 border ${r.state === 'live' || r.state === 'signed' ? 'border-signal-blue text-signal-blue' : 'border-rule text-muted'}`}>
                     {r.state}
                   </span>
                 </div>
@@ -230,6 +234,7 @@ async function loadState(sld: string) {
           online: agentRow.lastSeenAt ? now - agentRow.lastSeenAt.getTime() <= 5 * 60 * 1000 : false,
           wellKnownDid: agentRow.wellKnownDid,
           wellKnownAgentCard: agentRow.wellKnownAgentCard,
+          wellKnownA2aCard: agentRow.wellKnownA2aCard,
         }
       : null,
   };

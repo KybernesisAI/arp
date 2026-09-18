@@ -1,6 +1,6 @@
 # AgentID — Slice S5: A2A transport, signed agent cards, the mirror as an A2A endpoint
 
-**Parent:** `docs/ARP-agentid-plan.md` §6 (S5), decision D5 (A2A-first, DIDComm optional) + D7 (mirror). **Status:** brief 2026-09-18.
+**Parent:** `docs/ARP-agentid-plan.md` §6 (S5), decision D5 (A2A-first, DIDComm optional) + D7 (mirror). **Status (2026-09-18):** A1–A6 ✅ built on `agentid-s5-a2a` (commits `[agentid/s5/a1..a6]`); RFC numbered **0005** (next unused, not 0006); live gate = migration 0013 on prod + gateway redeploy + `rebuild-cards?only=missing` backfill + signed card verified at `samantha.agent.arp.run` + testkit `--resolver mirror` 12/12 (see PR).
 **Branch:** `agentid-s5-a2a`. Commits tagged `[agentid/s5]`.
 **Goal:** any stock A2A client can discover a `.agent` identity by fetching its signed card from the mirror, address it with `message/send`, and get a policy-checked, audited reply — while ARP's consent, scopes, obligations, audit and revocation keep working underneath. ARP becomes an **A2A extension**; the Connection Token rides as the A2A bearer credential.
 
