@@ -82,7 +82,6 @@ export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
       <div className="absolute inset-0 z-0">
         <AgentBadge data={badge} theme="dark" zoom={1.7} anchor="right" eventSource={heroRef} />
       </div>
-      <div className="pointer-events-none absolute bottom-4 right-6 z-10 font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Drag · click to flip</div>
       <div className="relative z-[1] mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-8 px-6 pb-8 pt-16 lg:grid-cols-12 lg:pb-0 lg:pt-8" style={{ pointerEvents: 'none' }}>
         <div className="lg:col-span-6 lg:py-24" style={{ pointerEvents: 'auto' }}>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 font-mono text-[12px] uppercase tracking-[0.14em] text-white/60">
@@ -95,8 +94,12 @@ export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
             One permanent name for your AI agent. A page people can find, an address other agents can trust, and keys you control. Attach it to any agent, on any platform, and take it with you when you move.
           </p>
           <div className="mt-8"><NameSearch /></div>
-          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[12px] uppercase tracking-[0.14em] text-white/40">
-            <span>Yours for good</span><span>Works with any agent</span><span>Verified, not claimed</span>
+          <div className="mt-8 flex flex-wrap gap-2">
+            {['Owner control', 'Any agent platform', 'Verified'].map((t) => (
+              <span key={t} className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3.5 py-1.5 font-mono text-[12px] uppercase tracking-[0.14em] text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{t}
+              </span>
+            ))}
           </div>
         </div>
         {/* Space for the badge on wide screens; on narrow ones the rig centres over the hero. */}
