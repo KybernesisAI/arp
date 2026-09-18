@@ -41,6 +41,8 @@ import {
   revocations,
   tenants,
   usageCounters,
+  agentConnectTickets,
+  type AgentConnectTicketRow,
 } from './schema.js';
 import type { AuditInsertInput, EnqueuedMessage, TenantId } from './types.js';
 import type { CloudDbClient } from './db.js';
@@ -108,6 +110,9 @@ export interface TenantDb {
   createAgentCredential(input: { agentDid: string; tokenHash: string; label?: string | null }): Promise<AgentCredentialRow>;
   listAgentCredentials(agentDid: string): Promise<AgentCredentialRow[]>;
   revokeAgentCredentials(agentDid: string): Promise<number>;
+  // ----- connect tickets (AgentID S6a) -----------------------------------
+  createConnectTicket(input: { agentDid: string; url: string; linkId?: string | null; ttlMs?: number }): Promise<AgentConnectTicketRow>;
+  getConnectTicket(id: string): Promise<AgentConnectTicketRow | null>;
   deleteAgent(did: string): Promise<void>;
 
   // ----- identity links (AgentID S3) -------------------------------------
@@ -295,6 +300,31 @@ export function withTenant(client: CloudDbClient, tenantId: TenantId): TenantDb 
         .where(and(eq(agentCredentials.agentDid, agentDid), eq(agentCredentials.tenantId, tenantId), isNull(agentCredentials.revokedAt)))
         .returning({ id: agentCredentials.id });
       return rows.length;
+    },
+
+    // --- connect tickets (AgentID S6a)
+    async createConnectTicket(input) {
+      const rows = await client
+        .insert(agentConnectTickets)
+        .values({
+          tenantId,
+          agentDid: input.agentDid,
+          url: input.url,
+          linkId: input.linkId ?? null,
+          expiresAt: new Date(Date.now() + (input.ttlMs ?? 5 * 60_000)),
+        })
+        .returning();
+      const row = rows[0];
+      if (!row) throw new Error('createConnectTicket returned no row');
+      return row;
+    },
+    async getConnectTicket(id) {
+      const rows = await client
+        .select()
+        .from(agentConnectTickets)
+        .where(and(eq(agentConnectTickets.id, id), eq(agentConnectTickets.tenantId, tenantId)))
+        .limit(1);
+      return rows[0] ?? null;
     },
 
     // --- identity links (AgentID S3)

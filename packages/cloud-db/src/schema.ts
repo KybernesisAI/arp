@@ -552,6 +552,29 @@ export type RevocationRow = typeof revocations.$inferSelect;
 export type UsageCounterRow = typeof usageCounters.$inferSelect;
 export type StripeEventRow = typeof stripeEvents.$inferSelect;
 export type PrincipalSessionRow = typeof principalSessions.$inferSelect;
+/**
+ * AgentID S6a: a single-use "Connect your agent" ticket. Created by the
+ * console, consumed by the gateway (which signs the connect token and verifies
+ * the runtime). The unguessable id is the console → gateway authorization.
+ */
+export const agentConnectTickets = pgTable(
+  'agent_connect_tickets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    agentDid: text('agent_did').notNull(),
+    url: text('url').notNull(),
+    linkId: uuid('link_id'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    result: text('result'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxAgent: index('idx_agent_connect_tickets_agent').on(t.agentDid),
+  }),
+);
+
 export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
@@ -562,3 +585,4 @@ export type PairingInvitationRow = typeof pairingInvitations.$inferSelect;
 export type DomainRegistrationRow = typeof domainRegistrations.$inferSelect;
 export type AgentLinkRow = typeof agentLinks.$inferSelect;
 export type AgentCredentialRow = typeof agentCredentials.$inferSelect;
+export type AgentConnectTicketRow = typeof agentConnectTickets.$inferSelect;
