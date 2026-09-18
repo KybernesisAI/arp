@@ -28,7 +28,7 @@ const BadgeScene = dynamic(() => import('./BadgeScene').then((m) => m.BadgeScene
 export function BadgeClient({ data }: { data: BadgeData }): React.JSX.Element {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-paper text-ink">
-      <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-baseline justify-between px-6 py-5 font-mono text-kicker uppercase text-muted">
+      <div className="pointer-events-none absolute left-0 right-0 top-16 z-10 flex items-baseline justify-between px-6 py-5 font-mono text-kicker uppercase text-muted">
         <span>AGENT ID · BADGE</span>
         <span>DRAG THE BADGE · {data.sld}.agent</span>
       </div>
