@@ -1,7 +1,7 @@
 'use client';
 
 import type * as React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AgentBadge, type BadgeData } from '@/app/badge/AgentBadge';
 
 type Availability = { sld: string; domain: string; available: boolean; reason?: string; price_cents_per_year?: number | null; error?: string; message?: string };
@@ -73,10 +73,18 @@ function NameSearch(): React.JSX.Element {
 }
 
 export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
+  const heroRef = useRef<HTMLElement | null>(null);
   return (
-    <section className="relative overflow-hidden bg-black text-white">
-      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-8 px-6 pb-8 pt-16 lg:grid-cols-12 lg:pb-0 lg:pt-8">
-        <div className="lg:col-span-6 lg:py-24">
+    <section ref={heroRef} className="relative overflow-hidden bg-black text-white">
+      {/* The badge rig covers the whole hero so it can be flung anywhere in it;
+          pointer events come from the section, so the text and search below
+          still work except where the card itself is. */}
+      <div className="absolute inset-0 z-0">
+        <AgentBadge data={badge} theme="dark" zoom={1.45} anchor="right" eventSource={heroRef} />
+      </div>
+      <div className="pointer-events-none absolute bottom-4 right-6 z-10 font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Drag · click to flip</div>
+      <div className="relative z-[1] mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-8 px-6 pb-8 pt-16 lg:grid-cols-12 lg:pb-0 lg:pt-8" style={{ pointerEvents: 'none' }}>
+        <div className="lg:col-span-6 lg:py-24" style={{ pointerEvents: 'auto' }}>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 font-mono text-[12px] uppercase tracking-[0.14em] text-white/60">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> .agent names are live
           </div>
@@ -91,10 +99,8 @@ export function LanderHero({ badge }: { badge: BadgeData }): React.JSX.Element {
             <span>Yours for good</span><span>Works with any agent</span><span>Verified, not claimed</span>
           </div>
         </div>
-        <div className="relative h-[620px] w-full lg:col-span-6 lg:h-[820px]">
-          <AgentBadge data={badge} theme="dark" zoom={1.7} />
-          <div className="pointer-events-none absolute bottom-4 right-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Drag · click to flip</div>
-        </div>
+        {/* Space for the badge on wide screens; on narrow ones the rig centres over the hero. */}
+        <div className="h-[420px] w-full lg:col-span-6 lg:h-[760px]" />
       </div>
     </section>
   );
