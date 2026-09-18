@@ -44,6 +44,7 @@ describe('surfaceForHost (host → surface dispatch)', () => {
     expect(isAppOwnedPath('/names/samantha')).toBe(true);
     expect(isAppOwnedPath('/names')).toBe(true);
     expect(isAppOwnedPath('/badge')).toBe(true);
+    expect(isAppOwnedPath('/assets/badge/card.glb')).toBe(true);
     expect(isAppOwnedPath('/namesake')).toBe(false);
   });
   it('routes agent.arp.run to agentid', () => {
