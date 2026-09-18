@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { didCommProbe } from '../src/probes/didcomm-probe.js';
 
 function fakeFetch(
-  response: { ok: boolean; error?: { code: string; message: string }; msg_id?: string },
+  response: { ok: boolean; error?: { code: string; message: string } | string; msg_id?: string },
   status = 400,
 ): typeof fetch {
   return (async (input, init) => {
@@ -28,6 +28,16 @@ describe('didCommProbe', () => {
         { ok: false, error: { code: 'unknown_peer', message: 'no DID' } },
         400,
       ),
+    });
+    expect(r.pass).toBe(true);
+    expect(r.details['observed_error_code']).toBe('unknown_peer');
+  });
+
+  it('passes on the ARP Cloud gateway shape `{ ok: false, error: "unknown_peer" }`', async () => {
+    const r = await didCommProbe({
+      target: 'samantha.agent',
+      baseUrl: 'https://samantha.agent.arp.run',
+      fetchImpl: fakeFetch({ ok: false, error: 'unknown_peer' }, 400),
     });
     expect(r.pass).toBe(true);
     expect(r.details['observed_error_code']).toBe('unknown_peer');

@@ -107,8 +107,10 @@ export function createDidCommProbe(opts: DidCommProbeOptions = {}): Probe {
       }
 
       // Unknown-signer path (default): expect 400 + unknown_peer.
-      const err = body['error'] as { code?: string; message?: string } | undefined;
-      const code = err?.code;
+      // Sidecar shape: `{ error: { code, message } }`; ARP Cloud gateway shape:
+      // `{ ok: false, error: 'unknown_peer' }`. Both are conformant.
+      const err = body['error'] as { code?: string; message?: string } | string | undefined;
+      const code = typeof err === 'string' ? err : err?.code;
       if (res.status === 400 && code === 'unknown_peer') {
         return {
           name: 'didcomm-probe',
