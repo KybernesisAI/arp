@@ -177,9 +177,10 @@ describe('rebuildWellKnown', () => {
     expect(doc.alsoKnownAs).not.toContain('https://atlas.example');
     expect(doc.service.map((s) => s.type)).toEqual(expect.arrayContaining(['DIDCommMessaging', 'AgentCard', 'AgentRuntime', 'KybernesisControlPlane']));
     expect(doc.service.find((s) => s.type === 'AgentRuntime')?.serviceEndpoint).toBe('https://atlas.vercel.app/eve/v1');
-    // Core shape still validates once extension services are stripped.
-    const core = { ...doc, service: doc.service.filter((s) => s.type === 'DIDCommMessaging' || s.type === 'AgentCard') };
-    expect(() => DidDocumentSchema.parse(core)).not.toThrow();
+    // The FULL document (with the link services) must validate — the pairing
+    // accept route parses the stored document with this schema, and stripping
+    // the link services here once hid a live "failed schema validation" bug.
+    expect(() => DidDocumentSchema.parse(doc)).not.toThrow();
 
     await tdb.updateLink(n.id, { status: 'revoked', revokedAt: new Date() });
     const again = await rebuildWellKnown(tdb, AGENT);

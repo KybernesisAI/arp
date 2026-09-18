@@ -93,9 +93,11 @@
             "type": "string",
             "enum": [
               "DIDCommMessaging",
-              "AgentCard"
+              "AgentCard",
+              "AgentRuntime",
+              "KybernesisControlPlane"
             ],
-            "description": "Service type; v0 supports DIDCommMessaging + AgentCard"
+            "description": "Service type. DIDCommMessaging + AgentCard are the core ARP services; AgentRuntime (a verified runtime link) and KybernesisControlPlane (a verified control-plane link) are the AgentID S3 identity-link services."
           },
           "serviceEndpoint": {
             "type": "string",
