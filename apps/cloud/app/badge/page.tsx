@@ -18,13 +18,12 @@ export const metadata: Metadata = {
 const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /**
- * Standalone 3D identity badge (AgentID side quest, 2026-09-18). Reachable
- * at agent.arp.run/badge (rewritten to /agentid/badge by the middleware);
- * `?name=<sld>` picks the agent, default samantha. Intended to be lifted onto
- * the lander once the look is right.
+ * Standalone 3D identity badge (side quest, 2026-09-18): agent.arp.run/badge
+ * (`?name=<sld>`, default samantha; `?avatar=<https url>` overrides the
+ * picture). No app chrome — this is a design surface to lift onto the lander.
  */
-export default async function BadgePage(props: { searchParams: Promise<{ name?: string }> }): Promise<React.JSX.Element> {
-  const { name } = await props.searchParams;
+export default async function BadgePage(props: { searchParams: Promise<{ name?: string; avatar?: string }> }): Promise<React.JSX.Element> {
+  const { name, avatar } = await props.searchParams;
   const sld = (name ?? 'samantha').toLowerCase().replace(/\.agent$/, '');
   const safe = SLD_REGEX.test(sld) ? sld : 'samantha';
   const domain = `${safe}.agent`;
@@ -39,20 +38,25 @@ export default async function BadgePage(props: { searchParams: Promise<{ name?: 
   const agent = agentRows[0];
   const mirror = mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX);
   const since = (regRows[0]?.registeredAt ?? agent?.createdAt ?? new Date()).toISOString().slice(0, 10);
+  const avatarUrl = avatar && /^https:\/\/[^\s]+$/i.test(avatar) ? avatar : `https://api.dicebear.com/9.x/notionists/png?seed=${encodeURIComponent(safe)}&size=512&backgroundColor=1c1c22`;
   const data: BadgeData = {
     sld: safe,
     name: agent?.agentName ?? safe,
     description: agent?.agentDescription || 'An AI agent with a registered name.',
     did: agentDid,
     profileUrl: `${env().AGENTID_PROFILE_BASE}/${safe}`,
+    connectUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(agentDid)}`,
     mirrorHost: mirror.replace(/^https:\/\//, ''),
+    a2aEndpoint: `${mirror}/a2a`,
     since,
     ownerVerified: bindingRows.length > 0,
+    ownerLabel: bindingRows[0]?.ownerLabel ?? null,
     cardSigned: ((agent?.a2a as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0,
     runtime: agent ? agent.runtimeKind !== 'none' : false,
+    avatarUrl,
     links: linkRows.map((l) => ({
-      kind: l.kind === 'nostr' ? 'BUZZ' : l.kind === 'kybernesis' ? 'CONTROL PLANE' : l.kind === 'runtime' ? 'RUNTIME' : 'WEB',
-      value: l.kind === 'nostr' ? npubFromHex(l.value).slice(0, 16) + '…' : l.value.replace(/^https:\/\//, ''),
+      kind: l.kind === 'nostr' ? 'Buzz' : l.kind === 'kybernesis' ? 'Control plane' : l.kind === 'runtime' ? 'Runtime' : 'Web',
+      value: l.kind === 'nostr' ? npubFromHex(l.value).slice(0, 20) + '…' : l.value.replace(/^https:\/\//, ''),
     })),
   };
   return <BadgeClient data={data} />;
