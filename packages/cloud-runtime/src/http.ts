@@ -24,6 +24,7 @@ import type { CloudDbClient } from '@kybernesis/arp-cloud-db';
 import { toTenantId, withTenant, agents, agentLinks, registrarBindings, findAgentCredentialByHash, touchAgentCredential } from '@kybernesis/arp-cloud-db';
 import { createHash } from 'node:crypto';
 import { awaitReply, sendFromCloudIdentity, type PushContext } from './push.js';
+import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybernesis/arp-transport-a2a';
 import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
 import { ed25519ToJwk, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import { and, desc, eq } from 'drizzle-orm';
@@ -58,6 +59,14 @@ export interface GatewayHonoOptions {
   push?: PushContext;
   /** AgentID S5: how long message/send waits for a reply (ms). Default 120s. */
   a2aWaitMs?: number;
+  /**
+   * AgentID S5 / A4: outbound A2A for peers not hosted on this gateway.
+   * The agent-API `send` falls back to the peer's signed A2A card
+   * (`https://<did:web host>/.well-known/agent-card.json`, or the mirror for
+   * `.agent` names) and `message/send` with the Connection Token as bearer.
+   * `fetchImpl` is injectable for tests; `enabled: false` turns it off.
+   */
+  a2aOutbound?: { enabled?: boolean; fetchImpl?: FetchLike; originForDid?: (did: string) => string | null };
 }
 
 /**
@@ -463,7 +472,53 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         return c.json({ ok: false, error: 'denied', reason: fwd.reason ?? fwd.decision ?? 'denied', msg_id: sent.msgId, thid: sent.thid }, 403);
       }
       if (fwd === null) {
-        return c.json({ ok: false, error: 'peer_not_hosted', msg_id: sent.msgId, thid: sent.thid }, 502);
+        // AgentID S5 / A4: the peer is not hosted here — try its A2A card.
+        if (opts.a2aOutbound?.enabled === false) {
+          return c.json({ ok: false, error: 'peer_not_hosted', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
+        const a2a = createA2aTransport({
+          did: me.row.did,
+          bearerFor: () => connectionTokenBearer(conn.tokenJson as Record<string, unknown>),
+          waitMs,
+          now,
+          ...(opts.a2aOutbound?.fetchImpl ? { fetchImpl: opts.a2aOutbound.fetchImpl } : {}),
+          ...(opts.a2aOutbound?.originForDid ? { originForDid: opts.a2aOutbound.originForDid } : {}),
+          ...(opts.mirrorSuffix ? { mirrorSuffix: opts.mirrorSuffix } : {}),
+        });
+        const iface = await a2a.resolve(conn.peerDid);
+        if (!iface) {
+          return c.json({ ok: false, error: 'peer_unreachable', message: 'Peer is not hosted here and publishes no A2A card.', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
+        try {
+          const out = await a2a.sendAndCollect(conn.peerDid, {
+            id: sent.msgId,
+            type: 'https://didcomm.org/arp/1.0/request',
+            from: me.row.did,
+            to: [conn.peerDid],
+            thid: sent.thid,
+            body: { text, connection_id: conn.connectionId },
+          });
+          if (out.denied) {
+            opts.logger.info({ agentDid: me.row.did, peerDid: conn.peerDid, state: out.denied.state }, 'agent_api_a2a_denied');
+            return c.json({ ok: false, error: 'denied', reason: out.denied.reason, a2a_state: out.denied.state, msg_id: sent.msgId, thid: sent.thid }, 403);
+          }
+          if (!out.response) {
+            return c.json({ ok: true, msg_id: sent.msgId, thid: sent.thid, reply: null, timed_out: true, via: 'a2a', a2a_task_id: out.task.id }, 202);
+          }
+          await tenantDb.touchConnection(conn.connectionId);
+          return c.json({
+            ok: true,
+            msg_id: sent.msgId,
+            thid: sent.thid,
+            reply: out.response.body['text'],
+            reply_msg_id: out.response.id,
+            via: 'a2a',
+            a2a_task_id: out.task.id,
+          });
+        } catch (err) {
+          opts.logger.error({ err: (err as Error).message, agentDid: me.row.did, peerDid: conn.peerDid }, 'agent_api_a2a_failed');
+          return c.json({ ok: false, error: 'send_failed', via: 'a2a', msg_id: sent.msgId, thid: sent.thid }, 502);
+        }
       }
       try {
         const reply = await awaitReply(sent.thid, waitMs);

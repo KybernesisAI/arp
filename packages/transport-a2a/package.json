@@ -1,0 +1,46 @@
+{
+  "name": "@kybernesis/arp-transport-a2a",
+  "version": "0.1.0",
+  "description": "A2A v1.0 outbound transport for ARP — resolves a peer's signed agent card, speaks JSON-RPC message/send with the ARP Connection Token as bearer, and maps the task reply back to an ARP /response.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KybernesisAI/arp.git",
+    "directory": "packages/transport-a2a"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@kybernesis/arp-spec": "workspace:*",
+    "@kybernesis/arp-transport": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "hono": "^4.6.12",
+    "tsup": "^8.3.5",
+    "typescript": "~5.5.4",
+    "vitest": "^2.1.5"
+  }
+}

@@ -41,6 +41,7 @@
     "@kybernesis/arp-spec": "workspace:*",
     "@kybernesis/arp-templates": "workspace:*",
     "@kybernesis/arp-transport": "workspace:*",
+    "@kybernesis/arp-transport-a2a": "workspace:*",
     "@noble/ed25519": "^2.2.3",
     "canonicalize": "^2.0.0",
     "drizzle-orm": "^0.36.4",
