@@ -336,7 +336,7 @@ function drawStrap(sld: string, theme: BadgeTheme): THREE.CanvasTexture {
   ctx.fillStyle = theme === 'dark' ? '#121215' : '#0c0c0e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = 'rgba(233,231,226,0.9)';
-  ctx.font = `600 50px ${FONT}`;
+  ctx.font = `600 44px ${FONT}`;
   ctx.letterSpacing = '10px';
   ctx.textBaseline = 'middle';
   const unit = `AGENTID   ·   ${sld.toUpperCase()}.AGENT   ·   `;
@@ -512,7 +512,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
               </mesh>
               {/* Clip + clamp from the reference model, in its own frame (card origin at the bottom). */}
               {/* Where the strap enters the clamp: top of the clamp, in the tilting frame. */}
-              <object3D ref={strapEnd} position={[0, 1.229 - CARD_CENTER_Y + 0.055, 0]} />
+              <object3D ref={strapEnd} position={[0, 1.229 - CARD_CENTER_Y + 0.055 + 0.04, 0]} />
               <group position={[0, -CARD_CENTER_Y + 0.055, 0]}>
                 <mesh geometry={nodes['clip']!.geometry} material={materials['metal']} material-roughness={0.3} />
                 <mesh geometry={nodes['clamp']!.geometry} material={materials['metal']} />
@@ -523,7 +523,7 @@ function Band({ data, theme, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; 
       </group>
       <mesh ref={band}>
         <meshLineGeometry />
-        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={1.45} />
+        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={1.2} />
       </mesh>
     </>
   );
