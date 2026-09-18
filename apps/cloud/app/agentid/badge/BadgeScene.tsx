@@ -181,7 +181,7 @@ function drawBandTexture(sld: string): THREE.CanvasTexture {
   ctx.fillStyle = BLUE;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = PAPER;
-  ctx.font = `600 54px ${MONO}`;
+  ctx.font = `600 46px ${MONO}`;
   ctx.letterSpacing = '8px';
   ctx.textBaseline = 'middle';
   const unit = `${sld.toUpperCase()}.AGENT   ·   ARP   ·   `;
@@ -190,6 +190,39 @@ function drawBandTexture(sld: string): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 16;
+  return tex;
+}
+
+/** Card back: paper, a big wordmark, the address and DID. */
+function drawBackTexture(data: BadgeData): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = TEX_W;
+  canvas.height = TEX_H;
+  const ctx = canvas.getContext('2d')!;
+  const pad = 72;
+  ctx.fillStyle = PAPER_2;
+  ctx.fillRect(0, 0, TEX_W, TEX_H);
+  ctx.strokeStyle = 'rgba(12,12,12,0.07)';
+  for (let x = 0; x <= TEX_W; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, TEX_H); ctx.stroke(); }
+  for (let y = 0; y <= TEX_H; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(TEX_W, y); ctx.stroke(); }
+  ctx.fillStyle = PAPER;
+  ctx.beginPath(); ctx.roundRect(TEX_W / 2 - 90, 44, 180, 30, 15); ctx.fill();
+  ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = BLUE;
+  ctx.fillRect(pad, TEX_H / 2 - 150, 90, 90);
+  ctx.fillStyle = INK;
+  ctx.font = `500 200px ${DISPLAY}`;
+  ctx.letterSpacing = '-8px';
+  ctx.fillText('ARP', pad + 120, TEX_H / 2 - 70);
+  ctx.letterSpacing = '0px';
+  kicker(ctx, 'THE SECURE NETWORK FOR AI AGENTS', pad, TEX_H / 2 + 10);
+  ctx.font = `400 30px ${MONO}`;
+  ctx.fillStyle = MUTED;
+  ctx.fillText(`${data.sld}.agent`, pad, TEX_H - pad - 60);
+  ctx.fillText(data.did, pad, TEX_H - pad - 20);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
   return tex;
 }
@@ -211,6 +244,7 @@ function Band({ data, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; maxSpee
   const [hovered, hover] = useState(false);
   const [face, setFace] = useState<THREE.CanvasTexture | null>(null);
   const strap = useMemo(() => drawBandTexture(data.sld), [data.sld]);
+  const back = useMemo(() => drawBackTexture(data), [data]);
   const [curve] = useState(() => new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]));
 
   useEffect(() => {
@@ -275,24 +309,26 @@ function Band({ data, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; maxSpee
             onPointerUp={(e) => { (e.target as Element).releasePointerCapture(e.pointerId); drag(false); }}
             onPointerDown={(e) => { (e.target as Element).setPointerCapture(e.pointerId); drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation()))); }}
           >
-            {/* The card: a physical slab with the drawn face. Slightly translucent
-                clearcoat so light rakes across it like a printed badge. */}
-            <RoundedBox args={[CARD_W / 2.25, CARD_H / 2.25, 0.02]} radius={0.04} smoothness={6} position={[0, 0.5, 0]}>
-              <meshPhysicalMaterial
-                map={face ?? undefined}
-                color={face ? '#ffffff' : PAPER_2}
-                clearcoat={1}
-                clearcoatRoughness={0.15}
-                roughness={0.35}
-                metalness={0.35}
-              />
+            {/* The card: a paper slab (clearcoat) with the drawn faces on
+                exact-fit planes, so the texture maps 1:1 — RoundedBox's own UVs
+                do not span the face. */}
+            <RoundedBox args={[CARD_W / 2.25, CARD_H / 2.25, 0.02]} radius={0.035} smoothness={6} position={[0, 0.5, 0]}>
+              <meshPhysicalMaterial color={PAPER_2} clearcoat={1} clearcoatRoughness={0.2} roughness={0.5} metalness={0.1} />
             </RoundedBox>
+            <mesh position={[0, 0.5, 0.0105]}>
+              <planeGeometry args={[CARD_W / 2.25 - 0.02, CARD_H / 2.25 - 0.02]} />
+              <meshPhysicalMaterial map={face ?? undefined} color={face ? '#ffffff' : PAPER} clearcoat={1} clearcoatRoughness={0.15} roughness={0.35} metalness={0.2} iridescence={0.35} iridescenceThicknessRange={[100, 800]} />
+            </mesh>
+            <mesh position={[0, 0.5, -0.0105]} rotation={[0, Math.PI, 0]}>
+              <planeGeometry args={[CARD_W / 2.25 - 0.02, CARD_H / 2.25 - 0.02]} />
+              <meshPhysicalMaterial map={back} clearcoat={1} clearcoatRoughness={0.2} roughness={0.45} metalness={0.1} />
+            </mesh>
             {/* Clip + clamp: brushed metal ring through the slot. */}
-            <mesh position={[0, 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[0.055, 0.012, 12, 32]} />
+            <mesh position={[0, 0.975, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.05, 0.011, 12, 32]} />
               <meshStandardMaterial color="#d9d6cc" metalness={1} roughness={0.3} />
             </mesh>
-            <RoundedBox args={[0.16, 0.05, 0.03]} radius={0.01} position={[0, 0.965, 0]}>
+            <RoundedBox args={[0.15, 0.045, 0.028]} radius={0.01} position={[0, 0.985, 0]}>
               <meshStandardMaterial color="#c9c5ba" metalness={1} roughness={0.35} />
             </RoundedBox>
           </group>
@@ -300,7 +336,7 @@ function Band({ data, maxSpeed = 50, minSpeed = 10 }: { data: BadgeData; maxSpee
       </group>
       <mesh ref={band}>
         <meshLineGeometry />
-        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-3, 1)} lineWidth={1} />
+        <meshLineMaterial color="white" depthTest={false} resolution={new THREE.Vector2(2, 1)} useMap={1} map={strap} repeat={new THREE.Vector2(-4, 1)} lineWidth={0.62} />
       </mesh>
     </>
   );
