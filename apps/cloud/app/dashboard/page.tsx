@@ -1,43 +1,33 @@
 import type * as React from 'react';
 import { redirect } from 'next/navigation';
-import { and, asc, eq, gt, inArray, isNull, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { PLAN_LIMITS, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { PLAN_LIMITS, agentLinks, agents, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
 import { monthlyBillCents, currentUsagePeriod } from '@/lib/billing';
 import { listCredentialsForTenant } from '@/lib/webauthn';
-import {
-  Badge,
-  ButtonLink,
-  Card,
-  CardMatrix,
-  Code,
-  Dot,
-  Link,
-  PlateHead,
-} from '@/components/ui';
-import { AppShell } from '@/components/app/AppShell';
-import { ProvisionAgentButton } from './ProvisionAgentButton';
-import { SelfTestConnectionButton } from './SelfTestConnectionButton';
-import { DeleteAgentButton } from './DeleteAgentButton';
-import { UnbindDomainButton } from './UnbindDomainButton';
-import { ClaimNamePanel } from './ClaimNamePanel';
-import { FinishSetupButton } from './FinishSetupButton';
-import { ExportKeyButton } from './ExportKeyButton';
-import { OutgoingActions, IncomingActions } from './PairingInboxActions';
-import { SKILL_TEMPLATES, listSkillNames } from '@kybernesis/arp/skill-templates';
+import { env } from '@/lib/env';
+import { mirrorOriginFor } from '@/lib/key-custody';
+import { agentLiveness, type Liveness } from '@/lib/agent-liveness';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
+import { Card, Kicker, StateChip, Tag } from '@/app/lander/ui';
+import { ClaimName } from './ClaimName';
+import { OutgoingActions, IncomingActions } from './PairingInboxActions';
+import { ProvisionAgentButton } from './ProvisionAgentButton';
+import { UnbindDomainButton } from './UnbindDomainButton';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000;
-const IDLE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
-
-type HealthBucket = 'active' | 'idle' | 'inactive';
-
-export default async function DashboardPage(props: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}): Promise<React.JSX.Element> {
+/**
+ * The dashboard: every agent this account holds, one card each.
+ *
+ * One card merges what used to be three lists (agents, purchased names, owner
+ * bindings): a name you bought here, an identity minted for it, and the owner
+ * proof are three facts about the same agent, so they show together. Cards
+ * open the name's page (`/names/<sld>`), where everything can be changed.
+ */
+export default async function DashboardPage(props: { searchParams?: Promise<Record<string, string | string[] | undefined>> }): Promise<React.JSX.Element> {
   const sp = (await props.searchParams) ?? {};
   const claimParam = typeof sp['claim'] === 'string' ? sp['claim'] : undefined;
   let state: Awaited<ReturnType<typeof loadState>>;
@@ -47,858 +37,430 @@ export default async function DashboardPage(props: {
     if (err instanceof AuthError) redirect('/onboarding');
     throw err;
   }
-  const {
-    tenant,
-    agents,
-    hasPasskey,
-    outgoingInvitations,
-    incomingInvitations,
-    recentActivity,
-    totalActiveConnections,
-    domains,
-    usage,
-    registrations,
-    tenantId,
-  } = state;
+  const { tenant, identities, hasPasskey, outgoingInvitations, incomingInvitations, recentActivity, totalActiveConnections, usage } = state;
   const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
-  const outgoingCount = outgoingInvitations.length;
-  const incomingCount = incomingInvitations.length;
+  const needsAttention = identities.filter((i) => i.attention).length;
+  const nameByDid = new Map(identities.map((i) => [i.did, i.domain]));
 
   return (
-    <AppShell>
-      <PlateHead
-        plateNum="D.00"
-        kicker={`// TENANT · ${tenant.plan.toUpperCase()} · ${tenant.status.toUpperCase()}`}
-        title="Dashboard"
-      />
-
-      {!hasPasskey && <MigrateToPasskeyBanner />}
-
-      {incomingCount > 0 && (
-        <section className="mb-10">
-          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-            <h2 className="font-display font-medium text-h3 flex items-center gap-3">
-              Incoming pairing requests
-              <Badge tone="yellow">Pending · {incomingCount}</Badge>
-            </h2>
-            <span className="font-mono text-kicker uppercase text-muted">
-              // I · INBOX
-            </span>
-          </header>
-          <Card tone="yellow" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {incomingInvitations.map((inv, i) => (
-                <li
-                  key={inv.id}
-                  className={'px-5 py-4 ' + (i === incomingInvitations.length - 1 ? '' : 'border-b border-ink/15')}
-                >
-                  <div className="grid grid-cols-12 gap-4 items-baseline mb-3">
-                    <div className="col-span-12 md:col-span-5">
-                      <span className="font-mono text-kicker uppercase text-muted block">
-                        FROM
-                      </span>
-                      <Code className="text-body-sm break-all">{inv.issuerAgentDid}</Code>
-                    </div>
-                    <div className="col-span-12 md:col-span-4">
-                      <span className="font-mono text-kicker uppercase text-muted block">
-                        TO YOUR AGENT
-                      </span>
-                      <Code className="text-body-sm break-all">{inv.audienceDid}</Code>
-                    </div>
-                    <div className="col-span-12 md:col-span-3 md:text-right font-mono text-kicker uppercase">
-                      EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
-                    </div>
-                  </div>
-                  <IncomingActions
-                    invitationId={inv.id}
-                    acceptHref={inv.acceptHref}
-                  />
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </section>
-      )}
-
-      {outgoingCount > 0 && (
-        <section className="mb-10">
-          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-            <h2 className="font-display font-medium text-h3 flex items-center gap-3">
-              Outgoing pairing requests
-              <Badge tone="muted">Awaiting peer · {outgoingCount}</Badge>
-            </h2>
-            <span className="font-mono text-kicker uppercase text-muted">
-              // O · SENT
-            </span>
-          </header>
-          <Card tone="paper-2" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {outgoingInvitations.map((inv, i) => (
-                <li
-                  key={inv.id}
-                  className={'px-5 py-4 ' + (i === outgoingInvitations.length - 1 ? '' : 'border-b border-rule')}
-                >
-                  <div className="grid grid-cols-12 gap-4 items-baseline mb-3">
-                    <div className="col-span-12 md:col-span-5">
-                      <span className="font-mono text-kicker uppercase text-muted block">
-                        FROM YOUR AGENT
-                      </span>
-                      <Code className="text-body-sm break-all">{inv.issuerAgentDid}</Code>
-                    </div>
-                    <div className="col-span-12 md:col-span-4">
-                      <span className="font-mono text-kicker uppercase text-muted block">
-                        TO
-                      </span>
-                      <Code className="text-body-sm break-all">{inv.audienceDid}</Code>
-                    </div>
-                    <div className="col-span-12 md:col-span-3 md:text-right font-mono text-kicker uppercase">
-                      EXPIRES · {new Date(inv.expiresAt).toLocaleString()}
-                    </div>
-                  </div>
-                  <OutgoingActions
-                    invitationId={inv.id}
-                    invitationUrl={inv.invitationUrl}
-                  />
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </section>
-      )}
-
-      <div className="grid grid-cols-12 gap-4 mb-10">
-        <div className="col-span-12 md:col-span-8">
-          <div className="font-mono text-kicker uppercase text-muted">// PRINCIPAL</div>
-          <Code className="mt-2 text-[13px] break-all">{tenant.principalDid}</Code>
+    <ConsoleShell active="agents">
+      {/* HEADER */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <Kicker>Your agents</Kicker>
+          <h1 className="mt-2 text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">
+            {identities.length === 0 ? 'No agents yet.' : identities.length === 1 ? 'One agent.' : `${identities.length} agents.`}
+          </h1>
+          <p className="mt-3 max-w-[56ch] text-[16px] text-zinc-600">
+            {identities.length === 0
+              ? 'Claim a name below and give your agent an identity it can keep.'
+              : `${totalActiveConnections} active ${totalActiveConnections === 1 ? 'connection' : 'connections'}${needsAttention ? ` · ${needsAttention} ${needsAttention === 1 ? 'agent needs' : 'agents need'} a step from you` : ''}.`}
+          </p>
         </div>
-        <div className="col-span-12 md:col-span-4 md:text-right">
-          <ButtonLink href="/billing" variant="default" size="sm" arrow>
-            Billing
-          </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          <a href="#claim" className="rounded-full bg-black px-5 py-2.5 text-[14px] font-medium text-white hover:bg-zinc-800">Claim a name</a>
+          <a href="/pair" className="rounded-full border border-zinc-300 px-5 py-2.5 text-[14px] font-medium text-zinc-900 hover:border-zinc-900">Pair two agents</a>
         </div>
       </div>
 
-      <section className="mb-10">
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">
-            Agents <span className="text-muted font-mono text-body-sm ml-2">{agents.length}</span>
-          </h2>
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
-              // A · LIVE
-            </span>
-            <Link href="/connections" variant="mono">
-              All connections ({totalActiveConnections}) →
-            </Link>
-            <Link href="/onboarding" variant="mono">
-              Provision →
-            </Link>
+      {!hasPasskey && <div className="mt-8"><MigrateToPasskeyBanner /></div>}
+
+      {/* NEEDS YOU: pairing requests */}
+      {(incomingInvitations.length > 0 || outgoingInvitations.length > 0) && (
+        <section className="mt-10">
+          <Kicker>Pairing requests</Kicker>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {incomingInvitations.map((inv) => (
+              <Card key={inv.id} glow="emerald">
+                <div className="flex items-center justify-between gap-3">
+                  <Tag tone="emerald">Wants to connect</Tag>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {inv.expiresAt.slice(0, 10)}</span>
+                </div>
+                <p className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-zinc-900">
+                  {nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nameByDid.get(inv.audienceDid) ?? nice(inv.audienceDid)}
+                </p>
+                <p className="mt-1 text-[14px] text-zinc-600">Review what they ask for, choose what you grant back, then approve.</p>
+                <div className="mt-5"><IncomingActions invitationId={inv.id} acceptHref={inv.acceptHref} /></div>
+              </Card>
+            ))}
+            {outgoingInvitations.map((inv) => (
+              <Card key={inv.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <Tag>Waiting for them</Tag>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {inv.expiresAt.slice(0, 10)}</span>
+                </div>
+                <p className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-zinc-900">
+                  {nameByDid.get(inv.issuerAgentDid) ?? nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nice(inv.audienceDid)}
+                </p>
+                <p className="mt-1 text-[14px] text-zinc-600">Share the link with the other owner; the connection opens when they approve.</p>
+                <div className="mt-5"><OutgoingActions invitationId={inv.id} invitationUrl={inv.invitationUrl} /></div>
+              </Card>
+            ))}
           </div>
-        </header>
-        {agents.length === 0 ? (
-          <Card tone="paper-2" padded>
-            <p className="text-body text-ink-2">
-              No agents yet. <Link href="/onboarding">Provision one</Link> to get started.
-            </p>
-          </Card>
+        </section>
+      )}
+
+      {/* AGENTS */}
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <Kicker>Agents</Kicker>
+          <a href="/connections" className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">All connections →</a>
+        </div>
+        {identities.length === 0 ? (
+          <Card className="mt-4"><p className="m-0 text-[15px] text-zinc-600">Nothing here yet. Claim a name below.</p></Card>
         ) : (
-          <Card tone="paper-2" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {agents.map((a, i) => (
-                <AgentRow key={a.did} agent={a} isLast={i === agents.length - 1} />
-              ))}
-            </ul>
-          </Card>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {identities.map((a) => <AgentCard key={a.domain} a={a} />)}
+          </div>
         )}
       </section>
 
-      <section className="mb-10">
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">
-            Your names{' '}
-            <span className="text-muted font-mono text-body-sm ml-2">{registrations.length}</span>
-          </h2>
-          <span className="font-mono text-kicker uppercase text-muted">// N · AGENTID</span>
-        </header>
-        <Card tone="paper-2" padded={false} className="border border-rule">
-          <ClaimNamePanel initialQuery={claimParam} />
-          {registrations.length > 0 && (
-            <ul className="list-none p-0 m-0 border-t border-rule">
-              {registrations.map((r, i) => (
-                <RegistrationRow key={r.id} reg={r} tenantId={tenantId} isLast={i === registrations.length - 1} />
+      {/* CLAIM */}
+      <section id="claim" className="mt-10 scroll-mt-24">
+        <Kicker>Claim a name</Kicker>
+        <Card className="mt-4">
+          <p className="mb-5 max-w-[60ch] text-[15px] text-zinc-600">A permanent .agent name for a new agent. Registered to this account, renews on your terms, yours to give away.</p>
+          <ClaimName initialQuery={claimParam} />
+        </Card>
+      </section>
+
+      {/* ACTIVITY + PLAN */}
+      <section className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="flex items-baseline justify-between">
+            <Kicker>Recent activity</Kicker>
+            <a href="/connections" className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">Browse →</a>
+          </div>
+          {recentActivity.length === 0 ? (
+            <p className="mt-4 text-[15px] text-zinc-600">No messages yet. Pair two agents and it fills in here.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-zinc-200">
+              {recentActivity.map((e) => (
+                <li key={e.id} className="grid grid-cols-12 items-center gap-3 py-2.5">
+                  <div className="col-span-3 sm:col-span-2 font-mono text-[11px] uppercase tracking-[0.12em] text-zinc-400">{e.ago}</div>
+                  <div className="col-span-4 sm:col-span-3 text-[14px] text-zinc-900">{nameByDid.get(e.agentDid) ?? nice(e.agentDid)}</div>
+                  <div className="col-span-5 sm:col-span-5 truncate font-mono text-[12px] text-zinc-500">{e.msgType}</div>
+                  <div className="col-span-12 sm:col-span-2 flex justify-end">
+                    <a href={e.auditHref} className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] hover:underline">
+                      <span className={`h-1.5 w-1.5 rounded-full ${e.decision === 'allow' ? 'bg-emerald-500' : e.decision === 'deny' ? 'bg-amber-500' : e.decision === 'revoke' ? 'bg-zinc-900' : 'bg-zinc-300'}`} />
+                      <span className={e.decision === 'allow' ? 'text-emerald-700' : e.decision === 'deny' ? 'text-amber-700' : 'text-zinc-600'}>{e.decision === 'other' ? e.decisionRaw : e.decision}</span>
+                    </a>
+                  </div>
+                </li>
               ))}
             </ul>
           )}
         </Card>
-      </section>
-
-      {domains.length > 0 && (
-        <section className="mb-10">
-          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-            <h2 className="font-display font-medium text-h3">
-              .agent domains{' '}
-              <span className="text-muted font-mono text-body-sm ml-2">{domains.length}</span>
-            </h2>
-            <span className="font-mono text-kicker uppercase text-muted">
-              // D · REGISTRAR-BOUND
-            </span>
-          </header>
-          <Card tone="paper-2" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {domains.map((d, i) => (
-                <DomainRow
-                  key={`${d.domain}-${d.ownerLabel}`}
-                  domain={d}
-                  isLast={i === domains.length - 1}
-                />
-              ))}
-            </ul>
-          </Card>
-        </section>
-      )}
-
-      <section className="mb-10">
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">
-            Recent activity
-            <span className="text-muted font-mono text-body-sm ml-2">
-              last {recentActivity.length}
-            </span>
-          </h2>
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
-              // R · LEDGER
-            </span>
-            <Link href="/connections" variant="mono">
-              Browse connections →
-            </Link>
+        <Card glow="cyan">
+          <div className="flex items-baseline justify-between">
+            <Kicker>Plan</Kicker>
+            <a href="/billing" className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">Billing →</a>
           </div>
-        </header>
-        {recentActivity.length === 0 ? (
-          <Card tone="paper-2" padded>
-            <p className="text-body text-ink-2">
-              No activity yet. Pair an agent to get started.
-            </p>
-          </Card>
-        ) : (
-          <Card tone="paper-2" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {recentActivity.map((entry, i) => (
-                <ActivityRow key={entry.id} entry={entry} isLast={i === recentActivity.length - 1} />
-              ))}
-            </ul>
-          </Card>
-        )}
-      </section>
-
-      <SkillsSection />
-
-      <section>
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">Usage this month</h2>
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-kicker uppercase text-muted">
-              // {usage.period} · {tenant.plan.toUpperCase()}
-            </span>
-            <Link href="/billing" variant="mono">
-              Billing →
-            </Link>
+          <div className="mt-3 flex items-center gap-2 text-[24px] font-medium tracking-[-0.02em] capitalize">
+            {tenant.plan}
+            <span className={`ml-1 h-2 w-2 rounded-full ${tenant.status === 'active' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
           </div>
-        </header>
-        <CardMatrix className="grid-cols-1 md:grid-cols-4">
-          <UsageQuotaCell
-            label="INBOUND MSGS"
-            used={usage.inboundMessages}
-            cap={limits.maxInboundMessagesPerMonth}
-          />
-          <UsageQuotaCell
-            label="AGENTS"
-            used={agents.length}
-            cap={tenant.plan === 'free' ? PLAN_LIMITS.free.maxAgents : null}
-          />
-          <QuotaCell
-            tone="paper-2"
-            label="MONTHLY BILL"
-            value={`$${(usage.monthlyBillCents / 100).toFixed(2)}`}
-          />
-          <QuotaCell
-            tone={tenant.status === 'active' ? 'blue' : 'yellow'}
-            label="STATUS"
-            value={
-              <span className="inline-flex items-center gap-2">
-                <Dot tone={tenant.status === 'active' ? 'green' : 'yellow'} />
-                {tenant.status.toUpperCase()}
-              </span>
-            }
-          />
-        </CardMatrix>
+          <dl className="mt-5 space-y-3 text-[14px]">
+            <Row k="Messages this month" v={limits.maxInboundMessagesPerMonth ? `${usage.inboundMessages} / ${limits.maxInboundMessagesPerMonth}` : String(usage.inboundMessages)} />
+            <Row k="Agents" v={limits.maxAgents ? `${identities.length} / ${limits.maxAgents}` : String(identities.length)} />
+            <Row k="This month" v={`$${(usage.monthlyBillCents / 100).toFixed(2)}`} />
+          </dl>
+        </Card>
       </section>
-    </AppShell>
+    </ConsoleShell>
   );
 }
 
-function AgentRow({
-  agent,
-  isLast,
-}: {
-  agent: DashboardAgent;
-  isLast?: boolean;
-}): React.JSX.Element {
-  const bucket = agent.healthBucket;
-  const toneMap: Record<HealthBucket, 'green' | 'yellow' | 'ink'> = {
-    active: 'green',
-    idle: 'yellow',
-    inactive: 'ink',
-  };
-  const labelMap: Record<HealthBucket, string> = {
-    active: 'ACTIVE',
-    idle: 'IDLE',
-    inactive: 'INACTIVE',
-  };
+function Row({ k, v }: { k: string; v: string }): React.JSX.Element {
   return (
-    <li className={'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' + (isLast ? '' : 'border-b border-rule')}>
-      <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-        <Dot tone={toneMap[bucket]} />
-        <Link href={`/agent/${encodeURIComponent(agent.did)}`} variant="plain">
-          <span className="font-display font-medium text-h5">{agent.name}</span>
-        </Link>
-      </div>
-      <div className="col-span-6 md:col-span-4 text-body-sm text-ink-2 break-all">
-        <Code>{agent.did}</Code>
-      </div>
-      <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
-        {agent.activeConnections} CONN
-      </div>
-      <div className="col-span-3 md:col-span-3 md:text-right font-mono text-kicker uppercase text-muted">
-        {labelMap[bucket]}
-        {agent.lastAuditAgo && (
-          <>
-            <span className="mx-1 text-rule">·</span>
-            {agent.lastAuditAgo}
-          </>
-        )}
-      </div>
-      <div className="col-span-12 mt-2 flex flex-wrap gap-2">
-        <SelfTestConnectionButton agentDid={agent.did} />
-        <ButtonLink
-          href={`/pair?from=${encodeURIComponent(agent.did)}`}
-          variant="default"
-          size="sm"
-          arrow
-        >
-          Pair with another agent
-        </ButtonLink>
-        <DeleteAgentButton agentDid={agent.did} agentName={agent.name} />
-      </div>
-    </li>
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-zinc-600">{k}</dt>
+      <dd className="m-0 font-mono text-[13px] text-zinc-900">{v}</dd>
+    </div>
   );
 }
 
-interface DashboardRegistration {
-  id: string;
+/** `did:web:kyber.agent` → `kyber.agent`; anything else untouched. */
+function nice(did: string): string {
+  return did.replace(/^did:web:/, '');
+}
+
+/* ------------------------------------------------------------------ agent card */
+
+type IdentityState =
+  | 'online' // runtime attached and answering
+  | 'offline' // runtime attached, not answering
+  | 'identity_only' // identity exists, no runtime yet
+  | 'setup' // name registered here, identity not created yet
+  | 'bound_only'; // owner binding from a registrar, nothing else here yet
+
+export interface DashboardIdentity {
   domain: string;
   sld: string;
-  status: string;
-  years: number;
-  priceCents: number;
-  expiryAt: string | null;
-  ownerLabel: string | null;
-  error: string | null;
-  createdAgo: string;
-  agentDid: string;
-  agentName: string | null;
-  keyCustody: 'cloud' | 'exported' | null;
-  runtimeKind: 'none' | 'bridge' | 'push' | null;
-}
-
-const REGISTRATION_BADGE: Record<string, { label: string; tone: 'yellow' | 'blue' | 'red' | 'ink' }> = {
-  pending_payment: { label: 'AWAITING PAYMENT', tone: 'yellow' },
-  registering: { label: 'REGISTERING', tone: 'yellow' },
-  registered: { label: 'VERIFY OWNER', tone: 'yellow' },
-  owner_pending: { label: 'VERIFY OWNER', tone: 'yellow' },
-  active: { label: 'ACTIVE', tone: 'blue' },
-  failed: { label: 'FAILED', tone: 'red' },
-  expired: { label: 'EXPIRED', tone: 'ink' },
-};
-
-function RegistrationRow({
-  reg,
-  tenantId,
-  isLast,
-}: {
-  reg: DashboardRegistration;
-  tenantId: string;
-  isLast?: boolean;
-}): React.JSX.Element {
-  const badge = REGISTRATION_BADGE[reg.status] ?? { label: reg.status.toUpperCase(), tone: 'ink' as const };
-  const needsOwner = reg.status === 'registered' || reg.status === 'owner_pending';
-  const dotTone = reg.status === 'active' ? 'green' : reg.status === 'failed' ? 'red' : 'yellow';
-  return (
-    <li className={'p-5 ' + (isLast ? '' : 'border-b border-rule')}>
-      <div className="grid grid-cols-12 gap-4 items-center">
-        <div className="col-span-12 md:col-span-4 flex items-baseline gap-3">
-          <Dot tone={dotTone} />
-          <div>
-            <Link href={`/names/${reg.sld}`} className="font-display font-medium text-h5 block">
-              {reg.domain}
-            </Link>
-            <span className="font-mono text-kicker uppercase text-muted">
-              {reg.years} YR · {reg.expiryAt ? `EXPIRES ${reg.expiryAt.slice(0, 10)}` : `CLAIMED ${reg.createdAgo}`}
-              {reg.runtimeKind === 'none' && ' · IDENTITY ONLY'}
-            </span>
-          </div>
-        </div>
-        <div className="col-span-6 md:col-span-3 font-mono text-kicker uppercase text-muted">
-          {reg.ownerLabel ? `OWNER · ${reg.ownerLabel}` : 'OWNER · NOT VERIFIED'}
-        </div>
-        <div className="col-span-6 md:col-span-2 md:text-center">
-          <Badge tone={badge.tone} className="text-[9px] px-2 py-0.5">{badge.label}</Badge>
-        </div>
-        <div className="col-span-12 md:col-span-3 flex justify-end gap-2">
-          {needsOwner && <FinishSetupButton domain={reg.domain} tenantId={tenantId} />}
-          {reg.status === 'active' && reg.keyCustody === 'cloud' && (
-            <ExportKeyButton agentDid={reg.agentDid} domain={reg.domain} />
-          )}
-        </div>
-        {reg.error && (
-          <p className="col-span-12 text-body-sm text-signal-red m-0">{reg.error}</p>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function DomainRow({
-  domain,
-  isLast,
-}: {
-  domain: DashboardDomain;
-  isLast?: boolean;
-}): React.JSX.Element {
-  const ownerHost = `${domain.ownerLabel}.${domain.domain}`;
-  return (
-    <li className={'p-5 ' + (isLast ? '' : 'border-b border-rule')}>
-      <div className="grid grid-cols-12 gap-4 items-baseline">
-        <div className="col-span-12 md:col-span-3 flex items-baseline gap-3">
-          <Dot tone={domain.provisioned ? 'green' : 'yellow'} />
-          <div>
-            <span className="font-display font-medium text-h5 block">
-              {domain.domain}
-            </span>
-            {domain.provisioned && domain.provisionedAgentName && (
-              <span className="font-mono text-kicker uppercase text-muted">
-                AGENT · {domain.provisionedAgentName}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="col-span-6 md:col-span-3 text-body-sm text-ink-2 break-all">
-          <span className="font-mono text-kicker uppercase text-muted">OWNER · </span>
-          <Code>{ownerHost}</Code>
-        </div>
-        <div className="col-span-3 md:col-span-2 font-mono text-kicker uppercase text-muted">
-          VIA {domain.registrar.toUpperCase()}
-        </div>
-        <div className="col-span-3 md:col-span-2 md:text-center">
-          {domain.provisioned ? (
-            <Badge tone="blue" className="text-[9px] px-2 py-0.5">PROVISIONED</Badge>
-          ) : (
-            <Badge tone="yellow" className="text-[9px] px-2 py-0.5">PENDING</Badge>
-          )}
-        </div>
-        {/* ProvisionAgentButton is a Fragment that contributes the
-            small md:col-span-2 trigger cell + (when expanded) a
-            full-width col-span-12 panel cell below. */}
-        <ProvisionAgentButton
-          domain={domain.domain}
-          alreadyProvisioned={domain.provisioned}
-        />
-        <div className="col-span-12 mt-2">
-          <UnbindDomainButton
-            domain={domain.domain}
-            hasProvisionedAgent={domain.provisioned}
-          />
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function ActivityRow({
-  entry,
-  isLast,
-}: {
-  entry: ActivityEntry;
-  isLast?: boolean;
-}): React.JSX.Element {
-  const toneMap: Record<ActivityEntry['decision'], 'ink' | 'red' | 'yellow' | 'muted'> = {
-    allow: 'ink',
-    deny: 'red',
-    revoke: 'yellow',
-    other: 'muted',
-  };
-  const labelMap: Record<ActivityEntry['decision'], string> = {
-    allow: 'ALLOW',
-    deny: 'DENY',
-    revoke: 'REVOKE',
-    other: entry.decisionRaw.toUpperCase(),
-  };
-  const auditHref = `/connections/${encodeURIComponent(entry.connectionId)}/audit?highlight=${encodeURIComponent(entry.msgId)}`;
-  return (
-    <li className={'grid grid-cols-12 gap-4 px-5 py-3 items-baseline ' + (isLast ? '' : 'border-b border-rule')}>
-      <div className="col-span-4 md:col-span-2 font-mono text-kicker uppercase text-muted">
-        {entry.ago}
-      </div>
-      <div className="col-span-4 md:col-span-2">
-        <Badge tone={toneMap[entry.decision]} className="text-[9px] px-2 py-0.5">
-          {labelMap[entry.decision]}
-        </Badge>
-      </div>
-      <div className="col-span-12 md:col-span-4 text-body-sm text-ink-2 break-all">
-        <Code>{entry.peerDid ?? entry.agentDid}</Code>
-      </div>
-      <div className="col-span-8 md:col-span-3 font-mono text-kicker uppercase text-muted">
-        {entry.msgType}
-      </div>
-      <div className="col-span-4 md:col-span-1 md:text-right">
-        <Link href={auditHref} variant="mono">
-          View →
-        </Link>
-      </div>
-    </li>
-  );
-}
-
-function QuotaCell({
-  label,
-  value,
-  tone = 'paper',
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: 'paper' | 'paper-2' | 'blue' | 'yellow';
-}): React.JSX.Element {
-  const onAccent = tone === 'blue';
-  return (
-    <Card tone={tone}>
-      <div
-        className={
-          'font-mono text-kicker uppercase ' +
-          (onAccent ? 'text-white/80' : 'text-muted')
-        }
-      >
-        {label}
-      </div>
-      <div className="mt-2 font-display font-medium text-h3">{value}</div>
-    </Card>
-  );
-}
-
-function UsageQuotaCell({
-  label,
-  used,
-  cap,
-}: {
-  label: string;
-  used: number;
-  cap: number | null;
-}): React.JSX.Element {
-  const pct = cap === null ? 0 : Math.min(100, Math.round((used / cap) * 100));
-  const tone = cap !== null && pct >= 80 ? 'yellow' : 'paper';
-  return (
-    <Card tone={tone}>
-      <div className="font-mono text-kicker uppercase text-muted">{label}</div>
-      <div className="mt-2 font-display font-medium text-h3">
-        {used.toLocaleString()}
-        <span className="ml-1 font-mono text-body-sm text-muted">
-          / {cap === null ? '∞' : cap.toLocaleString()}
-        </span>
-      </div>
-      {cap !== null && (
-        <div className="mt-2 w-full bg-paper/30 h-1">
-          <div className="h-1 bg-ink" style={{ width: `${pct}%` }} />
-        </div>
-      )}
-    </Card>
-  );
-}
-
-interface DashboardAgent {
   did: string;
   name: string;
+  description: string;
+  picture: string | null;
+  accent: string | null;
+  state: IdentityState;
+  ownerLabel: string | null;
+  ownerVerified: boolean;
+  hasIdentity: boolean;
   activeConnections: number;
-  healthBucket: HealthBucket;
-  lastAuditAgo: string | null;
+  verifiedLinks: number;
+  expiryAt: string | null;
+  registrationStatus: string | null;
+  registrationError: string | null;
+  keyCustody: 'cloud' | 'exported' | null;
+  registrar: string | null;
+  /** Something the owner still has to do (verify owner, set up, fix). */
+  attention: string | null;
 }
 
-interface DashboardDomain {
-  domain: string;
-  ownerLabel: string;
-  registrar: string;
-  principalDid: string;
-  createdAgo: string;
-  /** True when an agent row exists for `did:web:<domain>` under this tenant. */
-  provisioned: boolean;
-  /** Friendly name from the provisioned agent (when present) — shown as a sub-label. */
-  provisionedAgentName: string | null;
+const STATE_LABEL: Record<IdentityState, string> = {
+  online: 'Online',
+  offline: 'Offline',
+  identity_only: 'Not connected',
+  setup: 'Set up needed',
+  bound_only: 'Not set up here',
+};
+
+function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
+  const href = a.state === 'bound_only' ? null : `/names/${a.sld}`;
+  const dot = a.state === 'online' ? 'bg-emerald-500' : a.state === 'offline' ? 'bg-amber-400' : 'bg-zinc-300';
+  return (
+    <Card glow={a.state === 'online' ? 'emerald' : undefined} className="flex flex-col">
+      <div className="flex items-start gap-4">
+        <span
+          className="relative inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 text-[20px] font-medium text-zinc-500"
+          style={a.accent ? { boxShadow: `0 0 0 2px ${a.accent}` } : undefined}
+        >
+          {a.picture ? <img src={a.picture} alt="" className="h-full w-full object-cover" /> : a.name.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          {href ? (
+            <a href={href} className="block truncate text-[18px] font-medium tracking-[-0.01em] text-zinc-950 hover:underline">
+              {a.sld}<span className="text-zinc-400">.agent</span>
+            </a>
+          ) : (
+            <span className="block truncate text-[18px] font-medium tracking-[-0.01em] text-zinc-950">{a.sld}<span className="text-zinc-400">.agent</span></span>
+          )}
+          <div className="mt-1 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">
+            <span className="relative flex h-1.5 w-1.5">
+              {a.state === 'online' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
+              <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${dot}`} />
+            </span>
+            {STATE_LABEL[a.state]}
+          </div>
+        </div>
+      </div>
+      {a.description && <p className="mt-4 line-clamp-2 text-[14px] leading-relaxed text-zinc-600">{a.description}</p>}
+      <dl className="mt-4 grid grid-cols-3 gap-2 text-[12px]">
+        <div><dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">Owner</dt><dd className="m-0 mt-1"><StateChip state={a.ownerVerified ? 'verified' : 'pending'} /></dd></div>
+        <div><dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">Connections</dt><dd className="m-0 mt-1 font-mono text-[13px] text-zinc-900">{a.activeConnections}</dd></div>
+        <div><dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">Links</dt><dd className="m-0 mt-1 font-mono text-[13px] text-zinc-900">{a.verifiedLinks}</dd></div>
+      </dl>
+      {a.attention && (
+        <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800">{a.attention}</p>
+      )}
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
+        {href ? (
+          <>
+            <a href={href} className="rounded-full bg-black px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800">Open</a>
+            {a.hasIdentity && <a href={`${env().AGENTID_PROFILE_BASE}/${a.sld}`} className="rounded-full border border-zinc-300 px-4 py-2 text-[13px] font-medium text-zinc-900 hover:border-zinc-900">Public page</a>}
+            {a.hasIdentity && <a href={`/pair?from=${encodeURIComponent(a.did)}`} className="rounded-full border border-zinc-300 px-4 py-2 text-[13px] font-medium text-zinc-900 hover:border-zinc-900">Pair</a>}
+          </>
+        ) : (
+          <>
+            <ProvisionAgentButton domain={a.domain} alreadyProvisioned={false} />
+            <UnbindDomainButton domain={a.domain} hasProvisionedAgent={false} />
+          </>
+        )}
+        {a.expiryAt && <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">renews {a.expiryAt.slice(0, 10)}</span>}
+      </div>
+    </Card>
+  );
 }
+
+/* ------------------------------------------------------------------ data */
 
 interface ActivityEntry {
   id: string;
-  connectionId: string;
   agentDid: string;
-  peerDid: string | null;
-  msgId: string;
   msgType: string;
   decision: 'allow' | 'deny' | 'revoke' | 'other';
   decisionRaw: string;
   ago: string;
+  auditHref: string;
 }
 
 async function loadState(): Promise<{
-  tenant: { plan: string; status: string; principalDid: string };
-  tenantId: string;
-  registrations: DashboardRegistration[];
-  agents: DashboardAgent[];
+  tenant: { plan: string; status: string };
+  identities: DashboardIdentity[];
   hasPasskey: boolean;
-  outgoingInvitations: Array<{
-    id: string;
-    issuerAgentDid: string;
-    audienceDid: string;
-    proposalId: string;
-    expiresAt: string;
-    invitationUrl: string;
-  }>;
-  incomingInvitations: Array<{
-    id: string;
-    issuerAgentDid: string;
-    audienceDid: string;
-    proposalId: string;
-    expiresAt: string;
-    acceptHref: string;
-  }>;
+  outgoingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; invitationUrl: string }>;
+  incomingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; acceptHref: string }>;
   recentActivity: ActivityEntry[];
   totalActiveConnections: number;
-  domains: DashboardDomain[];
-  usage: {
-    period: string;
-    inboundMessages: number;
-    monthlyBillCents: number;
-  };
+  usage: { period: string; inboundMessages: number; monthlyBillCents: number };
 }> {
   const { tenantDb } = await requireTenantDb();
   const tenant = await tenantDb.getTenant();
   if (!tenant) throw new AuthError(404, 'no_tenant');
   const period = currentUsagePeriod();
-  const [agentRows, summary, passkeys, recent, bindingRows, usageRow] = await Promise.all([
-    tenantDb.listAgents(),
+  const now = new Date();
+  const db = tenantDb.raw;
+
+  const [agentRows, summary, passkeys, recent, bindingRows, usageRow, registrationRows, linkCounts] = await Promise.all([
+    // Only what the card needs — never the picture bytes.
+    db
+      .select({
+        did: agents.did,
+        agentName: agents.agentName,
+        agentDescription: agents.agentDescription,
+        runtimeKind: agents.runtimeKind,
+        pushKind: agents.pushKind,
+        pushUrl: agents.pushUrl,
+        lastSeenAt: agents.lastSeenAt,
+        keyCustody: agents.keyCustody,
+        accent: agents.accent,
+        hasAvatar: sql<boolean>`${agents.avatarData} is not null`,
+        profileUpdatedAt: agents.profileUpdatedAt,
+        createdAt: agents.createdAt,
+      })
+      .from(agents)
+      .where(eq(agents.tenantId, tenantDb.tenantId))
+      .orderBy(asc(agents.createdAt)),
     tenantDb.getAgentActivitySummary(),
     listCredentialsForTenant(tenantDb.tenantId),
-    tenantDb.listRecentActivity(10),
-    // .agent-domain registrar bindings (v2.1) — published when a TLD
-    // registrar (Headless et al) finishes the bind-principal callback
-    // for one of this tenant's owner subdomains.
-    tenantDb.raw
-      .select({
-        domain: registrarBindings.domain,
-        ownerLabel: registrarBindings.ownerLabel,
-        registrar: registrarBindings.registrar,
-        principalDid: registrarBindings.principalDid,
-        createdAt: registrarBindings.createdAt,
-      })
+    tenantDb.listRecentActivity(8),
+    db
+      .select({ domain: registrarBindings.domain, ownerLabel: registrarBindings.ownerLabel, registrar: registrarBindings.registrar, createdAt: registrarBindings.createdAt })
       .from(registrarBindings)
       .where(eq(registrarBindings.tenantId, tenantDb.tenantId))
-      .orderBy(asc(registrarBindings.createdAt)),
+      .orderBy(desc(registrarBindings.createdAt)),
     tenantDb.getUsage(period),
+    tenantDb.listRegistrations(),
+    db
+      .select({ agentDid: agentLinks.agentDid, n: sql<number>`count(*)::int` })
+      .from(agentLinks)
+      .where(and(eq(agentLinks.tenantId, tenantDb.tenantId), eq(agentLinks.status, 'verified')))
+      .groupBy(agentLinks.agentDid),
   ]);
 
-  const now = new Date();
   const summaryByDid = new Map(summary.map((s) => [s.agentDid, s]));
-  const agents: DashboardAgent[] = agentRows.map((a) => {
-    const s = summaryByDid.get(a.did);
-    const lastAt = s?.lastAuditAt ?? a.lastSeenAt ?? null;
-    return {
-      did: a.did,
-      name: a.agentName,
-      activeConnections: s?.activeConnections ?? 0,
-      healthBucket: computeHealth(now, lastAt),
-      lastAuditAgo: lastAt ? formatAgo(now, lastAt) : null,
-    };
+  const linksByDid = new Map(linkCounts.map((l) => [l.agentDid, l.n]));
+  const bindingByDomain = new Map<string, (typeof bindingRows)[number]>();
+  for (const b of bindingRows) if (!bindingByDomain.has(b.domain.toLowerCase())) bindingByDomain.set(b.domain.toLowerCase(), b);
+  const registrationByDomain = new Map(registrationRows.map((r) => [r.domain.toLowerCase(), r]));
+  const agentByDomain = new Map(agentRows.map((a) => [a.did.replace(/^did:web:/, '').toLowerCase(), a]));
+
+  // Every domain this account touches, from any of the three tables.
+  const domains = new Set<string>([...agentByDomain.keys(), ...registrationByDomain.keys(), ...bindingByDomain.keys()]);
+  const suffix = env().AGENTID_MIRROR_SUFFIX;
+
+  const identities = await Promise.all(
+    [...domains].map(async (domain): Promise<DashboardIdentity> => {
+      const sld = domain.replace(/\.agent$/, '');
+      const did = `did:web:${domain}`;
+      const agent = agentByDomain.get(domain) ?? null;
+      const reg = registrationByDomain.get(domain) ?? null;
+      const binding = bindingByDomain.get(domain) ?? null;
+      const s = agent ? summaryByDid.get(agent.did) : undefined;
+      const mirror = mirrorOriginFor(domain, suffix);
+
+      let state: IdentityState;
+      let liveness: Liveness | null = null;
+      if (agent) {
+        liveness = await agentLiveness({ runtimeKind: agent.runtimeKind, pushKind: agent.pushKind, pushUrl: agent.pushUrl, lastSeenAt: agent.lastSeenAt }, { timeoutMs: 1_500 });
+        state = liveness;
+      } else if (reg) {
+        state = 'setup';
+      } else {
+        state = 'bound_only';
+      }
+
+      let attention: string | null = null;
+      if (reg?.status === 'failed') attention = reg.error ?? 'Registration failed. Contact support.';
+      else if (reg && (reg.status === 'pending_payment' || reg.status === 'registering')) attention = reg.status === 'pending_payment' ? 'Payment not completed yet.' : 'Registering the name…';
+      else if (state === 'setup') attention = 'Create the identity for this name.';
+      else if (!binding && agent) attention = 'Verify you own this name.';
+      else if (state === 'identity_only') attention = 'Connect your agent so it can be reached.';
+
+      return {
+        domain,
+        sld,
+        did,
+        name: agent?.agentName ?? sld,
+        description: agent?.agentDescription ?? '',
+        picture: agent?.hasAvatar ? `${mirror}/avatar.png?v=${encodeURIComponent(agent.profileUpdatedAt?.toISOString() ?? '')}` : null,
+        accent: agent?.accent ?? null,
+        state,
+        ownerLabel: binding?.ownerLabel ?? reg?.ownerLabel ?? null,
+        ownerVerified: binding !== null,
+        hasIdentity: agent !== null,
+        activeConnections: s?.activeConnections ?? 0,
+        verifiedLinks: agent ? (linksByDid.get(agent.did) ?? 0) : 0,
+        expiryAt: reg?.expiryAt?.toISOString() ?? null,
+        registrationStatus: reg?.status ?? null,
+        registrationError: reg?.error ?? null,
+        keyCustody: agent?.keyCustody ?? null,
+        registrar: binding?.registrar ?? null,
+        attention,
+      };
+    }),
+  );
+  // Online first, then the ones needing attention, then alphabetical.
+  identities.sort((x, y) => {
+    const rank = (i: DashboardIdentity) => (i.state === 'online' ? 0 : i.attention ? 1 : 2);
+    return rank(x) - rank(y) || x.sld.localeCompare(y.sld);
   });
 
-  const totalActiveConnections = agents.reduce(
-    (sum, a) => sum + a.activeConnections,
-    0,
-  );
+  const totalActiveConnections = identities.reduce((n, i) => n + i.activeConnections, 0);
 
-  // Outgoing: pending invitations this tenant issued.
-  // Incoming: cross-tenant invitations where the audience DID is one of
-  // *our* agents. Both depend on the `audience_did` column added in
-  // migration 0007. If the migration hasn't run yet (deploy-then-migrate
-  // ordering), we fall back to empty lists so the dashboard still
-  // renders. Logged so the operator notices and runs the migration.
+  // Pairing inbox (migration 0007). Empty lists if the table is behind.
   const myAgentDids = agentRows.map((a) => a.did);
-  let outgoingRows: Array<{
-    id: string;
-    issuerAgentDid: string;
-    audienceDid: string;
-    challenge: string;
-    payload: string;
-    expiresAt: Date;
-  }> = [];
+  let outgoingRows: Array<{ id: string; issuerAgentDid: string; audienceDid: string; payload: string; expiresAt: Date }> = [];
   let incomingRows: typeof outgoingRows = [];
   try {
-    outgoingRows = await tenantDb.raw
-      .select({
-        id: pairingInvitations.id,
-        issuerAgentDid: pairingInvitations.issuerAgentDid,
-        audienceDid: pairingInvitations.audienceDid,
-        challenge: pairingInvitations.challenge,
-        payload: pairingInvitations.payload,
-        expiresAt: pairingInvitations.expiresAt,
-      })
+    outgoingRows = await db
+      .select({ id: pairingInvitations.id, issuerAgentDid: pairingInvitations.issuerAgentDid, audienceDid: pairingInvitations.audienceDid, payload: pairingInvitations.payload, expiresAt: pairingInvitations.expiresAt })
       .from(pairingInvitations)
-      .where(
-        and(
-          eq(pairingInvitations.tenantId, tenantDb.tenantId),
-          isNull(pairingInvitations.cancelledAt),
-          isNull(pairingInvitations.consumedAt),
-          gt(pairingInvitations.expiresAt, now),
-        ),
-      )
+      .where(and(eq(pairingInvitations.tenantId, tenantDb.tenantId), isNull(pairingInvitations.cancelledAt), isNull(pairingInvitations.consumedAt), gt(pairingInvitations.expiresAt, now)))
       .orderBy(asc(pairingInvitations.expiresAt));
-
     if (myAgentDids.length > 0) {
-      incomingRows = await tenantDb.raw
-        .select({
-          id: pairingInvitations.id,
-          issuerAgentDid: pairingInvitations.issuerAgentDid,
-          audienceDid: pairingInvitations.audienceDid,
-          challenge: pairingInvitations.challenge,
-          payload: pairingInvitations.payload,
-          expiresAt: pairingInvitations.expiresAt,
-        })
+      incomingRows = await db
+        .select({ id: pairingInvitations.id, issuerAgentDid: pairingInvitations.issuerAgentDid, audienceDid: pairingInvitations.audienceDid, payload: pairingInvitations.payload, expiresAt: pairingInvitations.expiresAt })
         .from(pairingInvitations)
-        .where(
-          and(
-            inArray(pairingInvitations.audienceDid, myAgentDids),
-            ne(pairingInvitations.tenantId, tenantDb.tenantId),
-            isNull(pairingInvitations.cancelledAt),
-            isNull(pairingInvitations.consumedAt),
-            gt(pairingInvitations.expiresAt, now),
-          ),
-        )
+        .where(and(inArray(pairingInvitations.audienceDid, myAgentDids), ne(pairingInvitations.tenantId, tenantDb.tenantId), isNull(pairingInvitations.cancelledAt), isNull(pairingInvitations.consumedAt), gt(pairingInvitations.expiresAt, now)))
         .orderBy(asc(pairingInvitations.expiresAt));
     }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn('[dashboard] pairing-inbox query failed — has migration 0007 run?', err);
   }
+  const baseUrl = (process.env['CLOUD_BASE_URL'] ?? '').replace(/\/+$/, '');
 
   const recentActivity: ActivityEntry[] = recent.map((r) => ({
     id: String(r.id),
-    connectionId: r.connectionId,
     agentDid: r.agentDid,
-    peerDid: null,
-    msgId: r.msgId,
-    msgType: r.reason ?? inferMsgType(r.decision),
+    msgType: r.reason ?? (r.decision ? `audit:${r.decision}` : 'audit'),
     decision: normalizeDecision(r.decision),
     decisionRaw: r.decision,
     ago: formatAgo(now, r.timestamp),
+    auditHref: `/connections/${encodeURIComponent(r.connectionId)}/audit?highlight=${encodeURIComponent(r.msgId)}`,
   }));
 
-  // Map did:web:<domain> → agent row so each .agent domain knows whether
-  // it's already been provisioned. Cloud-managed agents always live at
-  // the domain's apex DID — registrar bindings without a matching agent
-  // row are still in the "registered, not provisioned" state.
-  const agentByDid = new Map(agentRows.map((a) => [a.did, a]));
-
-  // AgentID S2: names bought through the console.
-  const registrationRows = await tenantDb.listRegistrations();
-  const registrations: DashboardRegistration[] = registrationRows.map((r) => {
-    const agentDid = `did:web:${r.domain}`;
-    const agent = agentByDid.get(agentDid) ?? null;
-    return {
-      id: r.id,
-      domain: r.domain,
-      sld: r.sld,
-      status: r.status,
-      years: r.years,
-      priceCents: r.priceCents,
-      expiryAt: r.expiryAt?.toISOString() ?? null,
-      ownerLabel: r.ownerLabel,
-      error: r.error,
-      createdAgo: formatAgo(now, r.createdAt),
-      agentDid,
-      agentName: agent?.agentName ?? null,
-      keyCustody: agent?.keyCustody ?? null,
-      runtimeKind: agent?.runtimeKind ?? null,
-    };
-  });
-  const domains: DashboardDomain[] = bindingRows.map((r) => {
-    const agentDid = `did:web:${r.domain.toLowerCase()}`;
-    const agent = agentByDid.get(agentDid) ?? null;
-    return {
-      domain: r.domain,
-      ownerLabel: r.ownerLabel,
-      registrar: r.registrar,
-      principalDid: r.principalDid,
-      createdAgo: formatAgo(now, r.createdAt),
-      provisioned: agent !== null,
-      provisionedAgentName: agent?.agentName ?? null,
-    };
-  });
-
-  // Build the share URL the same shape POST /api/pairing/invitations
-  // returns. We don't have x-forwarded-host here so fall back to env;
-  // for local dev the relative `/pair/accept#…` form still works.
-  const baseUrl = process.env['CLOUD_BASE_URL'] ?? '';
-  const buildInvitationUrl = (payload: string) =>
-    `${baseUrl.replace(/\/+$/, '')}/pair/accept#${payload}`;
-
   return {
-    tenant: {
-      plan: tenant.plan,
-      status: tenant.status,
-      principalDid: tenant.principalDid,
-    },
-    agents,
+    tenant: { plan: tenant.plan, status: tenant.status },
+    identities,
     hasPasskey: passkeys.length > 0,
-    outgoingInvitations: outgoingRows.map((r) => ({
-      id: r.id,
-      issuerAgentDid: r.issuerAgentDid,
-      audienceDid: r.audienceDid,
-      proposalId: r.challenge,
-      expiresAt: r.expiresAt.toISOString(),
-      invitationUrl: buildInvitationUrl(r.payload),
-    })),
-    incomingInvitations: incomingRows.map((r) => ({
-      id: r.id,
-      issuerAgentDid: r.issuerAgentDid,
-      audienceDid: r.audienceDid,
-      proposalId: r.challenge,
-      expiresAt: r.expiresAt.toISOString(),
-      acceptHref: `/pair/accept#${r.payload}`,
-    })),
+    outgoingInvitations: outgoingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), invitationUrl: `${baseUrl}/pair/accept#${r.payload}` })),
+    incomingInvitations: incomingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), acceptHref: `/pair/accept#${r.payload}` })),
     recentActivity,
     totalActiveConnections,
-    domains,
-    tenantId: tenantDb.tenantId,
-    registrations,
-    usage: {
-      period,
-      inboundMessages: usageRow?.inboundMessages ?? 0,
-      monthlyBillCents: monthlyBillCents(tenant.plan, tenant.subscriptionQuantity ?? 1),
-    },
+    usage: { period, inboundMessages: usageRow?.inboundMessages ?? 0, monthlyBillCents: monthlyBillCents(tenant.plan, tenant.subscriptionQuantity ?? 1) },
   };
-}
-
-function computeHealth(now: Date, last: Date | null): HealthBucket {
-  if (!last) return 'inactive';
-  const delta = now.getTime() - last.getTime();
-  if (delta <= ACTIVE_THRESHOLD_MS) return 'active';
-  if (delta <= IDLE_THRESHOLD_MS) return 'idle';
-  return 'inactive';
 }
 
 export function formatAgo(now: Date, then: Date): string {
@@ -922,233 +484,4 @@ export function normalizeDecision(raw: string): ActivityEntry['decision'] {
   if (v === 'deny') return 'deny';
   if (v === 'revoke' || v === 'revoked') return 'revoke';
   return 'other';
-}
-
-function inferMsgType(decision: string): string {
-  return decision ? `audit:${decision}` : 'audit';
-}
-
-/**
- * Skills section — editorial card matrix matching the landing page's
- * FeatureCard treatment. Each available skill becomes a tone'd card
- * with idx + category + title + body + a Download SKILL.md button +
- * the CLI alternative. Tones cycle (paper → blue → yellow → paper)
- * for visual rhythm.
- */
-function SkillsSection(): React.JSX.Element {
-  const names = listSkillNames();
-  const toneCycle: Array<'paper' | 'blue' | 'yellow' | 'paper-2'> = [
-    'paper',
-    'blue',
-    'yellow',
-    'paper-2',
-  ];
-  return (
-    <section className="mb-10">
-      <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-        <h2 className="font-display font-medium text-h3">
-          Agent skills
-          <span className="text-muted font-mono text-body-sm ml-2">
-            {names.length} available
-          </span>
-        </h2>
-        <span className="font-mono text-kicker uppercase text-muted">
-          // S · CAPABILITIES
-        </span>
-      </header>
-      <p className="text-body text-ink-2 mb-4 max-w-3xl">
-        Drop these into your agent folder so its LLM picks up new
-        capabilities. Same SKILL.md works in KyberBot (
-        <Code>./skills/&lt;name&gt;/SKILL.md</Code>) and Claude Code (
-        <Code>.claude/skills/&lt;name&gt;/SKILL.md</Code>) — only the
-        install path differs.
-      </p>
-      <CardMatrix
-        className={
-          names.length <= 1
-            ? 'grid-cols-1'
-            : names.length === 2
-              ? 'grid-cols-1 md:grid-cols-2'
-              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-        }
-      >
-        {names.map((n, i) => {
-          const tpl = SKILL_TEMPLATES[n]!;
-          const desc =
-            tpl.status === 'preview'
-              ? extractPreviewBlurb(tpl.content)
-              : extractSkillDescription(tpl.content);
-          const tone = tpl.brandTone ?? toneCycle[i % toneCycle.length]!;
-          return (
-            <SkillCard
-              key={n}
-              idx={`S.${String(i + 1).padStart(2, '0')}`}
-              name={n}
-              description={desc}
-              tone={tone}
-              category={tpl.category}
-              framework={tpl.framework}
-              status={tpl.status}
-              filename={tpl.filename}
-            />
-          );
-        })}
-      </CardMatrix>
-    </section>
-  );
-}
-
-function SkillCard({
-  idx,
-  name,
-  description,
-  tone,
-  category,
-  framework,
-  status,
-  filename,
-}: {
-  idx: string;
-  name: string;
-  description: string;
-  tone: 'paper' | 'paper-2' | 'blue' | 'yellow' | 'red';
-  category: string;
-  framework: 'kyberbot-claude' | 'openclaw' | 'hermes';
-  status: 'available' | 'preview';
-  filename: string;
-}): React.JSX.Element {
-  // blue + red use white-on-color; yellow + paper use ink-on-paper.
-  const onAccent = tone === 'blue' || tone === 'red';
-  const isPreview = status === 'preview';
-  return (
-    <Card
-      tone={tone}
-      className={
-        'min-h-[320px] gap-3 justify-between ' +
-        (isPreview ? 'opacity-70' : '')
-      }
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span
-          className={
-            'font-mono text-kicker uppercase ' +
-            (onAccent ? 'text-white/90' : 'text-muted')
-          }
-        >
-          {idx}
-        </span>
-        <span
-          className={
-            'font-mono text-kicker uppercase text-right ' +
-            (onAccent ? 'text-white' : 'text-ink')
-          }
-        >
-          {category}
-        </span>
-      </div>
-      <div className="flex items-center gap-2 mt-2">
-        <h3 className="text-h3 font-display font-medium max-w-[18ch]">{name}</h3>
-        {isPreview && (
-          <Badge tone={onAccent ? 'paper' : 'yellow'} className="text-[9px] px-2 py-0.5">
-            PREVIEW
-          </Badge>
-        )}
-      </div>
-      <p
-        className={
-          'text-body-sm flex-1 max-w-[44ch] ' +
-          (onAccent ? 'text-white/90' : 'text-ink-2')
-        }
-      >
-        {description}
-      </p>
-      <div className="flex flex-col gap-2 mt-3">
-        {isPreview ? (
-          <span
-            className={
-              'inline-flex items-center gap-2 font-mono text-kicker uppercase border border-current/30 px-3 py-2 ' +
-              (onAccent ? 'text-white/80' : 'text-muted')
-            }
-          >
-            ▢ ADAPTER COMING SOON
-          </span>
-        ) : (
-          <ButtonLink
-            href={`/api/skills/${encodeURIComponent(name)}`}
-            variant={onAccent ? 'default' : 'primary'}
-            size="sm"
-            arrow
-          >
-            Download {filename}
-          </ButtonLink>
-        )}
-        <details
-          className={
-            'text-body-sm ' + (onAccent ? 'text-white/90' : 'text-ink-2')
-          }
-        >
-          <summary
-            className={
-              'cursor-pointer font-mono text-kicker uppercase ' +
-              (onAccent ? 'text-white/80' : 'text-muted')
-            }
-          >
-            ▸ {framework === 'kyberbot-claude' ? 'INSTALL VIA CLI' : 'PREVIEW THE FORMAT'}
-          </summary>
-          <pre className="mt-2 text-xs leading-snug whitespace-pre-wrap">
-{framework === 'kyberbot-claude'
-  ? `# kyberbot (default)
-arpc skill install ${name}
-
-# claude-code (project-scoped)
-arpc skill install ${name} --target claude-code
-
-# claude-code (user-wide)
-arpc skill install ${name} --target claude-code-global`
-  : framework === 'openclaw'
-    ? `# Once the OpenClaw adapter ships, you'll drop this file at:
-#   <openclaw-project>/skills/contact.py
-# OpenClaw uses Python decorator + Skill subclass — not SKILL.md.
-# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`
-    : `# Once the Hermes adapter ships, you'll drop this file at:
-#   <hermes-agent>/src/skills/contact.ts
-# Hermes uses a @tool decorator on Agent methods — not SKILL.md.
-# Preview the file via: curl https://cloud.arp.run/api/skills/${name}`}
-          </pre>
-        </details>
-      </div>
-    </Card>
-  );
-}
-
-/** Strip the leading line(s) of placeholder Python/TS to summarise it for the card. */
-function extractPreviewBlurb(content: string): string {
-  // First useful comment paragraph from a # or // header.
-  const lines = content.split('\n');
-  const para: string[] = [];
-  let started = false;
-  for (const line of lines) {
-    const t = line.trim();
-    if (!started && (t.startsWith('# ') || t.startsWith('// '))) {
-      started = true;
-      para.push(t.replace(/^(#|\/\/) ?/, ''));
-      continue;
-    }
-    if (started) {
-      if (t.startsWith('#') || t.startsWith('//')) {
-        const stripped = t.replace(/^(#|\/\/) ?/, '');
-        if (stripped === '') break;
-        para.push(stripped);
-      } else {
-        break;
-      }
-    }
-  }
-  return para.join(' ').trim() || 'Preview — adapter pending.';
-}
-
-/** Pull the `description: "…"` line from a skill's frontmatter for display. */
-function extractSkillDescription(skillMd: string): string {
-  const m = skillMd.match(/^description:\s*"([^"]+)"\s*$/m);
-  return m ? m[1]! : '(see skill body)';
 }
