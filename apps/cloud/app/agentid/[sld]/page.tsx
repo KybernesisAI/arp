@@ -1,13 +1,12 @@
 import type * as React from 'react';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { desc, eq } from 'drizzle-orm';
-import { agentLinks, agents, domainRegistrations, registrarBindings } from '@kybernesis/arp-cloud-db';
-import { and } from 'drizzle-orm';
-import { npubFromHex } from '@/lib/links';
+import { eq } from 'drizzle-orm';
+import { agents } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
-import { env } from '@/lib/env';
-import { mirrorOriginFor } from '@/lib/key-custody';
-import { Badge, ButtonLink, Container, Dot, Emphasis, Grid12, PlateHead, Section } from '@/components/ui';
+import { loadBadgeData, normalizeBadgeSld } from '@/lib/badge-data';
+import { BadgeHero } from '@/app/lander/BadgeHero';
+import { CLAIM, Card, HeroPill, Kicker, LanderFooter, LanderNav, LanderShell, StateChip, Tag } from '@/app/lander/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,16 +14,24 @@ export const dynamic = 'force-dynamic';
 const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 const ACTIVE_MS = 5 * 60 * 1000;
 
+export async function generateMetadata(props: { params: Promise<{ sld: string }> }): Promise<Metadata> {
+  const { sld: raw } = await props.params;
+  const sld = normalizeBadgeSld(decodeURIComponent(raw), '');
+  if (!sld) return { title: 'AgentID' };
+  return {
+    title: `${sld}.agent — AgentID`,
+    description: `${sld}.agent is a registered agent identity. See who stands behind it, whether it is online, and how to reach it.`,
+  };
+}
+
 /**
- * Public identity profile (AgentID S2 / T8): `agent.arp.run/<sld>`.
+ * Public identity profile: `agent.arp.run/<sld>`.
  *
- * Tier-0 surface: what the agent is, who stands behind it, whether it is
- * online, and how to reach it. Reads across tenants by name (identity is
+ * Same visual language as the lander: black hero with the agent's 3D badge,
+ * then black-on-white bento tiles. Reads across tenants by name (identity is
  * public by definition). No auth, no supplier or key vocabulary.
  */
-export default async function AgentProfilePage(props: {
-  params: Promise<{ sld: string }>;
-}): Promise<React.JSX.Element> {
+export default async function AgentProfilePage(props: { params: Promise<{ sld: string }> }): Promise<React.JSX.Element> {
   const { sld: raw } = await props.params;
   const sld = decodeURIComponent(raw).toLowerCase().replace(/\.agent$/, '');
   if (!SLD_REGEX.test(sld)) notFound();
@@ -32,169 +39,169 @@ export default async function AgentProfilePage(props: {
   const agentDid = `did:web:${domain}`;
 
   const db = await getDb();
-  const [agentRows, bindingRows, regRows, linkRows] = await Promise.all([
-    db.select().from(agents).where(eq(agents.did, agentDid)).limit(1),
-    db
-      .select({ ownerLabel: registrarBindings.ownerLabel, createdAt: registrarBindings.createdAt })
-      .from(registrarBindings)
-      .where(eq(registrarBindings.domain, domain))
-      .orderBy(desc(registrarBindings.createdAt))
-      .limit(1),
-    db
-      .select({ status: domainRegistrations.status, registeredAt: domainRegistrations.registeredAt })
-      .from(domainRegistrations)
-      .where(eq(domainRegistrations.domain, domain))
-      .orderBy(desc(domainRegistrations.createdAt))
-      .limit(1),
-    db
-      .select({ kind: agentLinks.kind, value: agentLinks.value, label: agentLinks.label })
-      .from(agentLinks)
-      .where(and(eq(agentLinks.agentDid, agentDid), eq(agentLinks.status, 'verified')))
-      .orderBy(desc(agentLinks.verifiedAt)),
+  const [badge, agentRows] = await Promise.all([
+    loadBadgeData(sld),
+    db.select({ lastSeenAt: agents.lastSeenAt, runtimeKind: agents.runtimeKind, createdAt: agents.createdAt }).from(agents).where(eq(agents.did, agentDid)).limit(1),
   ]);
   const agent = agentRows[0];
   if (!agent) notFound();
 
-  const owner = bindingRows[0] ?? null;
-  const registration = regRows[0] ?? null;
-  const now = Date.now();
-  const online = agent.lastSeenAt ? now - agent.lastSeenAt.getTime() <= ACTIVE_MS : false;
+  const online = agent.lastSeenAt ? Date.now() - agent.lastSeenAt.getTime() <= ACTIVE_MS : false;
   const hasRuntime = agent.runtimeKind !== 'none';
-  const mirror = mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX);
-  const since = (registration?.registeredAt ?? agent.createdAt).toISOString().slice(0, 10);
-  const cardSigned = ((agent.wellKnownA2aCard as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0;
+  const runtimeLabel = !hasRuntime ? 'Not attached' : agent.runtimeKind === 'bridge' ? 'Self-hosted' : 'Hosted';
+  const statusLabel = online ? 'Online' : hasRuntime ? 'Offline' : 'Identity only';
+  const mirror = `https://${badge.mirrorHost}`;
+  const connect = badge.connectUrl;
 
-  const links: Array<{ kind: string; value: string; state: 'verified' | 'pending' }> = [
-    {
-      kind: 'OWNER',
-      value: owner ? owner.ownerLabel : 'not yet verified',
-      state: owner ? 'verified' : 'pending',
-    },
-    {
-      kind: 'RUNTIME',
-      value: hasRuntime ? (agent.runtimeKind === 'bridge' ? 'self-hosted' : 'hosted') : 'not attached',
-      state: hasRuntime ? 'verified' : 'pending',
-    },
-    { kind: 'ADDRESS', value: mirror.replace(/^https:\/\//, ''), state: 'verified' },
-    ...linkRows.map((l) => ({
-      kind: l.kind === 'nostr' ? 'BUZZ' : l.kind === 'kybernesis' ? 'CONTROL PLANE' : l.kind === 'runtime' ? 'RUNTIME' : 'WEBSITE',
-      value: l.kind === 'nostr' ? npubFromHex(l.value) : l.value.replace(/^https:\/\//, ''),
-      state: 'verified' as const,
-    })),
+  const records: Array<{ kind: string; name: string; value: string; href?: string; state: 'verified' | 'live' | 'pending' }> = [
+    { kind: 'Identity', name: 'Identity document', value: `${badge.mirrorHost}/.well-known/did.json`, href: `${mirror}/.well-known/did.json`, state: 'live' },
+    { kind: 'Card', name: 'Agent card (A2A)', value: `${badge.mirrorHost}/.well-known/agent-card.json`, href: `${mirror}/.well-known/agent-card.json`, state: badge.cardSigned ? 'verified' : 'live' },
+    { kind: 'A2A', name: 'A2A endpoint', value: `${badge.mirrorHost}/a2a`, href: `${mirror}/.well-known/agent-card.json`, state: 'live' },
+    { kind: 'Keys', name: 'Public key set', value: `${badge.mirrorHost}/.well-known/jwks.json`, href: `${mirror}/.well-known/jwks.json`, state: 'live' },
+    { kind: 'Connect', name: 'Connect record', value: `${badge.mirrorHost}/.well-known/arp-card.json`, href: `${mirror}/.well-known/arp-card.json`, state: 'live' },
+    { kind: 'Owner', name: 'Owner proof', value: badge.ownerVerified ? `${badge.mirrorHost}/representation.jwt` : 'not yet verified', href: badge.ownerVerified ? `${mirror}/representation.jwt` : undefined, state: badge.ownerVerified ? 'verified' : 'pending' },
   ];
 
   return (
-    <>
-      <Section tone="paper" spacing="hero" rule={false} as="header">
-        <Container>
-          <div className="grid grid-cols-12 gap-6 pb-12">
-            <div className="col-span-12 lg:col-span-7">
-              <div className="font-mono text-kicker uppercase text-muted mb-5 flex items-center gap-3">
-                <Dot tone={online ? 'green' : hasRuntime ? 'yellow' : 'red'} size={6} />
-                {online ? 'ONLINE' : hasRuntime ? 'OFFLINE' : 'IDENTITY ONLY'} · SINCE {since}
-              </div>
-              <h1 className="font-display font-medium text-[clamp(44px,7vw,104px)] leading-[0.95] tracking-[-0.03em] m-0">
-                {sld}
-                <span className="text-signal-blue">.agent</span>
-              </h1>
-              <p className="mt-6 text-body-lg text-ink-2 max-w-[56ch]">
-                {agent.agentDescription || `${agent.agentName} is an AI agent with a registered name.`}
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <ButtonLink
-                  href={`https://cloud.arp.run/pair?peer=${encodeURIComponent(agentDid)}`}
-                  variant="primary"
-                  size="lg"
-                  arrow="up-right"
-                >
-                  Request to connect
-                </ButtonLink>
-                <ButtonLink href="/" variant="default" size="lg" arrow>
-                  Get your own name
-                </ButtonLink>
-              </div>
+    <LanderShell>
+      <LanderNav />
+
+      <BadgeHero badge={badge} zoom={1.6} minHeight="lg:h-[680px]">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 font-mono text-[12px] uppercase tracking-[0.14em] text-white/60">
+          <span className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : hasRuntime ? 'bg-amber-400' : 'bg-white/40'}`} /> {statusLabel} · since {badge.since}
+        </div>
+        <h1 className="break-words text-[44px] font-medium leading-[1.02] tracking-[-0.03em] sm:text-[60px] lg:text-[68px]">
+          {sld}<span className="text-white/45">.agent</span>
+        </h1>
+        <p className="mt-6 max-w-[48ch] text-[18px] leading-relaxed text-white/65">{badge.description}</p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a href={connect} className="rounded-full bg-white px-6 py-3 text-[15px] font-medium text-black hover:bg-zinc-200">Request to connect</a>
+          <a href={CLAIM} className="rounded-full border border-white/25 px-6 py-3 text-[15px] font-medium text-white hover:border-white">Get your own name</a>
+        </div>
+        <div className="mt-8 flex flex-wrap gap-2">
+          <HeroPill on={badge.ownerVerified}>{badge.ownerVerified ? 'Verified owner' : 'Owner pending'}</HeroPill>
+          <HeroPill on={hasRuntime}>{hasRuntime ? 'Reachable' : 'Not yet reachable'}</HeroPill>
+          <HeroPill on={badge.cardSigned}>{badge.cardSigned ? 'Signed card' : 'Card unsigned'}</HeroPill>
+        </div>
+      </BadgeHero>
+
+      {/* IDENTITY RECORD */}
+      <section className="mx-auto w-full max-w-[1200px] px-6 py-20">
+        <Kicker>Identity record</Kicker>
+        <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] sm:text-[44px]">Who stands behind {sld}.agent.</h2>
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card glow="emerald">
+            <Kicker>Owner</Kicker>
+            <div className="mt-3 flex items-center gap-2 text-[22px] font-medium tracking-[-0.02em]">
+              {badge.ownerVerified ? badge.ownerLabel : 'Pending'}
             </div>
-            <div className="col-span-12 lg:col-span-5">
-              <div className="bg-paper-2 border border-rule">
-                <div className="flex justify-between items-center px-3.5 py-2.5 border-b border-rule bg-paper font-mono text-kicker uppercase text-muted">
-                  <span>
-                    <b className="text-ink font-medium">RECORD</b> · {agent.agentName}
-                  </span>
-                  <Badge tone={owner ? 'blue' : 'yellow'} className="text-[9px] px-2 py-0.5">
-                    {owner ? 'VERIFIED OWNER' : 'OWNER PENDING'}
-                  </Badge>
-                </div>
-                <ul className="list-none p-0 m-0">
-                  {links.map((l, i) => (
-                    <li
-                      key={l.kind}
-                      className={`grid grid-cols-[110px_1fr_auto] gap-3 items-center px-5 py-3 ${
-                        i < links.length - 1 ? 'border-b border-rule' : ''
-                      }`}
-                    >
-                      <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-muted">{l.kind}</span>
-                      <span className="font-mono text-[12px] text-ink truncate">{l.value}</span>
-                      <span
-                        className={`font-mono text-[10px] tracking-[0.14em] uppercase px-1.5 py-0.5 border ${
-                          l.state === 'verified' ? 'border-signal-blue text-signal-blue' : 'border-rule text-muted'
-                        }`}
-                      >
-                        {l.state === 'verified' ? '✓ verified' : 'pending'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">{badge.ownerVerified ? 'Ownership proven from both sides and published with the name.' : 'The owner has not finished verification yet.'}</p>
+            <div className="mt-5"><StateChip state={badge.ownerVerified ? 'verified' : 'pending'} /></div>
+          </Card>
+          <Card glow="cyan">
+            <Kicker>Status</Kicker>
+            <div className="mt-3 flex items-center gap-2.5 text-[22px] font-medium tracking-[-0.02em]">
+              <span className="relative flex h-2.5 w-2.5">
+                {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
+                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${online ? 'bg-emerald-500' : hasRuntime ? 'bg-amber-400' : 'bg-zinc-300'}`} />
+              </span>
+              {statusLabel}
+            </div>
+            <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">{hasRuntime ? `${runtimeLabel} runtime. Messages sent to this name are delivered to the agent.` : 'A registered identity with no agent attached yet.'}</p>
+            <div className="mt-5"><StateChip state={hasRuntime ? 'live' : 'pending'} /></div>
+          </Card>
+          <Card>
+            <Kicker>Address</Kicker>
+            <div className="mt-3 break-all font-mono text-[15px] text-zinc-900">{badge.mirrorHost}</div>
+            <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">Where this name resolves. Works in every browser and every agent client.</p>
+            <div className="mt-5"><StateChip state="live" /></div>
+          </Card>
+          <Card>
+            <Kicker>Registered</Kicker>
+            <div className="mt-3 font-mono text-[15px] text-zinc-900">{badge.since}</div>
+            <p className="mt-2 text-[14px] leading-relaxed text-zinc-600">{badge.selfHeldKey ? 'The owner holds the key for this name themselves.' : 'The key for this name is held for hosted delivery and exportable any time.'}</p>
+            <div className="mt-5"><Tag tone="emerald">Permanent name</Tag></div>
+          </Card>
+        </div>
+      </section>
+
+      {/* VERIFIED LINKS */}
+      <section className="border-t border-zinc-200 bg-zinc-50">
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-20">
+          <Kicker>Verified links</Kicker>
+          <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] sm:text-[44px]">Proof, not claims.</h2>
+          <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-zinc-600">Each link below was confirmed from both sides before it appeared here. A checkmark means the other end agreed.</p>
+          {badge.links.length > 0 ? (
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {badge.links.map((l) => (
+                <Card key={`${l.kind}:${l.value}`} glow="emerald">
+                  <Kicker>{l.kind}</Kicker>
+                  <div className="mt-3 break-all font-mono text-[14px] text-zinc-900">{l.value}</div>
+                  <div className="mt-5"><StateChip state="verified" /></div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="mt-10">
+              <p className="m-0 text-[15px] text-zinc-600">No links have been verified for this name yet.</p>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      {/* REACH BY NAME */}
+      <section className="mx-auto w-full max-w-[1200px] px-6 py-20">
+        <Kicker>For developers</Kicker>
+        <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] sm:text-[44px]">Reach this agent by name.</h2>
+        <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2" glow="cyan">
+            <ul className="m-0 list-none divide-y divide-zinc-200 p-0">
+              {records.map((r) => (
+                <li key={r.kind} className="grid grid-cols-12 items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="col-span-4 md:col-span-3 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">{r.kind}</div>
+                  <div className="col-span-8 md:col-span-3 text-[14px] text-zinc-800">{r.name}</div>
+                  <div className="col-span-9 md:col-span-5 break-all font-mono text-[12px] text-zinc-700">
+                    {r.href ? <a href={r.href} className="underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">{r.value}</a> : r.value}
+                  </div>
+                  <div className="col-span-3 md:col-span-1 text-right"><StateChip state={r.state} /></div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <div className="relative overflow-hidden rounded-3xl bg-black p-6 text-white">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div className="relative flex h-full flex-col">
+              <Tag tone="dark">Standard A2A</Tag>
+              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">{badge.cardSigned ? 'Card signed by this name.' : 'A card any agent can read.'}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/65">
+                {badge.cardSigned
+                  ? 'The agent card is signed with the name’s own key and verifiable against its published key set. Any framework that reads agent cards can address this name with no custom integration.'
+                  : 'A standard agent card lives at this name. Any framework that reads agent cards can address it at the A2A endpoint with no custom integration.'}
+              </p>
+              <div className="mt-auto pt-8">
+                <a href={connect} className="inline-block rounded-full bg-white px-5 py-2.5 text-[14px] font-medium text-black hover:bg-zinc-200">Request to connect</a>
               </div>
             </div>
           </div>
-        </Container>
-      </Section>
+        </div>
+      </section>
 
-      <Section id="developers" spacing="tight">
-        <Container>
-          <PlateHead
-            plateNum="P.01"
-            kicker="// FOR_DEVELOPERS"
-            title={
-              <>
-                Reach this agent <Emphasis tone="blue">by name.</Emphasis>
-              </>
-            }
-          />
-          <Grid12 className="gap-4">
-            <div className="col-span-12 md:col-span-7">
-              <ul className="list-none p-0 m-0 font-mono text-[12px]">
-                {[
-                  ['Identity document', `${mirror}/.well-known/did.json`],
-                  ['Agent card', `${mirror}/.well-known/agent-card.json`],
-                  ['A2A endpoint', `${mirror}/a2a`],
-                  ['Connect record', `${mirror}/.well-known/arp-card.json`],
-                  ['Owner proof', `${mirror}/representation.jwt`],
-                ].map(([label, url]) => (
-                  <li key={label} className="grid grid-cols-[140px_1fr] gap-3 py-3 border-t border-rule last:border-b">
-                    <span className="text-kicker uppercase text-muted">{label}</span>
-                    <a href={url} className="text-ink break-all underline decoration-rule hover:decoration-ink">
-                      {url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="col-span-12 md:col-span-5">
-              <div className="mb-3">
-                <Badge tone={cardSigned ? 'blue' : 'yellow'} className="text-[9px] px-2 py-0.5">
-                  {cardSigned ? 'VERIFIED CARD · SIGNED BY THIS NAME' : 'CARD NOT YET SIGNED'}
-                </Badge>
-              </div>
-              <p className="text-body-sm text-ink-2">
-                A standard A2A agent card, signed by the name&apos;s own key and verifiable against its
-                published key set. Any agent framework that reads agent cards can address this name at
-                its A2A endpoint with no custom integration.
-              </p>
-            </div>
-          </Grid12>
-        </Container>
-      </Section>
-    </>
+      {/* CTA */}
+      <section className="relative overflow-hidden bg-black text-white">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-emerald-500/20 blur-3xl" />
+        <div className="relative mx-auto w-full max-w-[1200px] px-6 py-20">
+          <Kicker>Your turn</Kicker>
+          <h2 className="mt-3 max-w-[20ch] text-[40px] font-medium leading-[1.05] tracking-[-0.03em] sm:text-[56px]">Give your agent a name like this.</h2>
+          <p className="mt-5 max-w-[50ch] text-[17px] text-white/65">One permanent name, a page like this one, verified links, and an address other agents can trust.</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={CLAIM} className="rounded-full bg-white px-6 py-3 text-[15px] font-medium text-black hover:bg-zinc-200">Claim a name</a>
+            <a href="/lander" className="rounded-full border border-white/25 px-6 py-3 text-[15px] font-medium text-white hover:border-white">How it works</a>
+          </div>
+        </div>
+      </section>
+
+      <LanderFooter />
+    </LanderShell>
   );
 }
