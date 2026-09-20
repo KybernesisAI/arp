@@ -53,13 +53,14 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
   const mirror = `https://${badge.mirrorHost}`;
   const connect = badge.connectUrl;
 
-  const records: Array<{ kind: string; name: string; value: string; href?: string; state: 'verified' | 'live' | 'pending' }> = [
-    { kind: 'Identity', name: 'Identity document', value: `${badge.mirrorHost}/.well-known/did.json`, href: `${mirror}/.well-known/did.json`, state: 'live' },
-    { kind: 'Card', name: 'Agent card (A2A)', value: `${badge.mirrorHost}/.well-known/agent-card.json`, href: `${mirror}/.well-known/agent-card.json`, state: badge.cardSigned ? 'verified' : 'live' },
-    { kind: 'A2A', name: 'A2A endpoint', value: `${badge.mirrorHost}/a2a`, href: `${mirror}/.well-known/agent-card.json`, state: 'live' },
-    { kind: 'Keys', name: 'Public key set', value: `${badge.mirrorHost}/.well-known/jwks.json`, href: `${mirror}/.well-known/jwks.json`, state: 'live' },
-    { kind: 'Connect', name: 'Connect record', value: `${badge.mirrorHost}/.well-known/arp-card.json`, href: `${mirror}/.well-known/arp-card.json`, state: 'live' },
-    { kind: 'Owner', name: 'Owner proof', value: badge.ownerVerified ? `${badge.mirrorHost}/representation.jwt` : 'not yet verified', href: badge.ownerVerified ? `${mirror}/representation.jwt` : undefined, state: badge.ownerVerified ? 'verified' : 'pending' },
+  // Paths only: the host is already shown in the Address tile, and full URLs wrap mid-word in the tile.
+  const records: Array<{ kind: string; name: string; path: string; href?: string; state: 'verified' | 'live' | 'pending' }> = [
+    { kind: 'Identity', name: 'Identity document', path: '/.well-known/did.json', href: `${mirror}/.well-known/did.json`, state: 'live' },
+    { kind: 'Card', name: 'Agent card (A2A)', path: '/.well-known/agent-card.json', href: `${mirror}/.well-known/agent-card.json`, state: badge.cardSigned ? 'verified' : 'live' },
+    { kind: 'A2A', name: 'A2A endpoint', path: '/a2a', href: `${mirror}/.well-known/agent-card.json`, state: 'live' },
+    { kind: 'Keys', name: 'Public key set', path: '/.well-known/jwks.json', href: `${mirror}/.well-known/jwks.json`, state: 'live' },
+    { kind: 'Connect', name: 'Connect record', path: '/.well-known/arp-card.json', href: `${mirror}/.well-known/arp-card.json`, state: 'live' },
+    { kind: 'Owner', name: 'Owner proof', path: badge.ownerVerified ? '/representation.jwt' : 'not yet verified', href: badge.ownerVerified ? `${mirror}/representation.jwt` : undefined, state: badge.ownerVerified ? 'verified' : 'pending' },
   ];
 
   return (
@@ -155,15 +156,19 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
         <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] sm:text-[44px]">Reach this agent by name.</h2>
         <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2" glow="cyan">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <Kicker>Records</Kicker>
+              <span className="font-mono text-[12px] text-zinc-500">all under <span className="text-zinc-900">{badge.mirrorHost}</span></span>
+            </div>
             <ul className="m-0 list-none divide-y divide-zinc-200 p-0">
               {records.map((r) => (
-                <li key={r.kind} className="grid grid-cols-12 items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="col-span-4 md:col-span-3 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">{r.kind}</div>
-                  <div className="col-span-8 md:col-span-3 text-[14px] text-zinc-800">{r.name}</div>
-                  <div className="col-span-9 md:col-span-5 break-all font-mono text-[12px] text-zinc-700">
-                    {r.href ? <a href={r.href} className="underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">{r.value}</a> : r.value}
+                <li key={r.kind} className="grid grid-cols-12 items-center gap-x-3 gap-y-1 py-3 last:pb-0">
+                  <div className="col-span-4 sm:col-span-2 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">{r.kind}</div>
+                  <div className="col-span-8 sm:col-span-3 text-[14px] text-zinc-800">{r.name}</div>
+                  <div className="col-span-8 sm:col-span-5 min-w-0 truncate font-mono text-[12px] text-zinc-700">
+                    {r.href ? <a href={r.href} title={r.href} className="underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">{r.path}</a> : r.path}
                   </div>
-                  <div className="col-span-3 md:col-span-1 text-right"><StateChip state={r.state} /></div>
+                  <div className="col-span-4 sm:col-span-2 flex justify-end whitespace-nowrap"><StateChip state={r.state} /></div>
                 </li>
               ))}
             </ul>
