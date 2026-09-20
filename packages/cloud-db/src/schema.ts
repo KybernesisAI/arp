@@ -575,6 +575,34 @@ export const agentConnectTickets = pgTable(
   }),
 );
 
+// ------------------------------------------------------------------ name_gifts
+// AgentID: "give this name" links. Cross-tenant by design (from → to); the
+// claim path in apps/cloud/lib/name-gifts.ts is the only writer of to_tenant_id.
+export const NAME_GIFT_STATUSES = ['pending', 'claimed', 'cancelled'] as const;
+export type NameGiftStatus = (typeof NAME_GIFT_STATUSES)[number];
+
+export const nameGifts = pgTable(
+  'name_gifts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    registrationId: uuid('registration_id').notNull(),
+    domain: text('domain').notNull(),
+    fromTenantId: uuid('from_tenant_id').notNull(),
+    toTenantId: uuid('to_tenant_id'),
+    tokenHash: text('token_hash').notNull().unique(),
+    message: text('message'),
+    status: text('status').$type<NameGiftStatus>().notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxDomain: index('idx_name_gifts_domain').on(t.domain),
+    idxFrom: index('idx_name_gifts_from_tenant').on(t.fromTenantId),
+  }),
+);
+
 export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
@@ -586,3 +614,4 @@ export type DomainRegistrationRow = typeof domainRegistrations.$inferSelect;
 export type AgentLinkRow = typeof agentLinks.$inferSelect;
 export type AgentCredentialRow = typeof agentCredentials.$inferSelect;
 export type AgentConnectTicketRow = typeof agentConnectTickets.$inferSelect;
+export type NameGiftRow = typeof nameGifts.$inferSelect;
