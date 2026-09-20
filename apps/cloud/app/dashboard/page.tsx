@@ -13,8 +13,7 @@ import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner'
 import { Card, Kicker, StateChip, Tag } from '@/app/lander/ui';
 import { ClaimName } from './ClaimName';
 import { OutgoingActions, IncomingActions } from './PairingInboxActions';
-import { ProvisionAgentButton } from './ProvisionAgentButton';
-import { UnbindDomainButton } from './UnbindDomainButton';
+import { CreateIdentityButton } from './CreateIdentityButton';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -192,7 +191,7 @@ type IdentityState =
   | 'offline' // runtime attached, not answering
   | 'identity_only' // identity exists, no runtime yet
   | 'setup' // name registered here, identity not created yet
-  | 'bound_only'; // owner binding from a registrar, nothing else here yet
+  | 'bound_only'; // owner proof exists, no identity yet
 
 export interface DashboardIdentity {
   domain: string;
@@ -222,7 +221,7 @@ const STATE_LABEL: Record<IdentityState, string> = {
   offline: 'Offline',
   identity_only: 'Not connected',
   setup: 'Set up needed',
-  bound_only: 'Not set up here',
+  bound_only: 'Identity not created',
 };
 
 function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
@@ -271,10 +270,7 @@ function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
             {a.hasIdentity && <a href={`/pair?from=${encodeURIComponent(a.did)}`} className="rounded-full border border-zinc-300 px-4 py-2 text-[13px] font-medium text-zinc-900 hover:border-zinc-900">Pair</a>}
           </>
         ) : (
-          <>
-            <ProvisionAgentButton domain={a.domain} alreadyProvisioned={false} />
-            <UnbindDomainButton domain={a.domain} hasProvisionedAgent={false} />
-          </>
+          <CreateIdentityButton sld={a.sld} />
         )}
         {a.expiryAt && <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">renews {a.expiryAt.slice(0, 10)}</span>}
       </div>
@@ -383,7 +379,7 @@ async function loadState(): Promise<{
       let attention: string | null = null;
       if (reg?.status === 'failed') attention = reg.error ?? 'Registration failed. Contact support.';
       else if (reg && (reg.status === 'pending_payment' || reg.status === 'registering')) attention = reg.status === 'pending_payment' ? 'Payment not completed yet.' : 'Registering the name…';
-      else if (state === 'setup') attention = 'Create the identity for this name.';
+      else if (state === 'setup' || state === 'bound_only') attention = 'Create the identity for this name.';
       else if (!binding && agent) attention = 'Verify you own this name.';
       else if (state === 'identity_only') attention = 'Connect your agent so it can be reached.';
 
