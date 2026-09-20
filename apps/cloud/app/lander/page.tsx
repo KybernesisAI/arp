@@ -27,18 +27,17 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
 
       {/* WORKS WITH */}
       <section className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-10">
-            <Kicker>Works with</Kicker>
-            <ul className="m-0 flex flex-1 list-none flex-wrap items-center gap-x-14 gap-y-6 p-0 text-zinc-900">
-              {/* Heights tuned so every mark reads at the same optical cap height (~18px). */}
-              <li className="flex items-center"><EveLogo className="h-[20px] w-auto" /></li>
-              <li className="flex items-center text-[24px]"><OpenClawLogo /></li>
-              <li className="flex items-center"><HermesLogo className="h-[22px] w-auto" /></li>
-              <li className="flex items-center"><LangGraphLogo className="h-[33px] w-auto" /></li>
-              <li className="flex items-center text-[24px]"><GrokBotLogo /></li>
-            </ul>
-          </div>
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center gap-7 px-6 py-12 text-center">
+          <Kicker>Works with</Kicker>
+          {/* Heights tuned so every mark reads at the same optical cap height (~20px). */}
+          <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-16 gap-y-7 p-0 text-zinc-900">
+            <li className="flex items-center"><EveLogo className="h-[23px] w-auto" /></li>
+            <li className="flex items-center text-[27px]"><OpenClawLogo /></li>
+            <li className="flex items-center"><HermesLogo className="h-[24px] w-auto" /></li>
+            <li className="flex items-center"><LangGraphLogo className="h-[37px] w-auto" /></li>
+            <li className="flex items-center text-[27px]"><GrokBotLogo /></li>
+          </ul>
+          <div className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">+ any agent with a URL</div>
         </div>
       </section>
 
