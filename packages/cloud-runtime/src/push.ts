@@ -20,6 +20,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { SignJWT, exportJWK, importJWK, type JWK, type KeyLike } from 'jose';
+import { toTenantId, withTenant } from '@kybernesis/arp-cloud-db';
 import type { CloudDbClient, AgentRow } from '@kybernesis/arp-cloud-db';
 import { signEnvelope } from '@kybernesis/arp-transport';
 import type { DidCommMessage } from '@kybernesis/arp-transport';
@@ -315,6 +316,9 @@ export async function deliverPush(
     log.warn({ err: (err as Error).message }, 'push_delivery_failed');
     return { ok: false, error: (err as Error).message };
   }
+  // The runtime answered: that is a heartbeat. Push agents have no socket, so
+  // this is the only signal "online" can be derived from.
+  await withTenant(db, toTenantId(input.agent.tenantId)).updateAgent(input.agent.did, { lastSeenAt: new Date() }).catch((err: Error) => log.warn({ err: err.message }, 'push_last_seen_failed'));
 
   // Do not reply to a reply — a `/response` delivered by push is terminal.
   const isResponse = input.msg.type.endsWith('/response') || input.msg.type.endsWith('.response');

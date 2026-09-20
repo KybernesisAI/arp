@@ -5,6 +5,7 @@ import { registrarBindings } from '@kybernesis/arp-cloud-db';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
+import { agentLiveness } from '@/lib/agent-liveness';
 import { AppShell } from '@/components/app/AppShell';
 import { Badge, Card, Code, Dot, Link, PlateHead, Pre } from '@/components/ui';
 import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
@@ -183,7 +184,7 @@ export default async function NameRecordsPage(props: {
                 <div className="font-mono text-kicker uppercase text-muted mb-1">RUNTIME</div>
                 <span className="font-mono text-[12px] inline-flex items-center gap-2">
                   <Dot tone={agent.runtimeKind === 'none' ? 'yellow' : agent.online ? 'green' : 'red'} />
-                  {agent.runtimeKind === 'none' ? 'not attached' : agent.runtimeKind === 'bridge' ? (agent.online ? 'self-hosted · online' : 'self-hosted · offline') : 'hosted'}
+                  {agent.runtimeKind === 'none' ? 'not attached' : agent.runtimeKind === 'bridge' ? (agent.online ? 'self-hosted · online' : 'self-hosted · offline') : agent.online ? 'connected · online' : 'connected · offline'}
                 </span>
               </div>
               <div className="col-span-6 md:col-span-4">
@@ -234,7 +235,6 @@ async function loadState(sld: string) {
       .limit(1),
   ]);
   if (!registration && !agentRow) return null;
-  const now = Date.now();
   return {
     domain,
     tenantId: tenantDb.tenantId,
@@ -249,7 +249,7 @@ async function loadState(sld: string) {
           runtimeKind: agentRow.runtimeKind,
           pushKind: agentRow.pushKind,
           pushUrl: agentRow.pushUrl,
-          online: agentRow.lastSeenAt ? now - agentRow.lastSeenAt.getTime() <= 5 * 60 * 1000 : false,
+          online: (await agentLiveness(agentRow)) === 'online',
           wellKnownDid: agentRow.wellKnownDid,
           wellKnownAgentCard: agentRow.wellKnownAgentCard,
           wellKnownA2aCard: agentRow.wellKnownA2aCard,
