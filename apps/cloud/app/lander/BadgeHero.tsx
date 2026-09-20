@@ -40,6 +40,9 @@ export function BadgeHero({ badge, children, zoom = 1.7, narrowZoom = 1.35, minH
 
   return (
     <section ref={heroRef} className="relative overflow-hidden bg-black text-white">
+      {/* Same emerald burst as the primary pricing card, scaled to the hero: a circle
+          about the hero's height, offset a third of its size past the top-right corner. */}
+      <div className="pointer-events-none absolute -right-40 -top-40 z-0 h-[520px] w-[520px] rounded-full bg-emerald-500/25 blur-3xl lg:-right-64 lg:-top-64 lg:h-[760px] lg:w-[760px]" />
       {wide && (
         <div className="absolute inset-0 z-0">
           <AgentBadge data={badge} theme="dark" zoom={zoom} anchorX={anchorX} eventSource={heroRef} />
