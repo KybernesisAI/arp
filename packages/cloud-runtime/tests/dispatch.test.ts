@@ -317,6 +317,26 @@ describe('dispatchInbound', () => {
     expect(entries[0]?.reason).toBe('auto_allow_response');
   });
 
+  it('denies when the connection is past its lifetime, even though the row is still active', async () => {
+    await h.createActiveConnection('conn_exp01', undefined, { expiresAt: new Date(Date.now() - 60_000) });
+    const envelope = await h.signFromPeer({
+      id: 'msg-exp-1',
+      type: 'https://didcomm.org/arp/1.0/request',
+      from: h.peerDid,
+      to: [h.agentDid],
+      body: { connection_id: 'conn_exp01', text: 'hello' },
+    });
+    const result = await dispatchInbound(
+      { tenantDb: h.tenantDb, tenantId: h.tenantId, agentDid: h.agentDid, audit: h.audit, pdp: h.pdp, resolver: h.resolver, sessions: h.sessions, logger: h.logger, metrics: h.metrics, now: () => Date.now() },
+      envelope,
+    );
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('connection_expired');
+    const entries = await h.audit.list(h.agentDid, 'conn_exp01');
+    expect(entries[0]?.decision).toBe('deny');
+    expect(entries[0]?.reason).toBe('connection_expired');
+  });
+
   it('denies when connection revoked', async () => {
     await h.createActiveConnection('conn_rev01');
     await h.tenantDb.updateConnectionStatus('conn_rev01', 'revoked', 'owner');
