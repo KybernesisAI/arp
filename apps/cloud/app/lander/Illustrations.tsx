@@ -211,7 +211,7 @@ export function ProblemHandlesArt(): React.JSX.Element {
     ['sam_assistant_v2', 'platform'],
   ];
   return (
-    <Panel className="h-full min-h-[200px]">
+    <Panel className="h-[236px]">
       <div className="absolute inset-5 flex flex-wrap content-start gap-2">
         {items.map(([h, k], i) => (
           <span key={h} className={`inline-flex items-center gap-2 rounded-full border border-dashed border-zinc-300 bg-white/80 px-3 py-1.5 font-mono text-[12px] text-zinc-500 ${i % 2 ? 'rotate-[1.5deg]' : 'rotate-[-1.5deg]'}`}>
