@@ -12,7 +12,7 @@ import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { MigrateToPasskeyBanner } from '@/components/app/MigrateToPasskeyBanner';
 import { Card, Kicker, StateChip, Tag } from '@/app/lander/ui';
 import { ClaimName } from './ClaimName';
-import { OutgoingActions, IncomingActions } from './PairingInboxActions';
+import { OutgoingRequestActions, IncomingRequestActions } from './PairingRequestActions';
 import { CreateIdentityButton } from './CreateIdentityButton';
 
 export const runtime = 'nodejs';
@@ -79,7 +79,7 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
                   {nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nameByDid.get(inv.audienceDid) ?? nice(inv.audienceDid)}
                 </p>
                 <p className="mt-1 text-[14px] text-zinc-600">Review what they ask for, choose what you grant back, then approve.</p>
-                <div className="mt-5"><IncomingActions invitationId={inv.id} acceptHref={inv.acceptHref} /></div>
+                <div className="mt-5"><IncomingRequestActions invitationId={inv.id} acceptHref={inv.acceptHref} /></div>
               </Card>
             ))}
             {outgoingInvitations.map((inv) => (
@@ -91,8 +91,8 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
                 <p className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-zinc-900">
                   {nameByDid.get(inv.issuerAgentDid) ?? nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nice(inv.audienceDid)}
                 </p>
-                <p className="mt-1 text-[14px] text-zinc-600">Share the link with the other owner; the connection opens when they approve.</p>
-                <div className="mt-5"><OutgoingActions invitationId={inv.id} invitationUrl={inv.invitationUrl} /></div>
+                <p className="mt-1 text-[14px] text-zinc-600">{inv.approveHref ? 'Both agents are yours, so you can approve it right here.' : 'Share the link with the other owner; the connection opens when they approve.'}</p>
+                <div className="mt-5"><OutgoingRequestActions invitationId={inv.id} invitationUrl={inv.invitationUrl} approveHref={inv.approveHref} /></div>
               </Card>
             ))}
           </div>
@@ -294,7 +294,7 @@ async function loadState(): Promise<{
   tenant: { plan: string; status: string };
   identities: DashboardIdentity[];
   hasPasskey: boolean;
-  outgoingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; invitationUrl: string }>;
+  outgoingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; invitationUrl: string; approveHref: string | null }>;
   incomingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; acceptHref: string }>;
   recentActivity: ActivityEntry[];
   totalActiveConnections: number;
@@ -451,7 +451,8 @@ async function loadState(): Promise<{
     tenant: { plan: tenant.plan, status: tenant.status },
     identities,
     hasPasskey: passkeys.length > 0,
-    outgoingInvitations: outgoingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), invitationUrl: `${baseUrl}/pair/accept#${r.payload}` })),
+    // When the other agent is also this account's, the owner can approve here (same signed payload).
+    outgoingInvitations: outgoingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), invitationUrl: `${baseUrl}/pair/accept#${r.payload}`, approveHref: myAgentDids.includes(r.audienceDid) ? `/pair/accept#${r.payload}` : null })),
     incomingInvitations: incomingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), acceptHref: `/pair/accept#${r.payload}` })),
     recentActivity,
     totalActiveConnections,
