@@ -58,7 +58,7 @@ export interface TestHarness {
   metrics: ReturnType<typeof createInMemoryMetrics>;
   logger: ReturnType<typeof createSilentLogger>;
   signFromPeer: (msg: DidCommMessage) => Promise<string>;
-  createActiveConnection: (connectionId: string, cedarPolicies?: string[]) => Promise<void>;
+  createActiveConnection: (connectionId: string, cedarPolicies?: string[], opts?: { expiresAt?: Date | null }) => Promise<void>;
 }
 
 const BASIC_PERMIT_POLICY = 'permit(principal, action, resource);';
@@ -129,6 +129,7 @@ export async function createTestHarness(params?: {
   async function createActiveConnection(
     connectionId: string,
     cedarPolicies: string[] = [BASIC_PERMIT_POLICY],
+    opts: { expiresAt?: Date | null } = {},
   ): Promise<void> {
     const token: ConnectionToken = {
       connection_id: connectionId,
@@ -154,7 +155,7 @@ export async function createTestHarness(params?: {
       obligations: [],
       scopeCatalogVersion: 'v1',
       metadata: null,
-      expiresAt: null,
+      expiresAt: opts.expiresAt ?? null,
     });
   }
 

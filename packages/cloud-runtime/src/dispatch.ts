@@ -138,6 +138,19 @@ export async function dispatchVerifiedMessage(
     });
     return { ok: false, decision: 'deny', reason: `connection_${conn.status}` };
   }
+  // A connection past its agreed lifetime is closed even though its row still
+  // says `active` — nothing sweeps rows, so the check happens at use time.
+  if (conn.expiresAt && conn.expiresAt.getTime() <= ctx.now()) {
+    await ctx.audit.append({
+      agentDid: ctx.agentDid,
+      connectionId,
+      msgId: msg.id,
+      decision: 'deny',
+      policiesFired: [],
+      reason: 'connection_expired',
+    });
+    return { ok: false, decision: 'deny', reason: 'connection_expired' };
+  }
   if (await ctx.tenantDb.isRevoked(ctx.agentDid, 'connection', connectionId)) {
     await ctx.audit.append({
       agentDid: ctx.agentDid,
@@ -201,6 +214,10 @@ export async function dispatchVerifiedMessage(
     decisionVerdict = decision.decision;
     policiesFired = decision.policies_fired;
     reasons = decision.reasons;
+    // Cedar has nothing to say when no policy matched; the audit line should still say what was refused.
+    if (decision.decision === 'deny' && reasons.length === 0) {
+      reasons = [`policy_denied: ${mapped.action} on ${mapped.resource.type}::"${mapped.resource.id}"`];
+    }
   } else {
     reasons = ['auto_allow_response'];
   }

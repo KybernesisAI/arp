@@ -481,7 +481,8 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
    * this agent is the `peer_did` is equally its own. `peer` is the other side.
    */
   async function activeConnectionsFor(tenantDb: ReturnType<typeof withTenant>, did: string) {
-    const all = await tenantDb.listConnections({ status: 'active' });
+    // `active` rows past their lifetime are not connections any more (dispatch denies them too).
+    const all = (await tenantDb.listConnections({ status: 'active' })).filter((k) => !k.expiresAt || k.expiresAt.getTime() > now());
     return all
       .filter((k) => k.agentDid === did || k.peerDid === did)
       .map((k) => ({ row: k, peer: k.agentDid === did ? k.peerDid : k.agentDid }));

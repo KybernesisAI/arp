@@ -100,7 +100,7 @@ export function PairForm({
     // intentionally only run when peer query changes
   }, [normalisedPeerQuery]);
   const [purpose, setPurpose] = useState('Test connection');
-  const [expiresDays, setExpiresDays] = useState(1);
+  const [expiresDays, setExpiresDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedState | null>(null);
