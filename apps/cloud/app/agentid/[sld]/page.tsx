@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { agents } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
 import { loadBadgeData, normalizeBadgeSld } from '@/lib/badge-data';
+import { agentLiveness } from '@/lib/agent-liveness';
 import { BadgeHero } from '@/app/lander/BadgeHero';
 import { CLAIM, Card, HeroPill, Kicker, LanderFooter, LanderNav, LanderShell, StateChip, Tag } from '@/app/lander/ui';
 
@@ -12,7 +13,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
-const ACTIVE_MS = 5 * 60 * 1000;
 
 export async function generateMetadata(props: { params: Promise<{ sld: string }> }): Promise<Metadata> {
   const { sld: raw } = await props.params;
@@ -41,12 +41,13 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
   const db = await getDb();
   const [badge, agentRows] = await Promise.all([
     loadBadgeData(sld),
-    db.select({ lastSeenAt: agents.lastSeenAt, runtimeKind: agents.runtimeKind, createdAt: agents.createdAt }).from(agents).where(eq(agents.did, agentDid)).limit(1),
+    db.select({ lastSeenAt: agents.lastSeenAt, runtimeKind: agents.runtimeKind, pushKind: agents.pushKind, pushUrl: agents.pushUrl, createdAt: agents.createdAt }).from(agents).where(eq(agents.did, agentDid)).limit(1),
   ]);
   const agent = agentRows[0];
   if (!agent) notFound();
 
-  const online = agent.lastSeenAt ? Date.now() - agent.lastSeenAt.getTime() <= ACTIVE_MS : false;
+  const liveness = await agentLiveness(agent);
+  const online = liveness === 'online';
   const hasRuntime = agent.runtimeKind !== 'none';
   const runtimeLabel = !hasRuntime ? 'Not attached' : agent.runtimeKind === 'bridge' ? 'Self-hosted' : 'Hosted';
   const statusLabel = online ? 'Online' : hasRuntime ? 'Offline' : 'Identity only';
@@ -69,7 +70,7 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
 
       <BadgeHero badge={badge} zoom={1.6} minHeight="lg:h-[680px]">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 font-mono text-[12px] uppercase tracking-[0.14em] text-white/60">
-          <span className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : hasRuntime ? 'bg-amber-400' : 'bg-white/40'}`} /> {statusLabel} · since {badge.since}
+          <span className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : hasRuntime ? 'bg-amber-400' : 'bg-white/40'}`} /> {statusLabel} · registered {badge.since}
         </div>
         <h1 className="break-words text-[44px] font-medium leading-[1.02] tracking-[-0.03em] sm:text-[60px] lg:text-[68px]">
           {sld}<span className="text-white/45">.agent</span>
