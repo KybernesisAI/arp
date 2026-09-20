@@ -6,6 +6,7 @@ import {
   AudienceGlyph, ConnectFlowArt, KeysArt, LinksArt, MiniBadgeArt, NameArt, PaymentsArt, PortableArt,
   ProblemHandlesArt, ProblemIcon, ProfileArt, ReachArt, StepClaimArt, StepConnectArt, StepLinkArt,
 } from './Illustrations';
+import { EveLogo, GrokLogo, HermesLogo, LangGraphLogo, OpenClawLogo } from './Logos';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,11 +88,18 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
 
       {/* WORKS WITH */}
       <section className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center gap-x-10 gap-y-3 px-6 py-6">
-          <Kicker>Works with</Kicker>
-          {['Kybernesis Eve', 'OpenClaw', 'Hermes', 'LangGraph', 'Any agent with a URL'].map((n) => (
-            <span key={n} className="text-[14px] font-medium text-zinc-700">{n}</span>
-          ))}
+        <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-10">
+            <Kicker>Works with</Kicker>
+            <ul className="m-0 flex flex-1 list-none flex-wrap items-center gap-x-10 gap-y-5 p-0 text-zinc-900">
+              <li className="flex items-center"><EveLogo className="h-[22px] w-auto" /></li>
+              <li className="flex items-center text-[17px]"><OpenClawLogo /></li>
+              <li className="flex items-center"><HermesLogo className="h-[18px] w-auto" /></li>
+              <li className="flex items-center"><LangGraphLogo className="h-[26px] w-auto" /></li>
+              <li className="flex items-center"><GrokLogo className="h-[24px] w-auto" /></li>
+              <li className="flex items-center font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">+ any agent with a URL</li>
+            </ul>
+          </div>
         </div>
       </section>
 
