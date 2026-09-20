@@ -22,7 +22,7 @@ import { schnorr } from '@noble/curves/secp256k1';
 import { bech32 } from '@scure/base';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AgentLinkKind, AgentLinkRow, AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
-import { buildDidDocument } from '@kybernesis/arp-templates';
+import { agentAvatarUrl, agentProfileUrl, buildDidDocument } from '@kybernesis/arp-templates';
 import { buildSignedA2aCard, openPrivateKey, sealingKey } from './key-custody';
 
 // ------------------------------------------------------------------ errors
@@ -347,12 +347,19 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
     if (v) aka.add(v);
   }
 
+  let docOrigin: string;
+  try {
+    docOrigin = new URL(agentCard).origin;
+  } catch {
+    docOrigin = new URL(didcomm).origin;
+  }
   const doc = buildDidDocument({
     agentDid,
     controllerDid: agent.principalDid,
     publicKeyMultibase: agent.publicKeyMultibase,
     endpoints: { didcomm, agentCard },
     representationVcUrl: repUrl,
+    profileUrl: agentProfileUrl(docOrigin),
     ...(aka.size > 0 ? { alsoKnownAs: [...aka] } : {}),
   }) as Record<string, unknown>;
 
@@ -379,12 +386,14 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
       agent.keyCustody === 'cloud' && agent.privateKeyEnc
         ? openPrivateKey(agent.privateKeyEnc, sealingKey({ ARP_CLOUD_KEY_ENCRYPTION_KEY: process.env['ARP_CLOUD_KEY_ENCRYPTION_KEY'] ?? null }))
         : null;
+    const iconUrl = agentAvatarUrl(origin, Boolean(agent.avatarData));
     a2aCard = await buildSignedA2aCard({
       did: agentDid,
       name: agent.agentName,
       description: agent.agentDescription || 'Personal agent',
       origin,
       privateKeyRaw: seed,
+      ...(iconUrl ? { iconUrl } : {}),
     });
     seed?.fill(0);
   } catch {

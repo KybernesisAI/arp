@@ -117,6 +117,11 @@ export const agents = pgTable(
     // AgentID S4: push delivery target (runtime_kind = 'push').
     pushUrl: text('push_url'),
     pushKind: text('push_kind').$type<'eve' | 'generic'>(),
+    // AgentID S6c: the identity profile. Picture is base64 (≤ 400 KB), served at <mirror>/avatar.png.
+    avatarData: text('avatar_data'),
+    avatarMime: text('avatar_mime'),
+    accent: text('accent'),
+    profileUpdatedAt: timestamp('profile_updated_at', { withTimezone: true }),
     // AgentID S5: signed A2A v1.0 card served at /.well-known/agent-card.json.
     wellKnownA2aCard: jsonb('well_known_a2a_card'),
   },

@@ -209,6 +209,9 @@ describe('mirror host (<sld>.agent.arp.run)', () => {
     expect(wk?.headers.get('x-middleware-rewrite')).toBe(
       'https://gateway.arp.run/.well-known/did.json?target=samantha.agent',
     );
+    const avatar = rewriteForMirror(mk('/avatar.png'), 'samantha.agent.arp.run');
+    expect(avatar?.headers.get('x-middleware-rewrite')).toContain('/avatar.png');
+    expect(avatar?.headers.get('x-middleware-rewrite')).toContain('target=samantha.agent');
     const rep = rewriteForMirror(mk('/representation.jwt?v=1'), 'samantha.agent.arp.run');
     expect(rep?.headers.get('x-middleware-rewrite')).toBe(
       'https://gateway.arp.run/representation.jwt?v=1&target=samantha.agent',

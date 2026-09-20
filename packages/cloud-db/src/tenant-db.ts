@@ -72,6 +72,10 @@ export interface TenantDb {
       | 'pushUrl'
       | 'pushKind'
       | 'wellKnownA2aCard'
+      | 'avatarData'
+      | 'avatarMime'
+      | 'accent'
+      | 'profileUpdatedAt'
     > & {
       wsSessionId?: string | null;
       lastSeenAt?: Date | null;
@@ -82,6 +86,10 @@ export interface TenantDb {
       pushUrl?: string | null;
       pushKind?: AgentRow['pushKind'];
       wellKnownA2aCard?: unknown;
+      avatarData?: string | null;
+      avatarMime?: string | null;
+      accent?: string | null;
+      profileUpdatedAt?: Date | null;
     },
   ): Promise<AgentRow>;
   updateAgent(
@@ -102,6 +110,10 @@ export interface TenantDb {
         | 'pushUrl'
         | 'pushKind'
         | 'wellKnownA2aCard'
+        | 'avatarData'
+        | 'avatarMime'
+        | 'accent'
+        | 'profileUpdatedAt'
       >
     >,
   ): Promise<void>;

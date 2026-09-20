@@ -28,7 +28,7 @@ import { connectionTokenBearer, createA2aTransport, type FetchLike } from '@kybe
 import { handleA2aRequest, type JsonRpcRequest } from './a2a.js';
 import { handleBootstrap, handleInternalConnect } from './connect.js';
 import { ed25519ToJwk, multibaseEd25519ToRaw, signAgentCard } from '@kybernesis/arp-transport';
-import { buildA2aAgentCard } from '@kybernesis/arp-templates';
+import { agentAvatarUrl, buildA2aAgentCard, buildAgentProfileDocument } from '@kybernesis/arp-templates';
 import { openPrivateKey } from './custody.js';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PostgresAudit } from './audit.js';
@@ -246,6 +246,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
     }
     try {
+      const iconUrl = agentAvatarUrl(origin, Boolean(row.avatarData));
       const card = buildA2aAgentCard({
         name: row.agentName,
         description: row.agentDescription || 'Personal agent',
@@ -253,6 +254,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         origin,
         pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(ctx.agentDid)}`,
         provider: { organization: sld, url: `https://agent.arp.run/${sld}` },
+        ...(iconUrl ? { iconUrl } : {}),
       }) as Record<string, unknown>;
       let out = card;
       if (canSign && row.privateKeyEnc && opts.push) {
@@ -321,6 +323,60 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
   // AgentID S3 / L4: NIP-05 identifier document. `_@<sld>.agent` (and the
   // mirror form) maps to the verified nostr key linked to this identity, so
   // any nostr client shows the name as verified once the profile sets nip05.
+  // AgentID S6c: the identity profile. The picture is served from the name's
+  // own address; the JSON document is what Buzz, the control plane and any
+  // directory read to learn how the agent presents itself.
+  app.get('/avatar.png', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx || !ctx.agentRow.avatarData) return c.json({ error: 'not_found' }, 404);
+    const bytes = Buffer.from(ctx.agentRow.avatarData, 'base64');
+    return c.newResponse(bytes, 200, {
+      'Content-Type': ctx.agentRow.avatarMime ?? 'image/png',
+      'Content-Length': String(bytes.byteLength),
+      'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*',
+      ...(ctx.agentRow.profileUpdatedAt ? { 'Last-Modified': ctx.agentRow.profileUpdatedAt.toUTCString() } : {}),
+    });
+  });
+
+  app.get('/.well-known/agent-profile.json', async (c) => {
+    const host = effectiveHost(c);
+    const ctx = await resolveAgentContext(host);
+    if (!ctx) return c.json({ error: 'unknown_agent' }, 404);
+    const row = ctx.agentRow;
+    const sld = ctx.agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '');
+    const fromDoc = (row.wellKnownDid as { service?: Array<{ type: string; serviceEndpoint: string }> } | null)?.service?.find((svc) => svc.type === 'AgentCard')?.serviceEndpoint;
+    let origin: string;
+    try {
+      origin = fromDoc ? new URL(fromDoc).origin : `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+    } catch {
+      origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+    }
+    const links = await opts.db
+      .select({ kind: agentLinks.kind, value: agentLinks.value, verifiedAt: agentLinks.verifiedAt })
+      .from(agentLinks)
+      .where(and(eq(agentLinks.agentDid, ctx.agentDid), eq(agentLinks.status, 'verified')))
+      .orderBy(desc(agentLinks.verifiedAt));
+    const doc = buildAgentProfileDocument({
+      did: ctx.agentDid,
+      handle: sld,
+      name: row.agentName,
+      description: row.agentDescription,
+      picture: agentAvatarUrl(origin, Boolean(row.avatarData)),
+      accent: row.accent ?? null,
+      profileUrl: `${(opts.profileBase ?? 'https://agent.arp.run').replace(/\/+$/, '')}/${sld}`,
+      origin,
+      links: links.map((l) => ({ kind: l.kind, value: l.value, verified_at: l.verifiedAt?.toISOString() ?? null })),
+      updatedAt: (row.profileUpdatedAt ?? row.createdAt).toISOString(),
+    });
+    return c.newResponse(JSON.stringify(doc), 200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'Access-Control-Allow-Origin': '*',
+    });
+  });
+
   app.get('/.well-known/nostr.json', async (c) => {
     const host = effectiveHost(c);
     const ctx = await resolveAgentContext(host);
