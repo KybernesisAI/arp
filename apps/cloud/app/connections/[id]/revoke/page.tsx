@@ -1,7 +1,8 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { AppShell } from '@/components/app/AppShell';
-import { Badge, Card, Code, Link, PlateHead } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
+import { Badge, Card, Code, Link } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { RevokeConfirmForm } from './RevokeConfirmForm';
 
@@ -33,7 +34,7 @@ export default async function RevokeConfirmPage(props: {
   }
 
   return (
-    <AppShell>
+    <ConsoleShell active="connections">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link
           href={`/connections/${encodeURIComponent(id)}`}
@@ -42,7 +43,7 @@ export default async function RevokeConfirmPage(props: {
           ← CONNECTION
         </Link>
       </div>
-      <PlateHead
+      <ConsoleHead
         plateNum="C.04"
         kicker="// REVOKE · OWNER-INITIATED TEARDOWN"
         title="Revoke connection"
@@ -80,7 +81,7 @@ export default async function RevokeConfirmPage(props: {
           </Link>
         </div>
       </div>
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

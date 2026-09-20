@@ -1,13 +1,12 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { AppShell } from '@/components/app/AppShell';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import {
   Badge,
   Card,
   Code,
-  Link,
-  PlateHead,
-} from '@/components/ui';
+  Link } from '@/components/ui';
 import { ConnectionActions } from './ConnectionActions';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 
@@ -44,13 +43,13 @@ export default async function ConnectionDetailPage(props: {
         : 'yellow';
 
   return (
-    <AppShell>
+    <ConsoleShell active="connections">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link href="/connections" variant="mono">
           ← CONNECTIONS
         </Link>
       </div>
-      <PlateHead
+      <ConsoleHead
         plateNum="C.02"
         kicker={`// CONNECTION · ${agentName.toUpperCase()} → PEER`}
         title={connection.purpose ?? connection.connectionId}
@@ -234,7 +233,7 @@ export default async function ConnectionDetailPage(props: {
           </p>
         </Card>
       )}
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

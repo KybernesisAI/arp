@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { LanderShell } from '@/app/lander/ui';
+import '@/app/console-theme.css';
 import { ConsoleLogout } from './ConsoleLogout';
 
 /**

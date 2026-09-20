@@ -1,0 +1,91 @@
+/*
+ * Console theme (AgentID): re-skins the Swiss primitives when they render
+ * inside the lander-language shell (`.lander`, set by LanderShell/ConsoleShell).
+ * The primitives keep their behaviour; only tokens and shapes change:
+ * Inter + Space Mono, white paper, zinc hairlines, black accent, pill
+ * buttons, rounded cards. Pages moved to ConsoleShell pick this up with no
+ * markup change; hand-built lander markup is unaffected.
+ */
+
+.lander {
+  --arp-paper: #ffffff;
+  --arp-paper-2: #fafafa;
+  --arp-ink: #09090b;
+  --arp-ink-2: #52525b;
+  --arp-muted: #71717a;
+  --arp-rule: #e4e4e7;
+}
+
+/* Type */
+.lander .font-display { font-family: Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -0.02em; }
+.lander .text-h1 { font-size: 34px; line-height: 1.05; letter-spacing: -0.025em; }
+.lander .text-h3 { font-size: 20px; line-height: 1.15; letter-spacing: -0.015em; }
+.lander .text-h4 { font-size: 18px; line-height: 1.2; letter-spacing: -0.01em; }
+.lander .text-h5 { font-size: 16px; line-height: 1.25; letter-spacing: -0.01em; }
+.lander .text-kicker { font-size: 11px; letter-spacing: 0.14em; }
+
+/* Accent: the Swiss electric blue becomes black on white; yellow becomes a soft amber; green emerald. */
+.lander .text-signal-blue { color: #09090b; }
+.lander .bg-signal-blue { background-color: #09090b; }
+.lander .border-signal-blue { border-color: #09090b; }
+.lander .bg-signal-yellow { background-color: rgb(245 158 11 / 0.12); }
+.lander .border-signal-yellow { border-color: rgb(245 158 11 / 0.35); }
+.lander .text-signal-red { color: #b45309; }
+.lander .bg-signal-red { background-color: #b45309; }
+.lander .bg-signal-green { background-color: #10b981; }
+.lander .text-signal-green { color: #047857; }
+
+/* Cards and rule-matrices: rounded, hairline, no hard edges. */
+.lander div.border-rule.bg-paper-2, .lander div.border-rule.bg-paper { border-radius: 1.5rem; overflow: hidden; }
+.lander .bg-rule.gap-px.border { background: #fff; gap: 1rem; border: 0; }
+.lander .bg-rule.gap-px.border > * { border: 1px solid #e4e4e7; border-radius: 1.25rem; }
+
+/* Buttons (cva recipe: inline-flex + border + uppercase + font-mono). */
+.lander button.uppercase.font-mono.border, .lander a.uppercase.font-mono.border {
+  font-family: Inter, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  border-radius: 9999px;
+  font-size: 13px;
+  height: 2.375rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.lander button.uppercase.font-mono.border.h-14, .lander a.uppercase.font-mono.border.h-14 { height: 2.75rem; padding-left: 1.5rem; padding-right: 1.5rem; font-size: 15px; }
+.lander button.uppercase.font-mono.border.bg-paper, .lander a.uppercase.font-mono.border.bg-paper,
+.lander button.uppercase.font-mono.border.bg-transparent, .lander a.uppercase.font-mono.border.bg-transparent { border-color: #d4d4d8; }
+.lander button.uppercase.font-mono.border.bg-paper:hover, .lander a.uppercase.font-mono.border.bg-paper:hover,
+.lander button.uppercase.font-mono.border.bg-transparent:hover, .lander a.uppercase.font-mono.border.bg-transparent:hover { background: #fff; color: #09090b; border-color: #09090b; }
+.lander button.uppercase.font-mono.border.bg-signal-blue:hover, .lander a.uppercase.font-mono.border.bg-signal-blue:hover { background: #27272a; border-color: #27272a; }
+
+/* Badges */
+.lander span.font-mono.uppercase.border.px-2\.5, .lander span.font-mono.uppercase.border.px-2 { border-radius: 9999px; }
+.lander span.font-mono.uppercase.border.bg-signal-blue { background: rgb(16 185 129 / 0.1); color: #047857; border-color: rgb(16 185 129 / 0.3); }
+.lander span.font-mono.uppercase.border.bg-signal-yellow { background: rgb(245 158 11 / 0.1); color: #b45309; border-color: rgb(245 158 11 / 0.35); }
+.lander span.font-mono.uppercase.border.bg-signal-red { background: rgb(180 83 9 / 0.1); color: #b45309; border-color: rgb(180 83 9 / 0.35); }
+.lander span.font-mono.uppercase.border.bg-ink { background: #09090b; color: #fff; }
+
+/* Inputs */
+.lander input.border.bg-paper-2, .lander select.border, .lander textarea.border.bg-paper-2 {
+  background: #fff;
+  border-radius: 0.875rem;
+  border-color: #d4d4d8;
+  font-size: 15px;
+  padding: 0.625rem 0.875rem;
+}
+.lander input.border.bg-paper-2::placeholder, .lander textarea.border.bg-paper-2::placeholder { text-transform: none; letter-spacing: 0; font-size: 15px; }
+.lander input.border.bg-paper-2:focus-visible, .lander textarea.border.bg-paper-2:focus-visible { border-color: #09090b; }
+.lander textarea.border.bg-paper-2 { border-radius: 1rem; font-family: Inter, -apple-system, sans-serif; }
+
+/* Code + pre */
+.lander code.bg-paper-2, .lander pre.bg-paper-2 { border-radius: 0.5rem; background: #f4f4f5; border-color: #e4e4e7; }
+.lander pre.bg-paper-2 { border-radius: 1rem; }
+
+/* Section rules and list dividers */
+.lander .border-rule { border-color: #e4e4e7; }
+.lander .divide-rule > :not([hidden]) ~ :not([hidden]) { border-color: #e4e4e7; }
+
+/* Mono links (`variant="mono"`) */
+.lander a.font-mono.uppercase.border-b { border-bottom-color: transparent; color: #71717a; }
+.lander a.font-mono.uppercase.border-b:hover { color: #09090b; border-bottom-color: transparent; text-decoration: underline; text-underline-offset: 4px; }

@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { getSession } from '@/lib/session';
-import { AppShell } from '@/components/app/AppShell';
-import { PlateHead } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import { GiftClient } from './GiftClient';
 
 export const runtime = 'nodejs';
@@ -19,9 +19,9 @@ export const dynamic = 'force-dynamic';
 export default async function GiftPage(): Promise<React.JSX.Element> {
   const session = await getSession();
   return (
-    <AppShell>
-      <PlateHead plateNum="G.01" kicker="// A NAME FOR YOU" title="You've been given a name." />
+    <ConsoleShell active="agents">
+      <ConsoleHead plateNum="G.01" kicker="// A NAME FOR YOU" title="You've been given a name." />
       <GiftClient principalDid={session?.principalDid ?? null} hasTenant={Boolean(session?.tenantId)} />
-    </AppShell>
+    </ConsoleShell>
   );
 }

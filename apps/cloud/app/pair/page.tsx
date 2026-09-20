@@ -6,10 +6,9 @@ import { getScopeCatalog } from '@/lib/catalog';
 import {
   Badge,
   Card,
-  Code,
-  PlateHead,
-} from '@/components/ui';
-import { AppShell } from '@/components/app/AppShell';
+  Code } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import { PairForm } from './PairForm';
 
 export const runtime = 'nodejs';
@@ -50,8 +49,8 @@ export default async function PairPage(props: {
   const { agents, catalog, bundles, principalDid } = state;
 
   return (
-    <AppShell>
-      <PlateHead
+    <ConsoleShell active="pair">
+      <ConsoleHead
         plateNum="P.01"
         kicker="// NEW CONNECTION · OUT-OF-BAND INVITE"
         title="Pair with another agent"
@@ -82,7 +81,7 @@ export default async function PairPage(props: {
           bundles={bundles}
         />
       )}
-    </AppShell>
+    </ConsoleShell>
   );
 }
 
