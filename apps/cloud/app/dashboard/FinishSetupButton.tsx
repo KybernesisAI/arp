@@ -2,7 +2,7 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
-import { Button, FieldError } from '@/components/ui';
+import { Button, FieldError, Input } from '@/components/ui';
 import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
 import { signRepresentationJwtBrowser } from '@/lib/representation-jwt-browser';
 
@@ -20,8 +20,10 @@ export function FinishSetupButton({
   tenantId: string;
   ownerLabel?: string;
 }): React.JSX.Element {
-  const [stage, setStage] = useState<'idle' | 'signing' | 'done' | 'error'>('idle');
+  const [stage, setStage] = useState<'idle' | 'label' | 'signing' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [label, setLabel] = useState(ownerLabel);
+  const labelOk = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(label);
 
   async function run(): Promise<void> {
     setStage('signing');
@@ -39,7 +41,7 @@ export function FinishSetupButton({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           domain,
-          owner_label: ownerLabel,
+          owner_label: label,
           public_key_multibase: principal.publicKeyMultibase,
           signed_representation_jwt: jwt,
         }),
@@ -60,9 +62,35 @@ export function FinishSetupButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button type="button" variant="primary" size="sm" onClick={() => void run()} disabled={stage === 'signing' || stage === 'done'}>
-        {stage === 'signing' ? 'Verifying…' : stage === 'done' ? 'Verified' : 'Verify ownership'}
-      </Button>
+      {stage === 'label' ? (
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-body-sm text-ink-2 m-0 max-w-[40ch] text-right">
+            Your browser signs a proof of ownership with this account's key and publishes it with the name. Pick how you are shown as the owner.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value.trim().toLowerCase())}
+              placeholder="owner"
+              aria-label="Shown as"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-40 font-mono text-[12px]"
+            />
+            <Button type="button" variant="default" size="sm" onClick={() => setStage('idle')}>
+              Cancel
+            </Button>
+            <Button type="button" variant="primary" size="sm" disabled={!labelOk} onClick={() => void run()}>
+              Verify
+            </Button>
+          </div>
+          {!labelOk && <FieldError>Lowercase letters, numbers and hyphens.</FieldError>}
+        </div>
+      ) : (
+        <Button type="button" variant="primary" size="sm" onClick={() => setStage('label')} disabled={stage === 'signing' || stage === 'done'}>
+          {stage === 'signing' ? 'Verifying…' : stage === 'done' ? 'Verified' : 'Verify ownership'}
+        </Button>
+      )}
       {error && <FieldError>{error}</FieldError>}
     </div>
   );
