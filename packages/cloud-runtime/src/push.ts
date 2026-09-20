@@ -176,9 +176,13 @@ export interface DeliveryInput {
 function composePrompt(input: DeliveryInput): string {
   const text = extractText(input.msg.body);
   const peer = input.peerDid.replace(/^did:web:/, '');
+  const body = (input.msg.body ?? {}) as Record<string, unknown>;
+  const action = typeof body['action'] === 'string' && body['action'] ? (body['action'] as string) : null;
   const lines = [
     `Message from ${peer} (a paired agent, connection ${input.connectionId}${input.purpose ? `, purpose: ${input.purpose}` : ''}).`,
   ];
+  // A specific request kind was granted by your owner and already checked by ARP Cloud.
+  if (action) lines.push(`Request kind: ${action} (allowed by your owner for this peer).`);
   if (input.obligations.length > 0) {
     lines.push(`Obligations on your reply: ${input.obligations.map((o) => o.type).join(', ')}.`);
   }
