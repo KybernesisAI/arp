@@ -1,15 +1,14 @@
 import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { AppShell } from '@/components/app/AppShell';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import {
   Badge,
   Card,
   Code,
   Dot,
-  Link,
-  PlateHead,
-} from '@/components/ui';
+  Link } from '@/components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,8 +27,8 @@ export default async function AgentPage(props: {
   }
   if (!state) {
     return (
-      <AppShell>
-        <PlateHead
+      <ConsoleShell active="agents">
+        <ConsoleHead
           plateNum="A.00"
           kicker="// AGENT · NOT FOUND"
           title="Agent not found."
@@ -37,18 +36,18 @@ export default async function AgentPage(props: {
         <p className="text-body text-ink-2">
           <Link href="/dashboard">← Back to dashboard</Link>
         </p>
-      </AppShell>
+      </ConsoleShell>
     );
   }
   const { agent, connections } = state;
   return (
-    <AppShell>
+    <ConsoleShell active="agents">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link href="/dashboard" variant="mono">
           ← DASHBOARD
         </Link>
       </div>
-      <PlateHead
+      <ConsoleHead
         plateNum="A.00"
         kicker={`// AGENT · ${agent.name.toUpperCase()}`}
         title={agent.name}
@@ -117,7 +116,7 @@ export default async function AgentPage(props: {
           </Card>
         )}
       </section>
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

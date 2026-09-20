@@ -1,7 +1,8 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { AppShell } from '@/components/app/AppShell';
-import { Card, Code, Link, PlateHead } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
+import { Card, Code, Link } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { BUNDLES } from '@kybernesis/arp-scope-catalog';
 import { getScopeCatalog } from '@/lib/catalog';
@@ -49,8 +50,8 @@ export default async function ConnectionEditPage(props: {
 
   if (connection.status === 'revoked') {
     return (
-      <AppShell>
-        <PlateHead
+      <ConsoleShell active="connections">
+        <ConsoleHead
           plateNum="C.05"
           kicker="// EDIT · CONNECTION RESCOPE"
           title="Cannot edit a revoked connection"
@@ -64,12 +65,12 @@ export default async function ConnectionEditPage(props: {
             <Link href="/pair" variant="accent">→ Generate a new pairing invitation</Link>
           </p>
         </Card>
-      </AppShell>
+      </ConsoleShell>
     );
   }
 
   return (
-    <AppShell>
+    <ConsoleShell active="connections">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link
           href={`/connections/${encodeURIComponent(id)}`}
@@ -78,7 +79,7 @@ export default async function ConnectionEditPage(props: {
           ← CONNECTION
         </Link>
       </div>
-      <PlateHead
+      <ConsoleHead
         plateNum="C.05"
         kicker={`// EDIT · ${agentName.toUpperCase()} → PEER`}
         title="Edit scopes"
@@ -111,7 +112,7 @@ export default async function ConnectionEditPage(props: {
         initialSelected={initialSelected}
         initialParams={initialParams}
       />
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

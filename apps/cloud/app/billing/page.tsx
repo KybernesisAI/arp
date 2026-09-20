@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { PLAN_LIMITS, monthlyBillCents, currentUsagePeriod } from '@/lib/billing';
 import BillingButtons from './BillingButtons';
-import { AppShell } from '@/components/app/AppShell';
-import { Badge, Card, CardMatrix, PlateHead } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
+import { Badge, Card, CardMatrix } from '@/components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,8 +23,8 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
   const isPro = view.plan === 'pro';
 
   return (
-    <AppShell>
-      <PlateHead
+    <ConsoleShell active="billing">
+      <ConsoleHead
         plateNum="B.00"
         kicker={`// BILLING · ${view.plan.toUpperCase()} · ${view.status.toUpperCase()}`}
         title="Billing"
@@ -146,7 +147,7 @@ export default async function BillingPage(): Promise<React.JSX.Element> {
         canManage={view.canManage}
         agentCount={view.agentCount}
       />
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

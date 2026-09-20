@@ -1,7 +1,8 @@
 import type * as React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { AppShell } from '@/components/app/AppShell';
-import { Link, PlateHead } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
+import { Link } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { AuditViewer, type AuditEntry } from './AuditViewer';
 
@@ -33,7 +34,7 @@ export default async function ConnectionAuditPage(props: {
   const { initialEntries, initialCursor, peerDid, agentDid, status } = state;
 
   return (
-    <AppShell>
+    <ConsoleShell active="connections">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link
           href={`/connections/${encodeURIComponent(id)}`}
@@ -42,7 +43,7 @@ export default async function ConnectionAuditPage(props: {
           ← CONNECTION
         </Link>
       </div>
-      <PlateHead
+      <ConsoleHead
         plateNum="C.03"
         kicker="// AUDIT LOG · CHAINED HASH CHAIN"
         title="Audit log"
@@ -65,7 +66,7 @@ export default async function ConnectionAuditPage(props: {
         connectionStatus={status}
         pageSize={PAGE_SIZE}
       />
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

@@ -73,7 +73,7 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
               <Card key={inv.id} glow="emerald">
                 <div className="flex items-center justify-between gap-3">
                   <Tag tone="emerald">Wants to connect</Tag>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {inv.expiresAt.slice(0, 10)}</span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {mdy(inv.expiresAt)}</span>
                 </div>
                 <p className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-zinc-900">
                   {nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nameByDid.get(inv.audienceDid) ?? nice(inv.audienceDid)}
@@ -86,7 +86,7 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
               <Card key={inv.id}>
                 <div className="flex items-center justify-between gap-3">
                   <Tag>Waiting for them</Tag>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {inv.expiresAt.slice(0, 10)}</span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">expires {mdy(inv.expiresAt)}</span>
                 </div>
                 <p className="mt-4 text-[17px] font-medium tracking-[-0.01em] text-zinc-900">
                   {nameByDid.get(inv.issuerAgentDid) ?? nice(inv.issuerAgentDid)} <span className="text-zinc-400">→</span> {nice(inv.audienceDid)}
@@ -179,6 +179,12 @@ function Row({ k, v }: { k: string; v: string }): React.JSX.Element {
   );
 }
 
+/** `2027-09-18T…` → `09-18-2027`. */
+export function mdy(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${m}-${d}-${y}`;
+}
+
 /** `did:web:kyber.agent` → `kyber.agent`; anything else untouched. */
 function nice(did: string): string {
   return did.replace(/^did:web:/, '');
@@ -228,7 +234,7 @@ function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
   const href = a.state === 'bound_only' ? null : `/names/${a.sld}`;
   const dot = a.state === 'online' ? 'bg-emerald-500' : a.state === 'offline' ? 'bg-amber-400' : 'bg-zinc-300';
   return (
-    <Card glow={a.state === 'online' ? 'emerald' : undefined} className="flex flex-col">
+    <Card glow={a.state === 'online' ? 'emerald' : undefined} className="flex flex-col pb-10">
       <div className="flex items-start gap-4">
         <span
           className="relative inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 text-[20px] font-medium text-zinc-500"
@@ -272,8 +278,8 @@ function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
         ) : (
           <CreateIdentityButton sld={a.sld} />
         )}
-        {a.expiryAt && <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">renews {a.expiryAt.slice(0, 10)}</span>}
       </div>
+      {a.expiryAt && <span className="absolute bottom-0 right-0 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">renews {mdy(a.expiryAt)}</span>}
     </Card>
   );
 }

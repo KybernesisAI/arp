@@ -2,8 +2,9 @@ import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { listCredentialsForTenant } from '@/lib/webauthn';
-import { Code, PlateHead } from '@/components/ui';
-import { AppShell } from '@/components/app/AppShell';
+import { Code } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import { SettingsSections } from './SettingsSections';
 
 export const runtime = 'nodejs';
@@ -20,8 +21,8 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
   const { tenant, credentials } = state;
 
   return (
-    <AppShell>
-      <PlateHead
+    <ConsoleShell active="agents">
+      <ConsoleHead
         plateNum="D.01"
         kicker={`// SETTINGS · ${tenant.plan.toUpperCase()}`}
         title="Account settings"
@@ -40,7 +41,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         hasPreviousDid={tenant.principalDidPrevious !== null}
         v1DeprecatedAt={tenant.v1DeprecatedAt}
       />
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

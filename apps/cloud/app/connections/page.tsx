@@ -1,14 +1,13 @@
 import type * as React from 'react';
 import { redirect } from 'next/navigation';
-import { AppShell } from '@/components/app/AppShell';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
 import {
   Badge,
   Card,
   Code,
   Dot,
-  Link,
-  PlateHead,
-} from '@/components/ui';
+  Link } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { ConnectionsList, type ConnectionRow } from './ConnectionsList';
 
@@ -43,8 +42,8 @@ export default async function ConnectionsPage(props: {
   const { agents, initialRows, initialCursor, selectedStatus, selectedAgent } = state;
 
   return (
-    <AppShell>
-      <PlateHead
+    <ConsoleShell active="connections">
+      <ConsoleHead
         plateNum="C.01"
         kicker="// CONNECTIONS · ALL AGENTS"
         title="Connections"
@@ -98,7 +97,7 @@ export default async function ConnectionsPage(props: {
           pageSize={PAGE_SIZE}
         />
       )}
-    </AppShell>
+    </ConsoleShell>
   );
 }
 

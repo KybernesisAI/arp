@@ -6,8 +6,9 @@ import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
 import { agentLiveness } from '@/lib/agent-liveness';
-import { AppShell } from '@/components/app/AppShell';
-import { Badge, Card, Code, Dot, Link, PlateHead, Pre } from '@/components/ui';
+import { ConsoleShell } from '@/components/app/ConsoleShell';
+import { ConsoleHead } from '@/components/app/ConsoleHead';
+import { Badge, Card, Code, Dot, Link, Pre } from '@/components/ui';
 import { FinishSetupButton } from '@/app/dashboard/FinishSetupButton';
 import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
@@ -43,12 +44,12 @@ export default async function NameRecordsPage(props: {
   }
   if (!state) {
     return (
-      <AppShell>
-        <PlateHead plateNum="N.00" kicker="// NAME · NOT FOUND" title="Name not found." />
+      <ConsoleShell active="agents">
+        <ConsoleHead plateNum="N.00" kicker="// NAME · NOT FOUND" title="Name not found." />
         <p className="text-body text-ink-2">
           <Link href="/dashboard">← Back to dashboard</Link>
         </p>
-      </AppShell>
+      </ConsoleShell>
     );
   }
   const { domain, registration, agent, owner, mirror, tenantId } = state;
@@ -72,13 +73,13 @@ export default async function NameRecordsPage(props: {
   ];
 
   return (
-    <AppShell>
+    <ConsoleShell active="agents">
       <div className="mb-6 font-mono text-kicker uppercase text-muted">
         <Link href="/dashboard" variant="mono">
           ← DASHBOARD
         </Link>
       </div>
-      <PlateHead plateNum="N.00" kicker={`// NAME · ${status.toUpperCase().replace('_', ' ')}`} title={domain} />
+      <ConsoleHead plateNum="N.00" kicker={`// NAME · ${status.toUpperCase().replace('_', ' ')}`} title={domain} />
 
       <section className="mb-10">
         <Card tone="paper-2" padded={false} className="border border-rule">
@@ -227,7 +228,7 @@ export default async function NameRecordsPage(props: {
           </Card>
         )}
       </section>
-    </AppShell>
+    </ConsoleShell>
   );
 }
 
