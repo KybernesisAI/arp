@@ -30,14 +30,13 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
         <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-10">
             <Kicker>Works with</Kicker>
-            <ul className="m-0 flex flex-1 list-none flex-wrap items-center gap-x-10 gap-y-5 p-0 text-zinc-900">
-              {/* Heights tuned so every mark reads at the same optical cap height (~12px). */}
-              <li className="flex items-center"><EveLogo className="h-[13px] w-auto" /></li>
-              <li className="flex items-center text-[16px]"><OpenClawLogo /></li>
-              <li className="flex items-center"><HermesLogo className="h-[15px] w-auto" /></li>
-              <li className="flex items-center"><LangGraphLogo className="h-[22px] w-auto" /></li>
-              <li className="flex items-center text-[16px]"><GrokBotLogo /></li>
-              <li className="flex items-center font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">+ any agent with a URL</li>
+            <ul className="m-0 flex flex-1 list-none flex-wrap items-center gap-x-14 gap-y-6 p-0 text-zinc-900">
+              {/* Heights tuned so every mark reads at the same optical cap height (~18px). */}
+              <li className="flex items-center"><EveLogo className="h-[20px] w-auto" /></li>
+              <li className="flex items-center text-[24px]"><OpenClawLogo /></li>
+              <li className="flex items-center"><HermesLogo className="h-[22px] w-auto" /></li>
+              <li className="flex items-center"><LangGraphLogo className="h-[33px] w-auto" /></li>
+              <li className="flex items-center text-[24px]"><GrokBotLogo /></li>
             </ul>
           </div>
         </div>
