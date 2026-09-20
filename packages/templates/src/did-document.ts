@@ -24,6 +24,8 @@ export interface BuildDidDocumentInput {
   keyId?: string;
   /** Other URIs this DID is known by (mirror origin, npub, control-plane handle). */
   alsoKnownAs?: readonly string[];
+  /** AgentID S6c: the public profile document (`/.well-known/agent-profile.json`). */
+  profileUrl?: string;
 }
 
 /**
@@ -63,6 +65,9 @@ export function buildDidDocument(input: BuildDidDocumentInput): DidDocument {
         type: 'AgentCard' as const,
         serviceEndpoint: input.endpoints.agentCard,
       },
+      ...(input.profileUrl
+        ? [{ id: makeServiceId(input.agentDid, 'profile'), type: 'AgentProfile' as const, serviceEndpoint: input.profileUrl }]
+        : []),
     ],
     principal: {
       did: input.controllerDid,

@@ -24,7 +24,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import * as ed25519 from '@noble/ed25519';
 import type { AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
-import { buildA2aAgentCard, buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
+import { agentAvatarUrl, agentProfileUrl, buildA2aAgentCard, buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
 import { base64urlEncode, ed25519RawToMultibase, signAgentCard } from '@kybernesis/arp-transport';
 
 // ------------------------------------------------------------------ sealing
@@ -135,6 +135,11 @@ export interface MintIdentityInput {
   sealKey?: Uint8Array;
   /** Replace an existing row for this DID (re-provision / key rotation). */
   force?: boolean;
+  /**
+   * AgentID S6c: the identity profile to carry. Omitted = keep the existing
+   * row's picture/accent on a forced re-mint (a key rotation must not lose the face).
+   */
+  profile?: { avatarData?: string | null; avatarMime?: string | null; accent?: string | null };
 }
 
 export interface MintedIdentity {
@@ -166,6 +171,12 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     if (!input.force) throw new IdentityExistsError(agentDid);
     await input.tenantDb.deleteAgent(agentDid);
   }
+  const profile = {
+    avatarData: input.profile?.avatarData !== undefined ? input.profile.avatarData : existing?.avatarData ?? null,
+    avatarMime: input.profile?.avatarMime !== undefined ? input.profile.avatarMime : existing?.avatarMime ?? null,
+    accent: input.profile?.accent !== undefined ? input.profile.accent : existing?.accent ?? null,
+  };
+  const iconUrl = agentAvatarUrl(origin, Boolean(profile.avatarData));
 
   const privateKeyRaw = ed25519.utils.randomPrivateKey();
   const publicKeyRaw = await ed25519.getPublicKeyAsync(privateKeyRaw);
@@ -188,6 +199,7 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     publicKeyMultibase,
     endpoints: { didcomm: `${origin}/didcomm`, agentCard: wellKnownUrls.agent_card },
     representationVcUrl: `${origin}/representation.jwt`,
+    profileUrl: agentProfileUrl(origin),
     ...(aka.size > 0 ? { alsoKnownAs: [...aka] } : {}),
   });
   const agentCard = buildAgentCard({
@@ -204,6 +216,7 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     description: input.agentDescription ?? 'Personal agent',
     origin,
     privateKeyRaw,
+    ...(iconUrl ? { iconUrl } : {}),
   });
 
   const handoff: Record<string, unknown> = {
@@ -245,6 +258,10 @@ export async function mintIdentity(input: MintIdentityInput): Promise<MintedIden
     runtimeKind: input.runtimeKind,
     domainRegistrationId: input.domainRegistrationId ?? null,
     wellKnownA2aCard: a2aCard,
+    avatarData: profile.avatarData,
+    avatarMime: profile.avatarMime,
+    accent: profile.accent,
+    profileUpdatedAt: existing?.profileUpdatedAt ?? null,
   });
 
   return { agentDid, row, publicKeyMultibase, privateKeyRaw, handoff, wellKnownUrls };
@@ -263,6 +280,8 @@ export async function buildSignedA2aCard(input: {
   privateKeyRaw?: Uint8Array | null;
   scopes?: readonly string[];
   provider?: { organization: string; url?: string };
+  /** AgentID S6c: the identity's picture. */
+  iconUrl?: string;
 }): Promise<Record<string, unknown>> {
   const origin = input.origin.replace(/\/+$/, '');
   const sld = input.did.replace(/^did:web:/, '').replace(/\.agent$/, '');
@@ -274,6 +293,7 @@ export async function buildSignedA2aCard(input: {
     pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(input.did)}`,
     provider: input.provider ?? { organization: sld, url: `https://agent.arp.run/${sld}` },
     ...(input.scopes ? { scopes: input.scopes } : {}),
+    ...(input.iconUrl ? { iconUrl: input.iconUrl } : {}),
   }) as Record<string, unknown>;
   if (!input.privateKeyRaw) return card;
   const sig = await signAgentCard(card, {

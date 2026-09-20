@@ -14,6 +14,7 @@ import { LinksPanel } from '@/app/names/LinksPanel';
 import { ConnectAgentPanel } from '@/app/names/ConnectAgentPanel';
 import { ReprovisionHostedButton } from '@/app/names/ReprovisionHostedButton';
 import { GiftNamePanel } from '@/app/names/GiftNamePanel';
+import { ProfilePanel } from '@/app/names/ProfilePanel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -108,6 +109,17 @@ export default async function NameRecordsPage(props: {
         </Card>
       </section>
 
+      {agent && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">Profile</h2>
+            <span className="font-mono text-kicker uppercase text-muted">// P · WHAT THIS NAME SAYS ABOUT THE AGENT</span>
+          </header>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <ProfilePanel sld={sld} />
+          </Card>
+        </section>
+      )}
       <section className="mb-10">
         <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
           <h2 className="font-display font-medium text-h3">Records</h2>

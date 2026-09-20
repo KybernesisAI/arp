@@ -41,9 +41,9 @@ export const VerificationMethodSchema = z.object({
 export const ServiceEndpointSchema = z.object({
   id: z.string().min(1).describe('Service ID (DID-URL fragment)'),
   type: z
-    .enum(['DIDCommMessaging', 'AgentCard', 'AgentRuntime', 'KybernesisControlPlane'])
+    .enum(['DIDCommMessaging', 'AgentCard', 'AgentRuntime', 'KybernesisControlPlane', 'AgentProfile'])
     .describe(
-      'Service type. DIDCommMessaging + AgentCard are the core ARP services; AgentRuntime (a verified runtime link) and KybernesisControlPlane (a verified control-plane link) are the AgentID S3 identity-link services.',
+      'Service type. DIDCommMessaging + AgentCard are the core ARP services; AgentRuntime (a verified runtime link) and KybernesisControlPlane (a verified control-plane link) are the AgentID S3 identity-link services; AgentProfile (S6c) points at the public profile document.',
     ),
   serviceEndpoint: z.string().url().describe('HTTPS endpoint URL'),
   accept: z.array(z.string()).min(1).optional().describe('Accepted protocol tokens'),

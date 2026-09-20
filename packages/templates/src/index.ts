@@ -18,3 +18,4 @@ export * from './arp-json.js';
 export * from './representation-vc.js';
 export * from './revocations.js';
 export * from './handoff-bundle.js';
+export * from './agent-profile.js';

@@ -205,7 +205,7 @@ export async function claimGift(input: {
 
   // 2. Retire the giver's identity for the name. agents.did is global, so the row
   //    must go before the recipient's can exist.
-  const previous = (await db.select({ agentName: agents.agentName, agentDescription: agents.agentDescription }).from(agents).where(and(eq(agents.did, agentDid), eq(agents.tenantId, from))).limit(1))[0];
+  const previous = (await db.select({ agentName: agents.agentName, agentDescription: agents.agentDescription, avatarData: agents.avatarData, avatarMime: agents.avatarMime, accent: agents.accent }).from(agents).where(and(eq(agents.did, agentDid), eq(agents.tenantId, from))).limit(1))[0];
   await db.delete(agentLinks).where(and(eq(agentLinks.agentDid, agentDid), eq(agentLinks.tenantId, from)));
   await db.delete(agentCredentials).where(and(eq(agentCredentials.agentDid, agentDid), eq(agentCredentials.tenantId, from)));
   await db.delete(agentConnectTickets).where(and(eq(agentConnectTickets.agentDid, agentDid), eq(agentConnectTickets.tenantId, from)));
@@ -222,6 +222,7 @@ export async function claimGift(input: {
       principalDid: input.toPrincipalDid,
       agentName: previous?.agentName ?? sld,
       agentDescription: previous?.agentDescription ?? '',
+      profile: { avatarData: previous?.avatarData ?? null, avatarMime: previous?.avatarMime ?? null, accent: previous?.accent ?? null },
       custody: 'cloud',
       runtimeKind: 'none',
       domainRegistrationId: found.registrationId,
