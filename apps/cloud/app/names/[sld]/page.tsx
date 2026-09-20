@@ -51,7 +51,9 @@ export default async function NameRecordsPage(props: {
   }
   const { domain, registration, agent, owner, mirror, tenantId } = state;
   const status = registration?.status ?? (agent ? 'active' : 'unknown');
-  const needsOwner = !owner && (status === 'registered' || status === 'owner_pending' || (agent !== null && !registration));
+  // Any name on this account that is not yet owner-verified gets the button — regardless of how the
+  // registration reached `active` (Stripe fulfilment, registrar-bind, or an operator-recorded purchase).
+  const needsOwner = !owner && (status === 'registered' || status === 'owner_pending' || status === 'active' || (agent !== null && !registration));
   const badgeTone = status === 'active' ? 'blue' : status === 'failed' || status === 'expired' ? 'red' : 'yellow';
 
   const cardSigned = ((agent?.wellKnownA2aCard as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0;
