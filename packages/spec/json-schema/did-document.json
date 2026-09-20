@@ -95,9 +95,10 @@
               "DIDCommMessaging",
               "AgentCard",
               "AgentRuntime",
-              "KybernesisControlPlane"
+              "KybernesisControlPlane",
+              "AgentProfile"
             ],
-            "description": "Service type. DIDCommMessaging + AgentCard are the core ARP services; AgentRuntime (a verified runtime link) and KybernesisControlPlane (a verified control-plane link) are the AgentID S3 identity-link services."
+            "description": "Service type. DIDCommMessaging + AgentCard are the core ARP services; AgentRuntime (a verified runtime link) and KybernesisControlPlane (a verified control-plane link) are the AgentID S3 identity-link services; AgentProfile (S6c) points at the public profile document."
           },
           "serviceEndpoint": {
             "type": "string",
