@@ -2,6 +2,10 @@ import type * as React from 'react';
 import type { Metadata } from 'next';
 import { loadBadgeData } from '@/lib/badge-data';
 import { LanderHero } from './LanderHero';
+import {
+  AudienceGlyph, ConnectFlowArt, KeysArt, LinksArt, MiniBadgeArt, NameArt, PaymentsArt, PortableArt,
+  ProblemHandlesArt, ProblemIcon, ProfileArt, ReachArt, StepClaimArt, StepConnectArt, StepLinkArt,
+} from './Illustrations';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,12 +20,14 @@ const LOGIN = 'https://cloud.arp.run/onboarding';
 function Kicker({ children }: { children: React.ReactNode }): React.JSX.Element {
   return <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-zinc-500">{children}</div>;
 }
-function Tag({ children, tone = 'zinc' }: { children: React.ReactNode; tone?: 'zinc' | 'emerald' | 'dark' }): React.JSX.Element {
+function Tag({ children, tone = 'zinc' }: { children: React.ReactNode; tone?: 'zinc' | 'emerald' | 'cyan' | 'dark' }): React.JSX.Element {
   const cls =
     tone === 'emerald' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' :
+    tone === 'cyan' ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700' :
     tone === 'dark' ? 'border-white/15 bg-white/[0.06] text-white/80' :
     'border-zinc-200 bg-zinc-50 text-zinc-600';
-  return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.14em] ${cls}`}>{tone === 'emerald' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}{children}</span>;
+  const dot = tone === 'emerald' ? 'bg-emerald-500' : tone === 'cyan' ? 'bg-cyan-500' : null;
+  return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.14em] ${cls}`}>{dot && <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />}{children}</span>;
 }
 function H2({ children }: { children: React.ReactNode }): React.JSX.Element {
   return <h2 className="mt-3 max-w-[22ch] text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">{children}</h2>;
@@ -29,12 +35,33 @@ function H2({ children }: { children: React.ReactNode }): React.JSX.Element {
 function Lead({ children }: { children: React.ReactNode }): React.JSX.Element {
   return <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-zinc-600">{children}</p>;
 }
+/** Bento tile: white card, hairline border, soft hover lift, optional accent glow in a corner. */
+function Card({ children, className = '', glow }: { children: React.ReactNode; className?: string; glow?: 'emerald' | 'cyan' }): React.JSX.Element {
+  const g = glow === 'emerald' ? 'bg-emerald-400/20' : glow === 'cyan' ? 'bg-cyan-400/20' : '';
+  return (
+    <div className={`group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 shadow-[0_1px_0_rgba(0,0,0,0.03)] transition-shadow duration-300 hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.35)] ${className}`}>
+      {glow && <div className={`pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full ${g} blur-3xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />}
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+function CheckItem({ children, tone = 'emerald' }: { children: React.ReactNode; tone?: 'emerald' | 'cyan' | 'light' }): React.JSX.Element {
+  const c = tone === 'cyan' ? 'bg-cyan-500' : tone === 'light' ? 'bg-emerald-400' : 'bg-emerald-500';
+  return (
+    <li className="flex items-start gap-2.5">
+      <span className={`mt-[3px] inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${c}`}><svg viewBox="0 0 10 10" className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5.2l2 2 4-4.4" /></svg></span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 export default async function LanderPage(): Promise<React.JSX.Element> {
   const badge = await loadBadgeData('samantha');
   return (
-    <div className="min-h-screen bg-white text-zinc-950 antialiased" style={{ fontFamily: 'Inter, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+    <div className="lander min-h-screen bg-white text-zinc-950 antialiased" style={{ fontFamily: 'Inter, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Mono&display=swap" />
+      {/* Every mono label on this page is Space Mono (regular only — the 700 face substitutes badly). */}
+      <style>{`.lander .font-mono{font-family:'Space Mono',ui-monospace,monospace;font-weight:400}`}</style>
 
       {/* NAV */}
       <header className="bg-black text-white">
@@ -73,17 +100,37 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
         <Kicker>The problem</Kicker>
         <H2>Agents have URLs, API keys and usernames. None of that is an identity.</H2>
         <Lead>Every platform gives your agent a different name and none of them prove anything. A bot handle here, a deployment URL there, a key in an env file. Move hosts and the identity is gone. Talk to another agent and nobody can check who is on the other end.</Lead>
-        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 md:grid-cols-3">
-          {[
-            ['Not portable', "Your agent's name is owned by whichever platform issued it. Leave, and you start over."],
-            ['Not verified', 'Anyone can claim to be your agent. There is no way for a person or another agent to check.'],
-            ['Not reachable', 'People and agents who want to work with yours have no address to use. Just a form, or nothing.'],
-          ].map(([t, b]) => (
-            <div key={t} className="bg-white p-8">
-              <div className="mb-3 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">{t}</div>
-              <p className="text-[15px] leading-relaxed text-zinc-700">{b}</p>
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-12">
+          <Card className="md:col-span-6 md:row-span-2 flex flex-col">
+            <ProblemHandlesArt />
+            <div className="mt-6">
+              <div className="mb-2 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">Today</div>
+              <p className="text-[15px] leading-relaxed text-zinc-700">Your agent already has four or five names, and every one of them belongs to someone else.</p>
             </div>
+          </Card>
+          {([
+            ['portable', 'Not portable', "Your agent's name is owned by whichever platform issued it. Leave, and you start over."],
+            ['verified', 'Not verified', 'Anyone can claim to be your agent. There is no way for a person or another agent to check.'],
+          ] as const).map(([k, t, b]) => (
+            <Card key={t} className="md:col-span-6">
+              <div className="flex items-start gap-4">
+                <ProblemIcon kind={k} />
+                <div>
+                  <div className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">{t}</div>
+                  <p className="mt-2 text-[15px] leading-relaxed text-zinc-700">{b}</p>
+                </div>
+              </div>
+            </Card>
           ))}
+          <Card className="md:col-span-12">
+            <div className="flex items-start gap-4">
+              <ProblemIcon kind="reachable" />
+              <div>
+                <div className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">Not reachable</div>
+                <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-zinc-700">People and agents who want to work with yours have no address to use. Just a form, or nothing.</p>
+              </div>
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -93,18 +140,21 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
           <Kicker>How it works</Kicker>
           <H2>Claim it. Connect it. Link everything to it.</H2>
           <Lead>Three steps, a few minutes. The name is the root; everything your agent is, and everywhere it lives, hangs off that one name.</Lead>
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
-              ['01', 'Claim your name.', 'Pick a name like samantha.agent. It is registered to you, renews on your terms, and never belongs to a platform.', 'Name · registered'],
-              ['02', 'Connect your agent.', 'Paste where your agent runs and click Connect. Kybernesis agents are ready as they are; any other agent with a URL takes one package.', 'Agent · connected'],
-              ['03', 'Link everything to it.', 'Its workspace identity, its control plane, its public endpoint. Each link is verified from both sides, so a checkmark means something.', 'Links · verified'],
-            ].map(([n, t, b, f]) => (
-              <div key={n} className="rounded-2xl border border-zinc-200 bg-white p-8">
-                <div className="font-mono text-[12px] tracking-[0.14em] text-zinc-400">STEP {n}</div>
-                <h3 className="mt-4 text-[22px] font-medium tracking-[-0.02em]">{t}</h3>
-                <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
-                <div className="mt-6"><Tag tone="emerald">{f}</Tag></div>
-              </div>
+              { n: '01', t: 'Claim your name.', b: 'Pick a name like samantha.agent. It is registered to you, renews on your terms, and never belongs to a platform.', f: 'Name · registered', art: <StepClaimArt />, glow: 'emerald' as const },
+              { n: '02', t: 'Connect your agent.', b: 'Paste where your agent runs and click Connect. Kybernesis agents are ready as they are; any other agent with a URL takes one package.', f: 'Agent · connected', art: <StepConnectArt />, glow: 'cyan' as const },
+              { n: '03', t: 'Link everything to it.', b: 'Its workspace identity, its control plane, its public endpoint. Each link is verified from both sides, so a checkmark means something.', f: 'Links · verified', art: <StepLinkArt />, glow: 'emerald' as const },
+            ].map((s) => (
+              <Card key={s.n} glow={s.glow}>
+                {s.art}
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="font-mono text-[12px] tracking-[0.14em] text-zinc-400">STEP {s.n}</div>
+                  <Tag tone="emerald">{s.f}</Tag>
+                </div>
+                <h3 className="mt-3 text-[22px] font-medium tracking-[-0.02em]">{s.t}</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{s.b}</p>
+              </Card>
             ))}
           </div>
         </div>
@@ -114,21 +164,45 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
       <section id="get" className="mx-auto w-full max-w-[1200px] px-6 py-24">
         <Kicker>What you get</Kicker>
         <H2>One name. Everything attached.</H2>
-        <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            ['The name', 'A name that is yours.', 'samantha.agent is registered to you, not leased from a platform. Renew it for as long as you want it. Nobody can take it or reassign it.'],
-            ['The profile', 'A public page people can find.', 'What your agent does, who it represents, how to reach it, and whether it is online right now. Shareable like a business card.'],
-            ['Verified links', 'Proof, not claims.', "Link the agent's workspace account, control plane and endpoints. Each link is confirmed from both sides before it shows as verified."],
-            ['Reachable', 'An address other agents can use.', 'Any agent, on any platform, can look up your agent by name and knock. You decide who gets in. That part is the Connect add-on.'],
-            ['Portable', 'Move hosts. Keep the identity.', 'Redeploy to a new cloud, switch frameworks, hand the agent to a teammate. The name, the profile and the verified links all come along.'],
-            ['Owner control', 'You hold the keys.', 'The owner is always visible and always in charge. Rotate, transfer or retire the identity from one place, and every link updates.'],
-          ].map(([k, t, b]) => (
-            <div key={t} className="bg-white p-8">
-              <Kicker>{k}</Kicker>
-              <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">{t}</h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <Card className="sm:col-span-2 lg:col-span-4" glow="emerald">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="flex flex-col justify-end">
+                <Kicker>The name</Kicker>
+                <h3 className="mt-3 text-[24px] font-medium tracking-[-0.02em]">A name that is yours.</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">samantha.agent is registered to you, not leased from a platform. Renew it for as long as you want it. Nobody can take it or reassign it.</p>
+              </div>
+              <NameArt />
             </div>
+          </Card>
+          <Card className="lg:col-span-2">
+            <ProfileArt />
+            <Kicker><span className="mt-6 block">The profile</span></Kicker>
+            <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">A public page people can find.</h3>
+            <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">What your agent does, who it represents, how to reach it, and whether it is online right now.</p>
+          </Card>
+          {[
+            { k: 'Verified links', t: 'Proof, not claims.', b: "Link the agent's workspace account, control plane and endpoints. Each link is confirmed from both sides before it shows as verified.", art: <LinksArt />, glow: 'emerald' as const },
+            { k: 'Reachable', t: 'An address other agents can use.', b: 'Any agent, on any platform, can look up your agent by name and knock. You decide who gets in. That part is the Connect add-on.', art: <ReachArt />, glow: 'cyan' as const },
+            { k: 'Portable', t: 'Move hosts. Keep the identity.', b: 'Redeploy to a new cloud, switch frameworks, hand the agent to a teammate. The name, the profile and the verified links all come along.', art: <PortableArt />, glow: 'cyan' as const },
+          ].map((c) => (
+            <Card key={c.k} className="lg:col-span-2" glow={c.glow}>
+              {c.art}
+              <Kicker><span className="mt-6 block">{c.k}</span></Kicker>
+              <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">{c.t}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{c.b}</p>
+            </Card>
           ))}
+          <Card className="sm:col-span-2 lg:col-span-6" glow="cyan">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-5">
+              <div className="flex flex-col justify-center md:col-span-3">
+                <Kicker>Owner control</Kicker>
+                <h3 className="mt-3 text-[24px] font-medium tracking-[-0.02em]">You hold the keys.</h3>
+                <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-zinc-600">The owner is always visible and always in charge. Rotate, transfer or retire the identity from one place, and every link updates.</p>
+              </div>
+              <div className="md:col-span-2"><KeysArt /></div>
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -138,27 +212,34 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
           <Kicker>Add-ons</Kicker>
           <H2>Start with a name. Add what you need.</H2>
           <Lead>The identity is the base layer. Everything that makes an agent useful to other agents installs on top of it, when you want it.</Lead>
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="rounded-2xl bg-black p-8 text-white">
-              <Tag tone="dark">Included</Tag>
-              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Identity</h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/65">Your name, your public profile, verified links, health status and the owner controls. This is what you register.</p>
-              <ul className="mt-6 space-y-2 text-[14px] text-white/80">{['Registered name', 'Public profile page', 'Verified links', 'Owner dashboard'].map((x) => <li key={x}>— {x}</li>)}</ul>
+          <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="relative overflow-hidden rounded-3xl bg-black p-6 text-white">
+              <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl" />
+              <div className="relative">
+                <div className="flex items-center justify-between"><Tag tone="dark">Included</Tag><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-white/40">the base</span></div>
+                <MiniBadgeArt />
+                <h3 className="mt-6 text-[24px] font-medium tracking-[-0.02em]">Identity</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-white/65">Your name, your public profile, verified links, health status and the owner controls. This is what you register.</p>
+                <ul className="mt-6 space-y-2 text-[14px] text-white/85">{['Registered name', 'Public profile page', 'Verified links', 'Owner dashboard'].map((x) => <CheckItem key={x} tone="light">{x}</CheckItem>)}</ul>
+              </div>
             </div>
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8">
-              <Tag tone="emerald">Add-on · Connect</Tag>
-              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Connect</h3>
+            <Card glow="emerald">
+              <div className="flex items-center justify-between"><Tag tone="emerald">Add-on · Connect</Tag><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">$5 / mo</span></div>
+              <div className="mt-5"><ConnectFlowArt /></div>
+              <h3 className="mt-6 text-[24px] font-medium tracking-[-0.02em]">Connect</h3>
               <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">Let your agent work with other agents. Approve each relationship once, set what it can and cannot do, see every message, revoke any time.</p>
-              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Pair with any agent by name', 'Permissions in plain English', 'Full activity log', 'One-click revoke'].map((x) => <li key={x}>— {x}</li>)}</ul>
+              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Pair with any agent by name', 'Permissions in plain English', 'Full activity log', 'One-click revoke'].map((x) => <CheckItem key={x}>{x}</CheckItem>)}</ul>
               <div className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Powered by ARP</div>
-            </div>
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8">
-              <Tag>Add-on · Payments</Tag>
-              <h3 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">Payments</h3>
+            </Card>
+            <Card glow="cyan">
+              <div className="flex items-center justify-between"><Tag tone="cyan">Add-on · Payments</Tag><span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">soon</span></div>
+              <div className="mt-5"><PaymentsArt /></div>
+              <h3 className="mt-6 text-[24px] font-medium tracking-[-0.02em]">Payments</h3>
               <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">Let your agent earn and spend. Accept machine payments, pay other agents, with limits and approvals you set.</p>
-              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'].map((x) => <li key={x}>— {x}</li>)}</ul>
+              <ul className="mt-6 space-y-2 text-[14px] text-zinc-700">{['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'].map((x) => <CheckItem key={x} tone="cyan">{x}</CheckItem>)}</ul>
               <div className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Coming soon</div>
-            </div>
+            </Card>
           </div>
         </div>
       </section>
@@ -167,17 +248,18 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
       <section className="mx-auto w-full max-w-[1200px] px-6 py-24">
         <Kicker>Who it's for</Kicker>
         <H2>Builders, businesses and platforms.</H2>
-        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {[
-            ['Builders', 'For developers building agents.', 'You already have an agent. Give it a name it can keep, a page people can find, and an address other agents can reach.'],
-            ['Companies', 'For businesses putting an agent in front of customers.', 'support.yourbrand.agent is easier to trust than a chat widget. Verified ownership, a public profile, and a clear record of what it is allowed to do.'],
-            ['Platforms', 'For agent platforms and frameworks.', 'Give every agent on your platform a portable identity without building an identity system. Open standards, one adapter, no lock-in for your users.'],
-          ].map(([k, t, b]) => (
-            <div key={k} className="rounded-2xl border border-zinc-200 p-8">
-              <Kicker>{k}</Kicker>
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {([
+            ['builders', 'Builders', 'For developers building agents.', 'You already have an agent. Give it a name it can keep, a page people can find, and an address other agents can reach.', 'emerald'],
+            ['companies', 'Companies', 'For businesses putting an agent in front of customers.', 'support.yourbrand.agent is easier to trust than a chat widget. Verified ownership, a public profile, and a clear record of what it is allowed to do.', 'cyan'],
+            ['platforms', 'Platforms', 'For agent platforms and frameworks.', 'Give every agent on your platform a portable identity without building an identity system. Open standards, one adapter, no lock-in for your users.', 'emerald'],
+          ] as const).map(([kind, k, t, b, glow]) => (
+            <Card key={k} glow={glow}>
+              <AudienceGlyph kind={kind} />
+              <Kicker><span className="mt-6 block">{k}</span></Kicker>
               <h3 className="mt-3 text-[20px] font-medium tracking-[-0.02em]">{t}</h3>
               <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{b}</p>
-            </div>
+            </Card>
           ))}
         </div>
       </section>
@@ -187,21 +269,24 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
         <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
           <Kicker>Pricing</Kicker>
           <H2>One name, one price. Add-ons when you need them.</H2>
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
-              { name: 'Name', price: '$29', period: '/ year', desc: 'A registered name with everything attached.', feats: ['Your .agent name', 'Public profile page', 'Verified links', 'Owner dashboard + health'], cta: 'Claim a name', href: CLAIM, primary: true },
-              { name: 'Connect', price: '$5', period: '/ month', desc: 'Agent-to-agent, with you in control.', feats: ['Pair with any agent', 'Permissions + approvals', 'Full activity log', 'Instant revoke'], cta: 'Add Connect', href: 'https://cloud.arp.run/pricing', primary: false },
-              { name: 'Payments', price: 'Soon', period: '', desc: 'Let your agent earn and spend.', feats: ['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'], cta: 'Join the waitlist', href: CLAIM, primary: false },
+              { name: 'Name', price: '$29', period: '/ year', desc: 'A registered name with everything attached.', feats: ['Your .agent name', 'Public profile page', 'Verified links', 'Owner dashboard + health'], cta: 'Claim a name', href: CLAIM, primary: true, tone: 'light' as const },
+              { name: 'Connect', price: '$5', period: '/ month', desc: 'Agent-to-agent, with you in control.', feats: ['Pair with any agent', 'Permissions + approvals', 'Full activity log', 'Instant revoke'], cta: 'Add Connect', href: 'https://cloud.arp.run/pricing', primary: false, tone: 'emerald' as const },
+              { name: 'Payments', price: 'Soon', period: '', desc: 'Let your agent earn and spend.', feats: ['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'], cta: 'Join the waitlist', href: CLAIM, primary: false, tone: 'cyan' as const },
             ].map((p) => (
-              <div key={p.name} className={`rounded-2xl border p-8 ${p.primary ? 'border-black bg-black text-white' : 'border-zinc-200 bg-white'}`}>
-                <div className={`font-mono text-[12px] uppercase tracking-[0.14em] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.name}</div>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-[44px] font-medium tracking-[-0.03em]">{p.price}</span>
-                  <span className={`text-[14px] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.period}</span>
+              <div key={p.name} className={`relative overflow-hidden rounded-3xl border p-8 ${p.primary ? 'border-black bg-black text-white' : 'border-zinc-200 bg-white'}`}>
+                {p.primary && <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl" />}
+                <div className="relative">
+                  <div className={`font-mono text-[12px] uppercase tracking-[0.14em] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.name}</div>
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span className="text-[44px] font-medium tracking-[-0.03em]">{p.price}</span>
+                    <span className={`text-[14px] ${p.primary ? 'text-white/60' : 'text-zinc-500'}`}>{p.period}</span>
+                  </div>
+                  <p className={`mt-2 text-[15px] ${p.primary ? 'text-white/70' : 'text-zinc-600'}`}>{p.desc}</p>
+                  <ul className={`mt-6 space-y-2 text-[14px] ${p.primary ? 'text-white/85' : 'text-zinc-700'}`}>{p.feats.map((x) => <CheckItem key={x} tone={p.tone}>{x}</CheckItem>)}</ul>
+                  <a href={p.href} className={`mt-8 inline-block rounded-full px-5 py-2.5 text-[14px] font-medium ${p.primary ? 'bg-white text-black hover:bg-zinc-200' : 'border border-zinc-300 text-zinc-900 hover:border-zinc-900'}`}>{p.cta}</a>
                 </div>
-                <p className={`mt-2 text-[15px] ${p.primary ? 'text-white/70' : 'text-zinc-600'}`}>{p.desc}</p>
-                <ul className={`mt-6 space-y-2 text-[14px] ${p.primary ? 'text-white/85' : 'text-zinc-700'}`}>{p.feats.map((x) => <li key={x}>— {x}</li>)}</ul>
-                <a href={p.href} className={`mt-8 inline-block rounded-full px-5 py-2.5 text-[14px] font-medium ${p.primary ? 'bg-white text-black hover:bg-zinc-200' : 'border border-zinc-300 text-zinc-900 hover:border-zinc-900'}`}>{p.cta}</a>
               </div>
             ))}
           </div>
@@ -232,8 +317,10 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
       </section>
 
       {/* CTA */}
-      <section className="bg-black text-white">
-        <div className="mx-auto w-full max-w-[1200px] px-6 py-24">
+      <section className="relative overflow-hidden bg-black text-white">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-emerald-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 left-1/3 h-[420px] w-[420px] rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="relative mx-auto w-full max-w-[1200px] px-6 py-24">
           <Kicker>Get started</Kicker>
           <h2 className="mt-3 max-w-[20ch] text-[40px] font-medium leading-[1.05] tracking-[-0.03em] sm:text-[56px]">Claim your agent’s name.</h2>
           <p className="mt-5 max-w-[50ch] text-[17px] text-white/65">Pick a name, connect your agent, and it has an identity it can keep.</p>
