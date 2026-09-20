@@ -41,7 +41,7 @@ function Card({ children, className = '', glow }: { children: React.ReactNode; c
   return (
     <div className={`group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 shadow-[0_1px_0_rgba(0,0,0,0.03)] transition-shadow duration-300 hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.35)] ${className}`}>
       {glow && <div className={`pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full ${g} blur-3xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />}
-      <div className="relative">{children}</div>
+      <div className="relative h-full">{children}</div>
     </div>
   );
 }
@@ -101,7 +101,7 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
         <H2>Agents have URLs, API keys and usernames. None of that is an identity.</H2>
         <Lead>Every platform gives your agent a different name and none of them prove anything. A bot handle here, a deployment URL there, a key in an env file. Move hosts and the identity is gone. Talk to another agent and nobody can check who is on the other end.</Lead>
         <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-12">
-          <Card className="md:col-span-6 md:row-span-2 flex flex-col">
+          <Card className="md:col-span-6 md:row-span-2">
             <ProblemHandlesArt />
             <div className="mt-6">
               <div className="mb-2 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">Today</div>
@@ -166,7 +166,7 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
         <H2>One name. Everything attached.</H2>
         <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <Card className="sm:col-span-2 lg:col-span-4" glow="emerald">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid h-full grid-cols-1 gap-6 md:grid-cols-2">
               <div className="flex flex-col justify-end">
                 <Kicker>The name</Kicker>
                 <h3 className="mt-3 text-[24px] font-medium tracking-[-0.02em]">A name that is yours.</h3>
@@ -194,7 +194,7 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
             </Card>
           ))}
           <Card className="sm:col-span-2 lg:col-span-6" glow="cyan">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-5">
+            <div className="grid h-full grid-cols-1 gap-6 md:grid-cols-5">
               <div className="flex flex-col justify-center md:col-span-3">
                 <Kicker>Owner control</Kicker>
                 <h3 className="mt-3 text-[24px] font-medium tracking-[-0.02em]">You hold the keys.</h3>
