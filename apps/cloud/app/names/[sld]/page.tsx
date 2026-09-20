@@ -14,6 +14,7 @@ import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
 import { ConnectAgentPanel } from '@/app/names/ConnectAgentPanel';
 import { ReprovisionHostedButton } from '@/app/names/ReprovisionHostedButton';
+import { mdy } from '@/app/dashboard/page';
 import { GiftNamePanel } from '@/app/names/GiftNamePanel';
 import { ProfilePanel } from '@/app/names/ProfilePanel';
 
@@ -90,7 +91,7 @@ export default async function NameRecordsPage(props: {
             </div>
             <div className="col-span-6 md:col-span-3">
               <div className="font-mono text-kicker uppercase text-muted mb-1">EXPIRES</div>
-              <span className="font-mono text-[12px]">{registration?.expiryAt ? registration.expiryAt.toISOString().slice(0, 10) : '—'}</span>
+              <span className="font-mono text-[12px]">{registration?.expiryAt ? mdy(registration.expiryAt.toISOString()) : '—'}</span>
             </div>
             <div className="col-span-6 md:col-span-3">
               <div className="font-mono text-kicker uppercase text-muted mb-1">OWNER</div>
