@@ -163,6 +163,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/badge',
     // New AgentID landing page (black hero + badge); app-owned so no lander rewrite.
     '/lander',
+    // AgentID: accept a gifted name (token in the URL fragment, like /pair/accept).
+    '/gift',
     // Static assets under public/assets (badge model etc.) must never be rewritten.
     '/assets',
     // /legal/* pages are referenced from footers on all three surfaces

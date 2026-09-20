@@ -631,3 +631,9 @@ The phase can build all the code without these; deployment to real infra waits f
 - `lilly.agent` registered upstream (order 939, domain 390, 1 Gem, expires 2027-09-18), `domain_registrations` row active in Ian's tenant, hosted identity minted (cloud custody; mirror `lilly.agent.arp.run`, profile `agent.arp.run/lilly`). Not yet connected to a runtime — connect from `/names/lilly` when there is an agent for it.
 - Kyber + Sid VMs now run `@kybernesis/identity@0.2.0` from npm (tarball retired); local `~/kyber` + `~/sid` `agentid-identity` branches bumped to `^0.2.0` (local commits, not pushed).
 - Ian's tenant names: agentid-test, kyber, sid, lilly (all active, 1-year).
+
+## 2026-09-20 — lander bento + gift a name
+
+- `/lander` below-hero sections rebuilt as bento cards with illustrations (`apps/cloud/app/lander/Illustrations.tsx`), emerald/cyan accents, Space Mono enforced on every mono label (PR #201). Still not swapped in for `agent.arp.run/` — Ian decides.
+- **Gift a name shipped**: `apps/cloud/lib/name-gifts.ts` (create / preview / claim / cancel), routes `POST|GET|DELETE /api/names/[sld]/gift`, `POST /api/gifts/preview` (public, IP rate-limited), `POST /api/gifts/claim` (session); page `/gift` (token in fragment, client-side login bounce like `/pair/accept`); panel `GiftNamePanel` on `/names/<sld>`. Migration 0015 applied to prod. Tests `apps/cloud/tests/gift-routes.test.ts` (8).
+- Headless API audit (2026-09-19): no DNS record CRUD, renewal is MPP-receipt only, transfer endpoint exists (`recipient.type` = gfavip_username | tempo_address | agent_claim_code), `target_owner_id` on register, marketplace list/offer/buy, `/bio` profile TXT writer (resellers should call it after every registration — we don't yet, so new names may inherit the master account's profile data). Skill docs at `headlessdomains.com/skill_*.md`, reseller guide at `docs.headlessdomains.com/api/reseller-api`.

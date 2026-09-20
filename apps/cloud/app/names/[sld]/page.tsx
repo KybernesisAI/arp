@@ -12,6 +12,7 @@ import { ExportKeyButton } from '@/app/dashboard/ExportKeyButton';
 import { LinksPanel } from '@/app/names/LinksPanel';
 import { ConnectAgentPanel } from '@/app/names/ConnectAgentPanel';
 import { ReprovisionHostedButton } from '@/app/names/ReprovisionHostedButton';
+import { GiftNamePanel } from '@/app/names/GiftNamePanel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -141,6 +142,17 @@ export default async function NameRecordsPage(props: {
         </section>
       )}
 
+      {registration && (registration.status === 'active' || registration.status === 'registered' || registration.status === 'owner_pending') && (
+        <section className="mb-10">
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">Give this name</h2>
+            <span className="font-mono text-kicker uppercase text-muted">// G · ONE LINK, ONE PERSON</span>
+          </header>
+          <Card tone="paper-2" padded={false} className="border border-rule">
+            <GiftNamePanel sld={sld} />
+          </Card>
+        </section>
+      )}
       {agent && agent.keyCustody === 'cloud' && (
         <section className="mb-10">
           <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
