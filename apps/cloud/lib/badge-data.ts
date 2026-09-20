@@ -32,7 +32,7 @@ export interface BadgeData {
 
 const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 /** Portraits checked in under public/assets/badge/avatars/<sld>.png (public/ is CDN-served, not bundled). */
-const LOCAL_AVATARS = new Set(['samantha']);
+const LOCAL_AVATARS = new Set(['samantha', 'kyber', 'sid']);
 
 export function normalizeBadgeSld(input: string | undefined, fallback = 'samantha'): string {
   const sld = (input ?? fallback).toLowerCase().replace(/\.agent$/, '');
