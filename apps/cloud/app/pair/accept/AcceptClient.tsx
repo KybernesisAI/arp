@@ -8,7 +8,8 @@ import {
   FieldHint,
   Pre,
 } from '@/components/ui';
-import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
+import { requirePrincipalKey } from '@/lib/principal-key-browser';
+import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 import {
   countersignProposalClient,
   createSignedAmendmentClient,
@@ -57,6 +58,7 @@ export function AcceptClient({
   hasTenant: boolean;
 }): React.JSX.Element {
   const [state, setState] = useState<AcceptState>({ stage: 'loading' });
+  const [hasKey, setHasKey] = useDeviceKey(principalDid);
 
   useEffect(() => {
     void init();
@@ -158,12 +160,8 @@ export function AcceptClient({
     if (!state.proposal || !state.acceptingAgentDid) return;
     setState({ ...state, stage: 'submitting' });
     try {
-      const principal = await getOrCreatePrincipalKey();
-      if (principal.did !== principalDid) {
-        throw new Error(
-          `browser principal did (${principal.did}) does not match the session's (${principalDid}). Log out and recover from your phrase, or generate a fresh identity.`,
-        );
-      }
+      if (!principalDid) throw new Error('Sign in first.');
+      await requirePrincipalKey(principalDid);
 
       const rawPrivateKey = await extractPrivateKey();
 
@@ -292,6 +290,7 @@ export function AcceptClient({
     setState({ ...state, audiencePicker: s });
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {hasKey === false && principalDid && <div className="lg:col-span-2"><UnlockKey sessionPrincipalDid={principalDid} action="approve this connection" onUnlocked={() => setHasKey(true)} /></div>}
       <div className="space-y-6">
         <div>
           <span className="font-mono text-kicker uppercase text-muted block mb-2">

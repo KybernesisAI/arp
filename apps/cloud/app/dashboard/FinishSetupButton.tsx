@@ -3,7 +3,8 @@
 import type * as React from 'react';
 import { useState } from 'react';
 import { Button, FieldError, Input } from '@/components/ui';
-import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
+import { requirePrincipalKey } from '@/lib/principal-key-browser';
+import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 import { signRepresentationJwtBrowser } from '@/lib/representation-jwt-browser';
 
 /**
@@ -14,22 +15,25 @@ import { signRepresentationJwtBrowser } from '@/lib/representation-jwt-browser';
 export function FinishSetupButton({
   domain,
   tenantId,
+  principalDid,
   ownerLabel = 'owner',
 }: {
   domain: string;
   tenantId: string;
+  principalDid: string;
   ownerLabel?: string;
 }): React.JSX.Element {
   const [stage, setStage] = useState<'idle' | 'label' | 'signing' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [label, setLabel] = useState(ownerLabel);
+  const [hasKey, setHasKey] = useDeviceKey(principalDid);
   const labelOk = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(label);
 
   async function run(): Promise<void> {
     setStage('signing');
     setError(null);
     try {
-      const principal = await getOrCreatePrincipalKey();
+      const principal = await requirePrincipalKey(principalDid);
       const issuerDid = `did:web:cloud.arp.run:u:${tenantId}`;
       const jwt = await signRepresentationJwtBrowser({
         principal,
@@ -62,6 +66,7 @@ export function FinishSetupButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
+      {hasKey === false && <UnlockKey className="w-full max-w-[560px] text-left" sessionPrincipalDid={principalDid} action="verify that you own this name" onUnlocked={() => setHasKey(true)} />}
       {stage === 'label' ? (
         <div className="flex flex-col items-end gap-2">
           <p className="text-body-sm text-ink-2 m-0 max-w-[40ch] text-right">
