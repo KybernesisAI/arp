@@ -59,6 +59,7 @@ vi.mock('@/lib/session', async () => ({
 
 // Import after mocks.
 const { POST, GET } = await import('../app/api/pairing/invitations/route');
+const { POST: resolveShort } = await import('../app/api/pairing/invitations/resolve/route');
 const { DELETE } = await import('../app/api/pairing/invitations/[id]/route');
 
 const catalog = loadScopesFromDirectory();
@@ -280,6 +281,25 @@ describe('POST /api/pairing/invitations', () => {
     };
     expect(body.invitations).toHaveLength(1);
     expect(body.invitations[0]?.issuerAgentDid).toBe(agentDid);
+  });
+
+  it('issues a short link whose token resolves to the same signed invitation, and stops after cancel', async () => {
+    const principal = await resolvePrincipal(4);
+    const agentDid = 'did:web:agent-alpha.agent';
+    const tenantId = await seedTenantAndAgent(currentDb!.db, principal.did, agentDid);
+    sessionOverride = { principalDid: principal.did, tenantId };
+    const createRes = await makePostRequest({ proposal: await makeSignedProposal(principal, agentDid, 'did:web:peer.agent') });
+    const body = (await createRes.json()) as { invitationId: string; invitationUrl: string; shortUrl: string };
+    expect(body.shortUrl).toMatch(/^https:\/\/cloud\.arp\.run\/i#[A-Za-z0-9_-]{20,}$/);
+    expect(body.shortUrl.length).toBeLessThan(60);
+    const token = body.shortUrl.split('#')[1]!;
+    const resolve = (t: string) => resolveShort(new Request('https://cloud.arp.run/api/pairing/invitations/resolve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: t }) }));
+    const ok = await resolve(token);
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as { payload: string }).payload).toBe(body.invitationUrl.split('#')[1]);
+    expect((await resolve('not-a-real-token-xxxxxxxx')).status).toBe(404);
+    await makeDeleteRequest(body.invitationId);
+    expect((await resolve(token)).status).toBe(404);
   });
 
   it('DELETE cancels a pending invitation and GET excludes it afterwards', async () => {

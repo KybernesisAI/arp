@@ -165,6 +165,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/lander',
     // AgentID: accept a gifted name (token in the URL fragment, like /pair/accept).
     '/gift',
+    // Short pairing-invitation links (token in the fragment).
+    '/i',
     // Static assets under public/assets (badge model etc.) must never be rewritten.
     '/assets',
     // /legal/* pages are referenced from footers on all three surfaces

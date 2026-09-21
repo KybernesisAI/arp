@@ -20,6 +20,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'node:crypto';
 import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { PairingProposalSchema } from '@kybernesis/arp-pairing';
@@ -90,6 +91,8 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const payload = encodePayload(proposal);
+    // Short link: 128-bit token in the fragment. The long link (payload in the fragment) still works.
+    const shortToken = randomBytes(16).toString('base64url');
     const url = new URL(req.url);
     // Prefer the host the caller actually reached (app.arp.run, cloud.arp.run,
     // or a local dev host); falls back to the runtime-configured cloud base.
@@ -106,6 +109,7 @@ export async function POST(req: Request): Promise<Response> {
         requestedScopes: proposal.scope_selections as unknown as Record<string, unknown>,
         challenge: proposal.proposal_id,
         payload,
+        shortToken,
         expiresAt,
       })
       .returning();
@@ -129,6 +133,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({
       invitationId: row.id,
       invitationUrl: buildInvitationUrl(baseUrl, payload),
+      shortUrl: `${baseUrl.replace(/\/+$/, '')}/i#${shortToken}`,
       expiresAt: row.expiresAt.toISOString(),
       proposalId: proposal.proposal_id,
       connectionId: proposal.connection_id,

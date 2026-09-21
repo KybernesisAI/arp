@@ -422,11 +422,11 @@ async function loadState(): Promise<{
 
   // Pairing inbox (migration 0007). Empty lists if the table is behind.
   const myAgentDids = agentRows.map((a) => a.did);
-  let outgoingRows: Array<{ id: string; issuerAgentDid: string; audienceDid: string; payload: string; expiresAt: Date }> = [];
+  let outgoingRows: Array<{ id: string; issuerAgentDid: string; audienceDid: string; payload: string; shortToken?: string | null; expiresAt: Date }> = [];
   let incomingRows: typeof outgoingRows = [];
   try {
     outgoingRows = await db
-      .select({ id: pairingInvitations.id, issuerAgentDid: pairingInvitations.issuerAgentDid, audienceDid: pairingInvitations.audienceDid, payload: pairingInvitations.payload, expiresAt: pairingInvitations.expiresAt })
+      .select({ id: pairingInvitations.id, issuerAgentDid: pairingInvitations.issuerAgentDid, audienceDid: pairingInvitations.audienceDid, payload: pairingInvitations.payload, shortToken: pairingInvitations.shortToken, expiresAt: pairingInvitations.expiresAt })
       .from(pairingInvitations)
       .where(and(eq(pairingInvitations.tenantId, tenantDb.tenantId), isNull(pairingInvitations.cancelledAt), isNull(pairingInvitations.consumedAt), gt(pairingInvitations.expiresAt, now)))
       .orderBy(asc(pairingInvitations.expiresAt));
@@ -458,7 +458,7 @@ async function loadState(): Promise<{
     identities,
     hasPasskey: passkeys.length > 0,
     // When the other agent is also this account's, the owner can approve here (same signed payload).
-    outgoingInvitations: outgoingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), invitationUrl: `${baseUrl}/pair/accept#${r.payload}`, approveHref: myAgentDids.includes(r.audienceDid) ? `/pair/accept#${r.payload}` : null })),
+    outgoingInvitations: outgoingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), invitationUrl: r.shortToken ? `${baseUrl}/i#${r.shortToken}` : `${baseUrl}/pair/accept#${r.payload}`, approveHref: myAgentDids.includes(r.audienceDid) ? `/pair/accept#${r.payload}` : null })),
     incomingInvitations: incomingRows.map((r) => ({ id: r.id, issuerAgentDid: r.issuerAgentDid, audienceDid: r.audienceDid, expiresAt: r.expiresAt.toISOString(), acceptHref: `/pair/accept#${r.payload}` })),
     recentActivity,
     totalActiveConnections,
