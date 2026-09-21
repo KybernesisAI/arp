@@ -2,35 +2,20 @@ import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { ConsoleHead } from '@/components/app/ConsoleHead';
-import {
-  Badge,
-  Card,
-  Code,
-  Dot,
-  Link } from '@/components/ui';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { ConnectionsList, type ConnectionRow } from './ConnectionsList';
+import { buildConnectionView } from '@/lib/connection-view';
+import { ConnectionsList, type ConnectionCardData } from './ConnectionsList';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 50;
 
 /**
- * /connections — cloud connection list page (slice 10b).
- *
- * Server component: seeds the first page of connections from the DB plus the
- * tenant's agent list (for the filter dropdown). The client-side
- * `ConnectionsList` owns status-tab switching + "Load more" pagination via
- * GET /api/connections.
- *
- * Tenant isolation: `listConnections` is scoped to the caller's tenant via
- * TenantDb; the first page is fetched here so a logged-out user never sees
- * a flash of unauthenticated content before redirect.
+ * /connections — every pairing between one of your agents and another agent,
+ * as cards: which two agents, what each may do, in the catalog's words.
  */
-export default async function ConnectionsPage(props: {
-  searchParams: Promise<{ agentDid?: string; status?: string }>;
-}): Promise<React.JSX.Element> {
+export default async function ConnectionsPage(props: { searchParams: Promise<{ agentDid?: string; status?: string }> }): Promise<React.JSX.Element> {
   const search = await props.searchParams;
   let state: Awaited<ReturnType<typeof loadState>>;
   try {
@@ -39,63 +24,21 @@ export default async function ConnectionsPage(props: {
     if (err instanceof AuthError) redirect('/onboarding');
     throw err;
   }
-  const { agents, initialRows, initialCursor, selectedStatus, selectedAgent } = state;
-
+  const { agents, rows, selectedStatus, selectedAgent, activeCount } = state;
   return (
     <ConsoleShell active="connections">
       <ConsoleHead
-        plateNum="C.01"
-        kicker="// CONNECTIONS · ALL AGENTS"
-        title="Connections"
+        kicker="Connections"
+        title={activeCount === 0 ? 'No connections yet.' : activeCount === 1 ? 'One connection.' : `${activeCount} connections.`}
+        actions={<a href="/pair" className="rounded-full bg-black px-5 py-2.5 text-[14px] font-medium text-white hover:bg-zinc-800">Pair two agents</a>}
       />
-
-      <div className="mb-8 max-w-2xl text-body text-ink-2">
-        <p>
-          Every active tokenised link between one of your agents and a peer.
-          Click a row for the full consent token, the scope breakdown, and
-          the per-connection audit log.
-        </p>
-      </div>
-
+      <p className="-mt-6 mb-8 max-w-[60ch] text-[16px] text-zinc-600">
+        A connection is two agents allowed to talk, with what each may do written down. Open one to see the full permissions, pause or end it, or read its message log.
+      </p>
       {agents.length === 0 ? (
-        <Card tone="yellow" padded className="border border-rule max-w-2xl">
-          <Badge tone="yellow" className="mb-3 text-[9px] px-2 py-0.5">NO AGENTS</Badge>
-          <p className="text-body">
-            Provision an agent first, then come back to pair with a peer.
-          </p>
-          <p className="mt-4 text-body-sm">
-            <Link href="/onboarding" variant="accent">Go to onboarding →</Link>
-          </p>
-        </Card>
-      ) : initialRows.length === 0 && selectedStatus === 'active' && !selectedAgent ? (
-        <Card tone="paper-2" padded className="border border-rule max-w-2xl">
-          <Badge tone="muted" className="mb-3 text-[9px] px-2 py-0.5">NO CONNECTIONS YET</Badge>
-          <p className="text-body">
-            Nothing paired yet. Generate an invitation and share it with the
-            peer you want to connect to.
-          </p>
-          <p className="mt-4 text-body-sm">
-            <Link href="/pair" variant="accent">→ Pair with another agent</Link>
-          </p>
-          <div className="mt-6 border-t border-rule pt-4 text-body-sm text-ink-2">
-            <span className="font-mono text-kicker uppercase text-muted">
-              // TIP
-            </span>
-            <br />
-            Pairing signs a consent token locally in your browser. The peer
-            never sees your principal key, only the scopes + obligations you
-            granted.
-          </div>
-        </Card>
+        <div className="rounded-3xl border border-zinc-200 bg-white p-6 text-[15px] text-zinc-600">You need an agent first. <a href="/dashboard#claim" className="underline underline-offset-4">Claim a name</a>.</div>
       ) : (
-        <ConnectionsList
-          agents={agents}
-          initialRows={initialRows}
-          initialCursor={initialCursor}
-          selectedAgent={selectedAgent}
-          selectedStatus={selectedStatus}
-          pageSize={PAGE_SIZE}
-        />
+        <ConnectionsList rows={rows} agents={agents} selectedAgent={selectedAgent} selectedStatus={selectedStatus} />
       )}
     </ConsoleShell>
   );
@@ -103,50 +46,38 @@ export default async function ConnectionsPage(props: {
 
 async function loadState(search: { agentDid?: string; status?: string }) {
   const { tenantDb } = await requireTenantDb();
-  const agents = await tenantDb.listAgents();
-
+  const agentRows = await tenantDb.listAgents();
+  const names = new Map(agentRows.map((a) => [a.did, a.did.replace(/^did:web:/, '')]));
   const agentDidFilter = search.agentDid?.trim() || undefined;
   const statusFilter = search.status?.trim() || 'active';
-  const rows = await tenantDb.listConnections({
-    ...(agentDidFilter ? { agentDid: agentDidFilter } : {}),
-    ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-  });
-  const trimmed = rows.slice(0, PAGE_SIZE);
-  const mapped: ConnectionRow[] = trimmed.map((r) => {
-    const cedar = Array.isArray(r.cedarPolicies) ? (r.cedarPolicies as unknown[]) : [];
-    const obligations = Array.isArray(r.obligations) ? (r.obligations as unknown[]) : [];
-    return {
-      connectionId: r.connectionId,
-      agentDid: r.agentDid,
-      peerDid: r.peerDid,
-      purpose: r.purpose ?? null,
-      status: r.status,
-      scopesCount: cedar.length,
-      obligationsCount: obligations.length,
-      createdAt: r.createdAt.toISOString(),
-      lastMessageAt: r.lastMessageAt ? r.lastMessageAt.toISOString() : null,
-    };
-  });
-  // If the server-side page is full, derive the cursor client-side style so
-  // ConnectionsList can continue from where we left off.
-  const last = trimmed[trimmed.length - 1];
-  const nextCursor =
-    rows.length > PAGE_SIZE && last
-      ? Buffer.from(
-          JSON.stringify({ t: last.createdAt.toISOString(), c: last.connectionId }),
-          'utf8',
-        ).toString('base64url')
-      : null;
-
+  const [rows, active] = await Promise.all([
+    tenantDb.listConnections({ ...(agentDidFilter ? { agentDid: agentDidFilter } : {}), ...(statusFilter !== 'all' ? { status: statusFilter } : {}) }),
+    tenantDb.listConnections({ status: 'active' }),
+  ]);
+  const now = Date.now();
+  // A row past its lifetime is not a connection any more, whatever its status column says.
+  const live = (r: (typeof rows)[number]) => r.status !== 'active' || !r.expiresAt || r.expiresAt.getTime() > now;
+  const cards: ConnectionCardData[] = rows
+    .filter((r) => (statusFilter === 'active' ? live(r) : true))
+    .slice(0, PAGE_SIZE)
+    .map((r) => {
+      const v = buildConnectionView({ ...r, purpose: r.purpose ?? null, revokeReason: r.revokeReason ?? null }, names);
+      return {
+        connectionId: v.connectionId,
+        mineName: v.mine.name,
+        peerName: v.peer.name,
+        purpose: v.purpose,
+        status: v.status,
+        grants: v.grants.map((g) => ({ actorName: g.actorName, may: g.may })),
+        expiresAt: v.expiresAt,
+        lastMessageAt: v.lastMessageAt,
+      };
+    });
   return {
-    agents: agents.map((a) => ({ did: a.did, name: a.agentName })),
-    initialRows: mapped,
-    initialCursor: nextCursor,
+    agents: agentRows.map((a) => ({ did: a.did, name: a.did.replace(/^did:web:/, '') })),
+    rows: cards,
     selectedAgent: agentDidFilter ?? null,
     selectedStatus: statusFilter,
+    activeCount: active.filter(live).length,
   };
 }
-
-// Silence tree-shake warnings on imports kept for co-located typing.
-void Code;
-void Dot;

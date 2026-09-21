@@ -3,7 +3,6 @@
 import type * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, ButtonLink } from '@/components/ui';
 
 /**
  * Inline action buttons for a connection's detail page. Suspend /
@@ -50,81 +49,23 @@ export function ConnectionActions({
     }
   }
 
+  const PRIMARY = 'rounded-full bg-black px-4 py-2 text-[13px] font-medium text-white hover:bg-zinc-800 disabled:opacity-40';
+  const QUIET = 'rounded-full border border-zinc-300 px-4 py-2 text-[13px] font-medium text-zinc-900 hover:border-zinc-900 disabled:opacity-40';
+  const log = `/connections/${encodeURIComponent(connectionId)}/audit`;
   if (status === 'revoked') {
-    // Revoked is terminal — only "view audit" is meaningful.
-    return (
-      <ButtonLink
-        href={`/connections/${encodeURIComponent(connectionId)}/audit`}
-        variant="default"
-        size="sm"
-        arrow
-      >
-        View audit log
-      </ButtonLink>
-    );
+    return <a href={log} className={PRIMARY}>Message log</a>;
   }
-
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <ButtonLink
-        href={`/connections/${encodeURIComponent(connectionId)}/audit`}
-        variant="default"
-        size="sm"
-        arrow
-      >
-        View audit log
-      </ButtonLink>
-
-      {status === 'active' && (
-        <ButtonLink
-          href={`/connections/${encodeURIComponent(connectionId)}/edit`}
-          variant="primary"
-          size="sm"
-          arrow
-        >
-          Edit scopes
-        </ButtonLink>
+    <div className="flex flex-wrap items-center gap-2">
+      <a href={log} className={QUIET}>Message log</a>
+      <a href={`/connections/${encodeURIComponent(connectionId)}/edit`} className={QUIET}>Change permissions</a>
+      {status === 'active' ? (
+        <button type="button" onClick={() => void call('suspend')} disabled={stage === 'submitting'} className={QUIET}>{stage === 'submitting' ? 'Pausing…' : 'Pause'}</button>
+      ) : (
+        <button type="button" onClick={() => void call('resume')} disabled={stage === 'submitting'} className={PRIMARY}>{stage === 'submitting' ? 'Resuming…' : 'Resume'}</button>
       )}
-
-      {status === 'active' && (
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => void call('suspend')}
-          disabled={stage === 'submitting'}
-        >
-          {stage === 'submitting' ? 'Suspending…' : 'Suspend'}
-        </Button>
-      )}
-
-      {status === 'suspended' && (
-        <Button
-          variant="primary"
-          size="sm"
-          arrow
-          onClick={() => void call('resume')}
-          disabled={stage === 'submitting'}
-        >
-          {stage === 'submitting' ? 'Resuming…' : 'Resume'}
-        </Button>
-      )}
-
-      {status === 'active' && (
-        <ButtonLink
-          href={`/connections/${encodeURIComponent(connectionId)}/revoke`}
-          variant="default"
-          size="sm"
-          arrow
-        >
-          Revoke
-        </ButtonLink>
-      )}
-
-      {error && (
-        <span className="font-mono text-kicker uppercase text-signal-red">
-          {error}
-        </span>
-      )}
+      <a href={`/connections/${encodeURIComponent(connectionId)}/revoke`} className="rounded-full border border-amber-500/40 px-4 py-2 text-[13px] font-medium text-amber-800 hover:border-amber-700">End connection</a>
+      {error && <span className="text-[12px] text-amber-800">{error}</span>}
     </div>
   );
 }
