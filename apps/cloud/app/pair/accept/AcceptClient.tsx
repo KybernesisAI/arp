@@ -270,7 +270,7 @@ export function AcceptClient({
         </h3>
         <p className="text-body text-ink-2 mb-4">
           Your agent now speaks to{' '}
-          <Code>{state.proposal?.subject}</Code>. Visit the dashboard to see
+          <strong>{(state.proposal?.subject ?? '').replace(/^did:web:/, '')}</strong>. Visit the dashboard to see
           activity once messages start flowing.
         </p>
         <div className="flex gap-2">
@@ -282,7 +282,6 @@ export function AcceptClient({
           </a>
         </div>
         <div className="mt-4 font-mono text-kicker uppercase text-muted">
-          CONNECTION · <Code>{state.connectionId}</Code>
         </div>
       </div>
     );
@@ -308,7 +307,7 @@ export function AcceptClient({
           <div className="border border-rule bg-paper p-5 space-y-3 text-body-sm">
             <p className="text-ink-2 m-0">
               The connection is mutual. Pick what you allow{' '}
-              <Code>{state.proposal?.subject}</Code> to do toward your
+              <strong>{(state.proposal?.subject ?? '').replace(/^did:web:/, '')}</strong> to do toward your
               agent. Leave empty if this is a one-way capability grant.
             </p>
             {state.catalog && state.bundles && (
@@ -339,7 +338,7 @@ export function AcceptClient({
           >
             {state.agents?.map((a) => (
               <option key={a.did} value={a.did}>
-                {a.name} — {a.did}
+                {a.did.replace(/^did:web:/, '')}
               </option>
             ))}
           </select>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import QRCode from 'qrcode';
 import {
   Badge,
   Button,
@@ -84,18 +85,18 @@ export function PairForm({
     }
     // intentionally only run when fromQuery changes
   }, [fromQuery]);
-  const [audienceDid, setAudienceDid] = useState(
-    normalisedPeerQuery && isValidDidUri(normalisedPeerQuery)
-      ? normalisedPeerQuery
-      : 'did:web:peer.agent',
+  // The owner types a name (`samantha` or `samantha.agent`); the identifier is derived and never shown.
+  const [audienceName, setAudienceName] = useState(
+    normalisedPeerQuery && isValidDidUri(normalisedPeerQuery) ? plainName(normalisedPeerQuery) : '',
   );
+  const audienceDid = normaliseDidInput(audienceName);
   useEffect(() => {
     if (
       normalisedPeerQuery &&
       isValidDidUri(normalisedPeerQuery) &&
       normalisedPeerQuery !== audienceDid
     ) {
-      setAudienceDid(normalisedPeerQuery);
+      setAudienceName(plainName(normalisedPeerQuery));
     }
     // intentionally only run when peer query changes
   }, [normalisedPeerQuery]);
@@ -216,7 +217,7 @@ export function PairForm({
           >
             {agents.map((a) => (
               <option key={a.did} value={a.did}>
-                {a.name} — {a.did}
+                {plainName(a.did)}
               </option>
             ))}
           </select>
@@ -226,23 +227,19 @@ export function PairForm({
           <Label htmlFor="pair-audience">The other agent’s name</Label>
           <Input
             id="pair-audience"
-            value={audienceDid}
-            onChange={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
-            onBlur={(e) => setAudienceDid(normaliseDidInput(e.target.value))}
-            placeholder="samantha"
+            value={audienceName}
+            onChange={(e) => setAudienceName(e.target.value)}
+            onBlur={(e) => setAudienceName(plainName(normaliseDidInput(e.target.value)))}
+            placeholder="samantha.agent"
             data-testid="pair-audience-input"
             className="font-mono"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
           />
-          <FieldHint>
-            FORMAT: <Code>did:web:&lt;their-domain&gt;.agent</Code> — colons after &quot;did&quot; and &quot;web&quot;
-          </FieldHint>
-          {audienceDid && !isValidDidUri(audienceDid) && (
-            <p className="mt-2 font-mono text-kicker uppercase text-signal-red">
-              NOT A VALID DID URI · CHECK THE FORMAT
-            </p>
+          <FieldHint>Their .agent name, like samantha.agent. Just the name is fine.</FieldHint>
+          {audienceName.trim() !== '' && !isValidDidUri(audienceDid) && (
+            <p className="mt-2 text-[13px] text-amber-800">That does not look like an agent name. Letters, numbers and hyphens only.</p>
           )}
         </div>
 
@@ -324,15 +321,12 @@ export function PairForm({
                   onClick={() => void copyUrl()}
                   data-testid="pair-copy-btn"
                 >
-                  {copyState === 'copied' ? 'Copied' : 'Copy URL'}
+                  {copyState === 'copied' ? 'Copied' : 'Copy link'}
                 </Button>
               </div>
+              <InvitationQr url={generated.invitationUrl} />
               <div className="mt-4 font-mono text-kicker uppercase text-muted">
-                CONNECTION · <Code>{generated.connectionId}</Code>
-                <br />
-                PROPOSAL · <Code>{generated.proposalId}</Code>
-                <br />
-                EXPIRES · {new Date(generated.expiresAt).toLocaleString()}
+                EXPIRES · {mdy(generated.expiresAt)}
               </div>
               <div className="mt-6 border-t border-rule pt-4 text-body-sm text-ink-2">
                 <span className="font-mono text-kicker uppercase text-signal-red">
@@ -430,6 +424,35 @@ function normaliseDidInput(raw: string): string {
   // A bare name (`sid`) is what an owner types; it can only mean `sid.agent`.
   if (/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(v)) return `did:web:${v.toLowerCase()}.agent`;
   return v;
+}
+
+/** `did:web:samantha.agent` → `samantha.agent`; anything else untouched. */
+function plainName(did: string): string {
+  return did.replace(/^did:web:/, '');
+}
+
+function mdy(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${m}-${d}-${y}`;
+}
+
+/** The invitation link as a QR, for scanning from the other owner's phone. */
+function InvitationQr({ url }: { url: string }): React.JSX.Element | null {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void QRCode.toDataURL(url, { margin: 1, width: 512, errorCorrectionLevel: 'M', color: { dark: '#09090b', light: '#ffffff' } })
+      .then((d) => { if (alive) setSrc(d); })
+      .catch(() => { if (alive) setSrc(null); });
+    return () => { alive = false; };
+  }, [url]);
+  if (!src) return null;
+  return (
+    <div className="mt-4 flex items-start gap-4">
+      <img src={src} alt="QR code for the invitation link" width={176} height={176} className="h-44 w-44 rounded-2xl border border-zinc-200 bg-white p-2" />
+      <p className="max-w-[26ch] text-[13px] text-zinc-600">Or let the other owner scan this with their phone. It opens the same link.</p>
+    </div>
+  );
 }
 
 function isValidDidUri(v: string): boolean {
