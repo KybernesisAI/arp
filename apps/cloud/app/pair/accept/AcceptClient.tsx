@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
   Button,
-  Code,
   FieldError,
   FieldHint,
   Pre,
