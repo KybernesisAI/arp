@@ -131,3 +131,29 @@ export function StateChip({ state }: { state: 'verified' | 'live' | 'pending' })
     </span>
   );
 }
+
+/* ---------------- Form primitives for auth + console forms (lander language) ---------------- */
+
+const BTN = 'inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[14px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40';
+export function PrimaryButton({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
+  return <button type="button" {...rest} className={`${BTN} bg-black text-white hover:bg-zinc-800 ${className}`}>{children}</button>;
+}
+export function SecondaryButton({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
+  return <button type="button" {...rest} className={`${BTN} border border-zinc-300 bg-white text-zinc-900 hover:border-zinc-900 ${className}`}>{children}</button>;
+}
+export function PrimaryLink({ children, className = '', ...rest }: React.AnchorHTMLAttributes<HTMLAnchorElement>): React.JSX.Element {
+  return <a {...rest} className={`${BTN} bg-black text-white hover:bg-zinc-800 ${className}`}>{children}</a>;
+}
+export function TextInput({ className = '', ...rest }: React.InputHTMLAttributes<HTMLInputElement>): React.JSX.Element {
+  return <input {...rest} className={`w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 disabled:bg-zinc-50 ${className}`} />;
+}
+export function TextArea({ className = '', ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement>): React.JSX.Element {
+  return <textarea {...rest} className={`w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 ${className}`} />;
+}
+export function ErrorText({ children, className = '', ...rest }: React.HTMLAttributes<HTMLParagraphElement>): React.JSX.Element {
+  return <p {...rest} className={`text-[13px] text-red-700 ${className}`}>{children}</p>;
+}
+/** Quiet text link in the mono label style, for "use a different email" / "advanced" toggles. */
+export function QuietLink({ children, className = '', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
+  return <button type="button" {...rest} className={`font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900 ${className}`}>{children}</button>;
+}

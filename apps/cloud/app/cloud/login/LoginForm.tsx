@@ -2,20 +2,8 @@
 
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
-import {
-  Badge,
-  Button,
-  ButtonLink,
-  FieldError,
-  FieldHint,
-  Label,
-  Pre,
-  Textarea,
-} from '@/components/ui';
-import {
-  isPasskeySupported,
-  signInWithPasskey,
-} from '@/lib/principal-key-passkey';
+import { Card, ErrorText, Kicker, PrimaryButton, QuietLink, SecondaryButton, Tag, TextArea, TextInput } from '@/app/lander/ui';
+import { isPasskeySupported, signInWithPasskey } from '@/lib/principal-key-passkey';
 import {
   deriveKeysFromRecoveryPhrase,
   getOrCreatePrincipalKey,
@@ -26,37 +14,22 @@ import {
 import { base64urlEncode } from '@kybernesis/arp-transport/browser';
 
 /**
- * Login form for cloud.arp.run.
+ * Login for cloud.arp.run, in the lander language.
  *
- * Three sign-in paths, in priority order:
- *
- *   1. Auto-detect: if `arp.cloud.principalKey.v2` is in localStorage we
- *      derive the key + sign a server-issued challenge silently. Same-
- *      device users one-click sign in with no UI.
- *
- *   2. Passkey: WebAuthn resident credential. Works for accounts that
- *      registered a passkey post-onboard.
- *
- *   3. Recovery phrase: paste the 12-word phrase, derive the key in-
- *      browser, sign the challenge in-browser. No external signer
- *      required — the previous form took a bare DID + a base64url
- *      signature pasted by the user, which is a CLI flow most users
- *      can't actually execute. The CLI/sidecar variant is preserved
- *      under "Advanced".
+ *   0. Silent: a key already in this browser signs a challenge and you are in.
+ *   1. Email code — any device; opens the dashboard without the key.
+ *   2. Passkey — this device's Touch ID / Face ID / Windows Hello.
+ *   3. Recovery phrase — any device; restores the key into this browser.
+ *   Advanced (collapsed): a key held elsewhere signs the challenge.
  */
 
 type AutoStage = 'checking' | 'auto-signing' | 'auto-failed' | 'no-tenant' | 'no-auto';
 type PasskeyStage = 'idle' | 'pending' | 'success' | 'error';
 
-export default function LoginForm({
-  nextUrl,
-}: {
-  nextUrl?: string | null;
-} = {}): React.JSX.Element {
+export default function LoginForm({ nextUrl, signupHref = '/onboarding' }: { nextUrl?: string | null; signupHref?: string } = {}): React.JSX.Element {
   const successHref = nextUrl ?? '/dashboard';
   const [auto, setAuto] = useState<AutoStage>('checking');
   const [autoError, setAutoError] = useState<string | null>(null);
-  const [autoDid, setAutoDid] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState<boolean | null>(null);
   const [passkeyStage, setPasskeyStage] = useState<PasskeyStage>('idle');
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
@@ -74,7 +47,6 @@ export default function LoginForm({
         }
       } catch (err) {
         if (err instanceof NoTenantError) {
-          setAutoDid(err.principalDid);
           setAuto('no-tenant');
           return;
         }
@@ -91,7 +63,6 @@ export default function LoginForm({
     const { clearPrincipalKey } = await import('@/lib/principal-key-browser');
     await clearPrincipalKey();
     setAuto('no-auto');
-    setAutoDid(null);
   }
 
   async function handlePasskey(): Promise<void> {
@@ -109,199 +80,209 @@ export default function LoginForm({
 
   if (auto === 'checking' || auto === 'auto-signing') {
     return (
-      <div className="border border-rule bg-paper p-7">
-        <p className="font-mono text-kicker uppercase text-muted">
-          {auto === 'checking' ? 'CHECKING THIS DEVICE…' : 'SIGNING IN…'}
-        </p>
-      </div>
+      <Card>
+        <Kicker>{auto === 'checking' ? 'Checking this device…' : 'Signing in…'}</Kicker>
+        <p className="mt-3 text-[15px] text-zinc-600">If this browser holds your key, you will be on your dashboard in a moment.</p>
+      </Card>
     );
   }
 
-  if (auto === 'no-tenant' && autoDid) {
+  if (auto === 'no-tenant') {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="border border-rule bg-paper p-7">
-          <Badge tone="yellow" className="mb-3">
-            KEY NOT REGISTERED ON THIS DEVICE
-          </Badge>
-          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-            This browser has a principal key, but it&apos;s not yours.
-          </h2>
-          <p className="text-body text-ink-2 mb-3">
-            We found a principal key in this browser&apos;s storage and verified
-            it cryptographically, but no ARP Cloud tenant is registered to it.
-            That key isn&apos;t your account — it&apos;s a leftover (stale localStorage,
-            test session, etc.). Sign in with your recovery phrase to reach
-            your real account.
-          </p>
-          <Pre className="mb-5">{autoDid}</Pre>
-          <Button
-            variant="primary"
-            arrow
-            onClick={() => void handleClearAndContinue()}
-          >
-            Sign in with my recovery phrase
-          </Button>
-          <p className="mt-4 font-mono text-kicker uppercase text-muted">
-            CLEARING THE LOCAL KEY DELETES IT FROM THIS BROWSER ONLY · YOUR PHRASE STILL WORKS
-          </p>
+      <Card>
+        <Tag tone="zinc">Key not registered</Tag>
+        <h2 className="mt-4 text-[22px] font-medium tracking-[-0.01em] text-zinc-950">This browser holds a key, but it is not tied to an account.</h2>
+        <p className="mt-3 max-w-[60ch] text-[15px] text-zinc-600">
+          It is probably a leftover from a test or an old session. Clearing it removes it from this browser only; your recovery phrase still works.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <PrimaryButton onClick={() => void handleClearAndContinue()}>Clear it and sign in another way</PrimaryButton>
+          <a href={signupHref} className="inline-flex items-center rounded-full border border-zinc-300 px-5 py-2.5 text-[14px] font-medium text-zinc-900 hover:border-zinc-900">Create an account with it</a>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {auto === 'auto-failed' && autoError && (
-        <FieldError>Auto sign-in failed: {autoError}. Use a path below.</FieldError>
-      )}
+    <div className="flex flex-col gap-4">
+      {auto === 'auto-failed' && autoError && <ErrorText>Automatic sign-in did not work ({autoError}). Use one of the options below.</ErrorText>}
 
-      {/* Email path — any device, no key needed to reach the dashboard */}
-      <div className="border border-rule bg-paper p-7" data-testid="email-code-panel">
-        <Badge tone="ink" className="mb-3">
-          EMAIL · ANY DEVICE
-        </Badge>
-        <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-          Email me a code.
-        </h2>
-        <p className="text-body text-ink-2 mb-5">
-          Use the email on your account and we&apos;ll send a 6-digit code. Good for reaching your
-          dashboard from a phone or a new computer.
-        </p>
-        <EmailCodeSignIn successHref={successHref} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-rule border border-rule">
-        {/* Passkey path */}
-        <div className="bg-paper p-7">
-          <Badge tone="blue" className="mb-3">
-            PASSKEY · THIS DEVICE
-          </Badge>
-          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-            Sign in with your device.
-          </h2>
-          <p className="text-body text-ink-2 mb-5">
-            Touch ID, Face ID, or Windows Hello — whichever your device provides. Your passkey
-            stays on this device; we never see it.
-          </p>
-          {passkeyError && <FieldError className="mb-4">Error: {passkeyError}</FieldError>}
-          <Button
-            variant="primary"
-            arrow
-            onClick={() => void handlePasskey()}
-            disabled={passkeyStage === 'pending' || passkeySupported === false}
-            data-testid="passkey-signin-btn"
-          >
-            {passkeyStage === 'pending' ? 'Waiting for passkey…' : 'Sign in with passkey'}
-          </Button>
-          {passkeySupported === false && (
-            <p className="mt-3 font-mono text-kicker uppercase text-muted">
-              PASSKEYS UNAVAILABLE IN THIS BROWSER · USE RECOVERY PHRASE →
-            </p>
-          )}
-        </div>
-
-        {/* Recovery phrase path — peer of passkey, no longer hidden */}
-        <div className="bg-paper-2 p-7" data-testid="recovery-phrase-panel">
-          <Badge tone="yellow" className="mb-3">
-            RECOVERY PHRASE · ANY DEVICE
-          </Badge>
-          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-            Sign in from a new browser.
-          </h2>
-          <p className="text-body text-ink-2 mb-5">
-            Paste the 12-word phrase you saved when you created the account.
-            Use this when your passkey isn&apos;t on this device — for example,
-            you&apos;re signing in to localhost or a fresh install.
-          </p>
-          <RecoveryPhraseSignIn successHref={successHref} />
-        </div>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setAdvancedOpen((v) => !v)}
-          data-testid="advanced-toggle"
-          className="font-mono text-kicker uppercase text-muted hover:text-ink transition-colors border-b border-current pb-0.5"
-        >
-          {advancedOpen ? '▾' : '▸'} Advanced: external signer (DID + base64url signature)
-        </button>
-        {advancedOpen && (
-          <div className="border border-rule bg-paper p-7 mt-3">
-            <ExternalSignerSignIn successHref={successHref} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Email code — any device */}
+        <Card glow="cyan">
+          <div className="flex items-center justify-between gap-3">
+            <Kicker>Email</Kicker>
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Any device</span>
           </div>
-        )}
+          <h2 className="mt-3 text-[20px] font-medium tracking-[-0.01em] text-zinc-950">Email me a code.</h2>
+          <p className="mt-2 text-[14px] text-zinc-600">A 6-digit code to the email on your account. Good for a phone or a new computer.</p>
+          <div className="mt-5" data-testid="email-code-panel"><EmailCodeSignIn successHref={successHref} /></div>
+        </Card>
+
+        {/* Passkey — this device */}
+        <Card glow="emerald">
+          <div className="flex items-center justify-between gap-3">
+            <Kicker>Passkey</Kicker>
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">This device</span>
+          </div>
+          <h2 className="mt-3 text-[20px] font-medium tracking-[-0.01em] text-zinc-950">Use this device.</h2>
+          <p className="mt-2 text-[14px] text-zinc-600">Touch ID, Face ID or Windows Hello, if you added a passkey here. It never leaves the device.</p>
+          {passkeyError && <ErrorText className="mt-3">{passkeyError}</ErrorText>}
+          <div className="mt-5">
+            <PrimaryButton onClick={() => void handlePasskey()} disabled={passkeyStage === 'pending' || passkeySupported === false} data-testid="passkey-signin-btn">
+              {passkeyStage === 'pending' ? 'Waiting for your device…' : 'Sign in with passkey'}
+            </PrimaryButton>
+          </div>
+          {passkeySupported === false && <p className="mt-3 text-[13px] text-zinc-500">Passkeys are not available in this browser. Use email or your recovery phrase.</p>}
+        </Card>
+
+        {/* Recovery phrase — any device, restores the key */}
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <Kicker>Recovery phrase</Kicker>
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">Any device</span>
+          </div>
+          <h2 className="mt-3 text-[20px] font-medium tracking-[-0.01em] text-zinc-950">Bring your key here.</h2>
+          <p className="mt-2 text-[14px] text-zinc-600">The 12 words you saved when you created the account. This puts your key in this browser, so you can also verify names and approve pairings here.</p>
+          <div className="mt-5" data-testid="recovery-phrase-panel"><RecoveryPhraseSignIn successHref={successHref} /></div>
+        </Card>
       </div>
 
-      <div className="font-mono text-kicker uppercase text-muted">
-        NO ACCOUNT? <span className="not-italic"><a href="/onboarding" className="underline">CREATE ONE</a></span>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+        <p className="m-0 text-[14px] text-zinc-600">No account yet? <a href={signupHref} className="font-medium text-zinc-900 underline underline-offset-4">Create one</a>.</p>
+        <QuietLink onClick={() => setAdvancedOpen((v) => !v)} data-testid="advanced-toggle">{advancedOpen ? 'Hide' : 'Advanced'}: key held outside the browser</QuietLink>
       </div>
+      {advancedOpen && (
+        <Card>
+          <ExternalSignerSignIn successHref={successHref} />
+        </Card>
+      )}
     </div>
   );
 }
 
-/* ---------------- Path 1: silent re-auth from localStorage ---------------- */
+/* ---------------- Path 0: silent re-auth from localStorage ---------------- */
 
 async function signInExisting(): Promise<void> {
   const key = await getOrCreatePrincipalKey();
   await runChallengeVerify(key);
 }
 
+/* ---------------- Path 1: one-time email code (S6d) ---------------- */
+
+function EmailCodeSignIn({ successHref }: { successHref: string }): React.JSX.Element {
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [stage, setStage] = useState<'email' | 'sending' | 'code' | 'verifying'>('email');
+  const [error, setError] = useState<string | null>(null);
+
+  async function send(): Promise<void> {
+    setError(null);
+    setStage('sending');
+    try {
+      const res = await fetch('/api/auth/email/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }) });
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(body.message ?? 'The code could not be sent.');
+      setStage('code');
+    } catch (err) {
+      setError((err as Error).message);
+      setStage('email');
+    }
+  }
+
+  async function verify(): Promise<void> {
+    setError(null);
+    setStage('verifying');
+    try {
+      const res = await fetch('/api/auth/email/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, code }) });
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(body.message ?? 'That code is not right.');
+      window.location.assign(successHref);
+    } catch (err) {
+      setError((err as Error).message);
+      setStage('code');
+    }
+  }
+
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
+  return (
+    <div>
+      {error && <ErrorText className="mb-3">{error}</ErrorText>}
+      {stage === 'email' || stage === 'sending' ? (
+        <div className="flex flex-col gap-2">
+          <TextInput
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && emailOk) void send(); }}
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            aria-label="Email"
+            data-testid="email-code-email-input"
+          />
+          <PrimaryButton onClick={() => void send()} disabled={stage === 'sending' || !emailOk} data-testid="email-code-send-btn">
+            {stage === 'sending' ? 'Sending…' : 'Send code'}
+          </PrimaryButton>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-3 text-[14px] text-zinc-800">
+            Code sent to <span className="font-medium">{email.trim().toLowerCase()}</span> if that address has an account. It works for 10 minutes.
+          </p>
+          <div className="flex flex-col gap-2">
+            <TextInput
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) void verify(); }}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              aria-label="Code"
+              className="font-mono text-[18px] tracking-[0.3em]"
+              data-testid="email-code-code-input"
+            />
+            <PrimaryButton onClick={() => void verify()} disabled={stage === 'verifying' || code.length !== 6} data-testid="email-code-verify-btn">
+              {stage === 'verifying' ? 'Checking…' : 'Sign in'}
+            </PrimaryButton>
+          </div>
+          <QuietLink className="mt-3" onClick={() => { setStage('email'); setCode(''); }}>Use a different email</QuietLink>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Path 3a: 12-word recovery phrase, in-browser signing ---------------- */
 
-function RecoveryPhraseSignIn({
-  successHref,
-}: {
-  successHref: string;
-}): React.JSX.Element {
+function RecoveryPhraseSignIn({ successHref }: { successHref: string }): React.JSX.Element {
   const [phrase, setPhrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const words = phrase.trim().split(/\s+/).filter(Boolean).length;
 
   async function handleSubmit(): Promise<void> {
     setError(null);
     setBusy(true);
     try {
       const trimmed = phrase.trim().replace(/\s+/g, ' ').toLowerCase();
-      const wordCount = trimmed.split(' ').filter(Boolean).length;
-      if (wordCount !== 12) {
-        throw new Error(`expected 12 words, got ${wordCount}`);
-      }
-      // Derive BOTH v1 and v2 keys from the phrase WITHOUT persisting.
-      // v1 (entropy-padded seed, Phase 8.5) and v2 (HKDF-SHA256, Phase 9d)
-      // produce different DIDs from the same entropy. We don't know which
-      // version the user's tenant was registered under, so try v2 first,
-      // fall back to v1, and persist whichever the server recognises.
-      const { canonicalPhrase, v1, v2 } = await deriveKeysFromRecoveryPhrase(
-        trimmed,
-      );
-
-      // Attempt v2 first — that's the post-9d default.
+      if (words !== 12) throw new Error(`A recovery phrase has 12 words; this has ${words}.`);
+      // Both key versions derive from the same words; the server decides which one it knows.
+      const { canonicalPhrase, v1, v2 } = await deriveKeysFromRecoveryPhrase(trimmed);
       try {
         await runChallengeVerify(v2.key);
-        // Success: persist v2 to localStorage and redirect.
         persistDerivedKey(v2.stored, canonicalPhrase, 'v2');
         window.location.assign(successHref);
         return;
       } catch (errV2) {
-        if (!(errV2 instanceof NoTenantError)) {
-          throw errV2; // network or signature error — surface as-is
-        }
-        // v2 derivation has no tenant; try v1.
+        if (!(errV2 instanceof NoTenantError)) throw errV2;
       }
-
       try {
         await runChallengeVerify(v1.key);
         persistDerivedKey(v1.stored, canonicalPhrase, 'v1');
         window.location.assign(successHref);
         return;
       } catch (errV1) {
-        if (errV1 instanceof NoTenantError) {
-          throw new Error(
-            `This recovery phrase derives ${v2.key.did} (v2 HKDF) and ${v1.key.did} (v1 entropy-padded), but neither has a registered ARP Cloud tenant. Either visit /onboarding to create an account with this key, or paste a different recovery phrase.`,
-          );
-        }
+        if (errV1 instanceof NoTenantError) throw new Error('No account matches this phrase. Check the words, or create an account.');
         throw errV1;
       }
     } catch (err) {
@@ -312,40 +293,30 @@ function RecoveryPhraseSignIn({
 
   return (
     <div>
-      {error && <FieldError className="mb-3">Error: {error}</FieldError>}
-      <Label>Recovery phrase</Label>
-      <Textarea
+      {error && <ErrorText className="mb-3">{error}</ErrorText>}
+      <TextArea
         value={phrase}
         onChange={(e) => setPhrase(e.target.value)}
-        placeholder="forest table tomato breath cluster pine cobalt amber violet inside breeze ocean"
+        placeholder="twelve words, separated by spaces"
         rows={3}
         spellCheck={false}
         autoComplete="off"
+        aria-label="Recovery phrase"
         data-testid="recovery-phrase-input"
       />
-      <FieldHint>12 SPACE-SEPARATED BIP-39 WORDS</FieldHint>
-      <div className="mt-4">
-        <Button
-          variant="primary"
-          arrow
-          onClick={() => void handleSubmit()}
-          disabled={busy || phrase.trim().split(/\s+/).filter(Boolean).length !== 12}
-          data-testid="recovery-phrase-signin-btn"
-        >
-          {busy ? 'Verifying…' : 'Re-import & sign in'}
-        </Button>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-400">{words} / 12 words</span>
+        <PrimaryButton onClick={() => void handleSubmit()} disabled={busy || words !== 12} data-testid="recovery-phrase-signin-btn">
+          {busy ? 'Checking…' : 'Sign in'}
+        </PrimaryButton>
       </div>
     </div>
   );
 }
 
-/* ---------------- Path 3b: bare DID + externally-signed nonce (CLI users) ---------------- */
+/* ---------------- Advanced: a key held outside the browser signs the challenge ---------------- */
 
-function ExternalSignerSignIn({
-  successHref,
-}: {
-  successHref: string;
-}): React.JSX.Element {
+function ExternalSignerSignIn({ successHref }: { successHref: string }): React.JSX.Element {
   const [principalDid, setPrincipalDid] = useState('');
   const [nonce, setNonce] = useState<string | null>(null);
   const [signature, setSignature] = useState('');
@@ -356,11 +327,7 @@ function ExternalSignerSignIn({
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch('/api/auth/challenge', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ principalDid }),
-      });
+      const res = await fetch('/api/auth/challenge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ principalDid }) });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `challenge_failed_${res.status}`);
@@ -379,11 +346,7 @@ function ExternalSignerSignIn({
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ principalDid, nonce, signature }),
-      });
+      const res = await fetch('/api/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ principalDid, nonce, signature }) });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `verify_failed_${res.status}`);
@@ -398,94 +361,33 @@ function ExternalSignerSignIn({
 
   return (
     <div>
-      <p className="text-body-sm text-ink-2 mb-4">
-        For sidecar users, automation, or anyone whose private key lives outside the browser.
-        Paste your DID, request a challenge, sign the nonce externally, and submit the
-        base64url Ed25519 signature.
+      <Kicker>Key held elsewhere</Kicker>
+      <p className="mt-2 max-w-[60ch] text-[14px] text-zinc-600">
+        For a self-hosted runtime or automation whose key is not in this browser: paste the account identifier, sign the challenge with that key, and paste the signature.
       </p>
-      {error && <FieldError className="mb-3">Error: {error}</FieldError>}
-      {!nonce && (
-        <>
-          <Label>Principal DID</Label>
-          <input
-            value={principalDid}
-            onChange={(e) => setPrincipalDid(e.target.value)}
-            placeholder="did:key:z6Mk… or did:web:…"
-            className="font-mono w-full border border-rule bg-paper px-3 py-2 text-sm"
-            data-testid="advanced-principal-did-input"
-          />
-          <FieldHint>YOUR PRINCIPAL DID</FieldHint>
-          <div className="mt-4">
-            <Button
-              variant="primary"
-              arrow
-              onClick={() => void requestChallenge()}
-              disabled={busy || !principalDid}
-            >
-              Request challenge
-            </Button>
+      {error && <ErrorText className="mt-3">{error}</ErrorText>}
+      {!nonce ? (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <TextInput value={principalDid} onChange={(e) => setPrincipalDid(e.target.value)} placeholder="account identifier" className="font-mono text-[13px]" data-testid="advanced-principal-did-input" />
+          <PrimaryButton className="shrink-0" onClick={() => void requestChallenge()} disabled={busy || !principalDid} data-testid="advanced-request-challenge-btn">Get a challenge</PrimaryButton>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <p className="text-[14px] text-zinc-800">Sign this exactly, then paste the signature:</p>
+          <pre className="mt-2 overflow-x-auto rounded-xl bg-zinc-50 p-3 font-mono text-[12px] text-zinc-800" data-testid="advanced-nonce">{nonce}</pre>
+          <TextArea className="mt-3 font-mono text-[13px]" value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="signature" rows={2} data-testid="advanced-signature-input" />
+          <div className="mt-3 flex gap-2">
+            <PrimaryButton onClick={() => void submitSignature()} disabled={busy || !signature} data-testid="advanced-verify-btn">Sign in</PrimaryButton>
+            <SecondaryButton onClick={() => { setNonce(null); setSignature(''); }}>Start over</SecondaryButton>
           </div>
-        </>
-      )}
-      {nonce && (
-        <>
-          <p className="text-body-sm text-ink-2 mb-2">
-            Sign this nonce with your principal DID&apos;s private key, then paste the
-            base64url Ed25519 signature.
-          </p>
-          <Pre>{nonce}</Pre>
-          <div className="mt-4">
-            <Label>Signature</Label>
-            <Textarea
-              value={signature}
-              onChange={(e) => setSignature(e.target.value)}
-              placeholder="base64url signature"
-              rows={3}
-            />
-          </div>
-          <div className="mt-4">
-            <Button
-              variant="primary"
-              arrow
-              onClick={() => void submitSignature()}
-              disabled={busy || !signature}
-            >
-              Verify &amp; sign in
-            </Button>
-            <ButtonLink
-              href="/cloud/login"
-              variant="default"
-              size="md"
-              className="ml-3"
-              onClick={() => {
-                setNonce(null);
-                setSignature('');
-              }}
-            >
-              Restart
-            </ButtonLink>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-/* ---------------- shared challenge → sign → verify → redirect ---------------- */
+/* ---------------- Shared ---------------- */
 
-/**
- * Runs the full Phase-8.5 challenge/verify dance and redirects to
- * /dashboard on success. Throws on:
- *   - challenge or verify HTTP failure
- *   - verify success but server returned `tenantId: null` (key is
- *     cryptographically valid but isn't registered to any tenant)
- *
- * The "no tenant" case is what surfaces when a user has a principal
- * key in localStorage from earlier testing but the corresponding
- * tenant row got cleaned up. Returning a typed error so the caller
- * can surface a "this key isn't registered — create an account or
- * use a different key" UI instead of silently redirecting away.
- */
 class NoTenantError extends Error {
   readonly principalDid: string;
   constructor(principalDid: string) {
@@ -496,11 +398,7 @@ class NoTenantError extends Error {
 }
 
 async function runChallengeVerify(key: PrincipalKey): Promise<void> {
-  const cRes = await fetch('/api/auth/challenge', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ principalDid: key.did }),
-  });
+  const cRes = await fetch('/api/auth/challenge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ principalDid: key.did }) });
   if (!cRes.ok) {
     const body = (await cRes.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `challenge_failed_${cRes.status}`);
@@ -508,115 +406,11 @@ async function runChallengeVerify(key: PrincipalKey): Promise<void> {
   const cData = (await cRes.json()) as { nonce: string };
   const sigBytes = await key.sign(new TextEncoder().encode(cData.nonce));
   const signature = base64urlEncode(sigBytes);
-  const vRes = await fetch('/api/auth/verify', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ principalDid: key.did, nonce: cData.nonce, signature }),
-  });
+  const vRes = await fetch('/api/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ principalDid: key.did, nonce: cData.nonce, signature }) });
   if (!vRes.ok) {
     const body = (await vRes.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? `verify_failed_${vRes.status}`);
   }
-  const vBody = (await vRes.json().catch(() => ({}))) as {
-    ok?: boolean;
-    session?: { tenantId?: string | null };
-  };
-  if (!vBody.session?.tenantId) {
-    throw new NoTenantError(key.did);
-  }
-}
-
-export { NoTenantError };
-
-/* ---------------- Path 0: one-time email code (S6d) ---------------- */
-
-function EmailCodeSignIn({ successHref }: { successHref: string }): React.JSX.Element {
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [stage, setStage] = useState<'email' | 'sending' | 'code' | 'verifying'>('email');
-  const [error, setError] = useState<string | null>(null);
-
-  async function send(): Promise<void> {
-    setError(null);
-    setStage('sending');
-    try {
-      const res = await fetch('/api/auth/email/start', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
-      if (!res.ok) throw new Error(body.message ?? 'The code could not be sent.');
-      setStage('code');
-    } catch (err) {
-      setError((err as Error).message);
-      setStage('email');
-    }
-  }
-
-  async function verify(): Promise<void> {
-    setError(null);
-    setStage('verifying');
-    try {
-      const res = await fetch('/api/auth/email/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, code }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { message?: string };
-      if (!res.ok) throw new Error(body.message ?? 'That code is not right.');
-      window.location.assign(successHref);
-    } catch (err) {
-      setError((err as Error).message);
-      setStage('code');
-    }
-  }
-
-  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
-  return (
-    <div>
-      {error && <FieldError className="mb-3">{error}</FieldError>}
-      {stage === 'email' || stage === 'sending' ? (
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && emailOk) void send(); }}
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="w-full border border-rule bg-paper px-3 py-2 text-sm"
-            data-testid="email-code-email-input"
-          />
-          <Button variant="primary" arrow onClick={() => void send()} disabled={stage === 'sending' || !emailOk} data-testid="email-code-send-btn">
-            {stage === 'sending' ? 'Sending…' : 'Send code'}
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <p className="text-body-sm text-ink-2 mb-3">
-            Code sent to <span className="font-medium text-ink">{email.trim().toLowerCase()}</span> if that address has an account. It works for 10 minutes.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) void verify(); }}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="123456"
-              className="w-full border border-rule bg-paper px-3 py-2 font-mono text-lg tracking-[0.3em]"
-              data-testid="email-code-code-input"
-            />
-            <Button variant="primary" arrow onClick={() => void verify()} disabled={stage === 'verifying' || code.length !== 6} data-testid="email-code-verify-btn">
-              {stage === 'verifying' ? 'Checking…' : 'Sign in'}
-            </Button>
-          </div>
-          <button type="button" onClick={() => { setStage('email'); setCode(''); }} className="mt-3 font-mono text-kicker uppercase text-muted hover:text-ink border-b border-current pb-0.5">
-            Use a different email
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const vBody = (await vRes.json().catch(() => ({}))) as { ok?: boolean; session?: { tenantId?: string | null } };
+  if (!vBody.session?.tenantId) throw new NoTenantError(key.did);
 }
