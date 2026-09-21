@@ -13,7 +13,8 @@ import {
   Label,
   Pre,
 } from '@/components/ui';
-import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
+import { requirePrincipalKey } from '@/lib/principal-key-browser';
+import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 import {
   createSignedProposalClient,
   type CompiledBundle,
@@ -80,6 +81,7 @@ export function PairForm({
     fromQuery && agents.some((a) => a.did === fromQuery)
       ? fromQuery
       : agents[0]?.did ?? '';
+  const [hasKey, setHasKey] = useDeviceKey(principalDid);
   const [issuerAgent, setIssuerAgent] = useState(initialIssuer);
   useEffect(() => {
     if (fromQuery && agents.some((a) => a.did === fromQuery) && fromQuery !== issuerAgent) {
@@ -130,12 +132,7 @@ export function PairForm({
       }
       if (!issuerAgent) throw new Error('no agent selected');
 
-      const principal = await getOrCreatePrincipalKey();
-      if (principal.did !== principalDid) {
-        throw new Error(
-          `browser principal did (${principal.did}) does not match the session's (${principalDid}). Recover from your phrase or log out.`,
-        );
-      }
+      await requirePrincipalKey(principalDid);
 
       const expiresAt = new Date(
         Date.now() + expiresDays * 24 * 60 * 60 * 1000,
@@ -207,6 +204,7 @@ export function PairForm({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {hasKey === false && <div className="lg:col-span-2"><UnlockKey sessionPrincipalDid={principalDid} action="create a pairing request" onUnlocked={() => setHasKey(true)} /></div>}
       <div className="border border-rule bg-paper p-7 space-y-4">
         <div>
           <Label htmlFor="pair-agent">Your agent</Label>

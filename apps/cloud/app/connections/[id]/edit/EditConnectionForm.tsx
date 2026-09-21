@@ -13,7 +13,8 @@ import {
   Label,
   Pre,
 } from '@/components/ui';
-import { getOrCreatePrincipalKey } from '@/lib/principal-key-browser';
+import { requirePrincipalKey } from '@/lib/principal-key-browser';
+import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 import {
   createSignedProposalClient,
   type CompiledBundle,
@@ -72,6 +73,7 @@ export function EditConnectionForm({
 }): React.JSX.Element {
   void agents;
 
+  const [hasKey, setHasKey] = useDeviceKey(principalDid);
   const [purpose, setPurpose] = useState(currentPurpose);
   const [expiresDays, setExpiresDays] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -99,12 +101,7 @@ export function EditConnectionForm({
         throw new Error('fix the highlighted parameter errors first');
       }
 
-      const principal = await getOrCreatePrincipalKey();
-      if (principal.did !== principalDid) {
-        throw new Error(
-          `browser principal did (${principal.did}) does not match the session's (${principalDid}). Recover from your phrase or log out.`,
-        );
-      }
+      await requirePrincipalKey(principalDid);
 
       const expiresAt = new Date(
         Date.now() + expiresDays * 24 * 60 * 60 * 1000,
@@ -178,6 +175,7 @@ export function EditConnectionForm({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {hasKey === false && <div className="lg:col-span-2"><UnlockKey sessionPrincipalDid={principalDid} action="change what these agents may do" onUnlocked={() => setHasKey(true)} /></div>}
       <Card tone="paper" padded className="border border-rule space-y-4">
         <div>
           <Label htmlFor="edit-pair">Existing pair</Label>

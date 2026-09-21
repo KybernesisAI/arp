@@ -390,3 +390,59 @@ export {
   createFromEntropyV1,
   createFromEntropyV2,
 };
+
+/* ---------------- Device key for a signed-in account (S6d) ---------------- */
+
+/**
+ * Thrown by {@link requirePrincipalKey} when this browser does not hold the
+ * key for the signed-in account (e.g. an email-code session on a new device).
+ * Callers render {@link UnlockKey} so the owner can bring the key here with
+ * the recovery phrase. Never mints a key: a session's account is fixed.
+ */
+export class KeyNotOnDeviceError extends Error {
+  constructor() {
+    super('This device does not have your account key yet.');
+    this.name = 'KeyNotOnDeviceError';
+  }
+}
+
+/** The key for `sessionDid` if this browser holds it; null otherwise. Never mints. */
+export async function loadPrincipalKeyFor(sessionDid: string): Promise<PrincipalKey | null> {
+  ensureBrowser();
+  for (const version of ['v2', 'v1'] as const) {
+    const stored = loadStored(version);
+    if (stored) {
+      const key = toPrincipalKey(stored);
+      if (key.did === sessionDid) return key;
+    }
+  }
+  return null;
+}
+
+export async function requirePrincipalKey(sessionDid: string): Promise<PrincipalKey> {
+  const key = await loadPrincipalKeyFor(sessionDid);
+  if (!key) throw new KeyNotOnDeviceError();
+  return key;
+}
+
+/**
+ * Bring the account key onto this device from the recovery phrase. Keeps only
+ * the derivation that matches the signed-in account (v2 or v1) and replaces
+ * whatever stray key this browser held. Throws a plain-words error otherwise.
+ */
+export async function unlockKeyFromPhrase(phrase: string, sessionDid: string): Promise<PrincipalKey> {
+  ensureBrowser();
+  const words = phrase.trim().split(/\s+/).filter(Boolean).length;
+  if (words !== 12) throw new Error(`A recovery phrase has 12 words; this has ${words}.`);
+  let derived: Awaited<ReturnType<typeof deriveKeysFromRecoveryPhrase>>;
+  try {
+    derived = await deriveKeysFromRecoveryPhrase(phrase);
+  } catch {
+    throw new Error('Those words are not a valid recovery phrase. Check the spelling.');
+  }
+  const match = derived.v2.key.did === sessionDid ? { ...derived.v2, version: 'v2' as const } : derived.v1.key.did === sessionDid ? { ...derived.v1, version: 'v1' as const } : null;
+  if (!match) throw new Error('That phrase belongs to a different account than the one you are signed in to.');
+  await clearPrincipalKey();
+  persistDerivedKey(match.stored, derived.canonicalPhrase, match.version);
+  return match.key;
+}
