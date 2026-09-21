@@ -17,6 +17,8 @@ const {
   requirePrincipalKey,
   unlockKeyFromPhrase,
   importFromRecoveryPhrase,
+  exportStoredKeyFor,
+  installTransferredKey,
 } = await import('../lib/principal-key-browser');
 
 describe('device key for a signed-in account', () => {
@@ -83,5 +85,21 @@ describe('device key for a signed-in account', () => {
     await getOrCreatePrincipalKey();
     localStorage.removeItem('arp.cloud.principalKey.v2.phrase');
     await expect(exportRecoveryPhrase()).rejects.toThrow(/cannot be rebuilt/);
+  });
+
+  it('export for a device link carries the phrase; install keeps only a key that matches the account', async () => {
+    const account = await getOrCreatePrincipalKey();
+    const phrase = await exportRecoveryPhrase();
+    const out = exportStoredKeyFor(account.did);
+    expect(out).toMatchObject({ did: account.did, version: 'v2', phrase });
+    expect(exportStoredKeyFor('did:key:z6MkNotMe')).toBeNull();
+    await clearPrincipalKey();
+    await getOrCreatePrincipalKey(); // stray
+    await expect(installTransferredKey(out!, 'did:key:z6MkNotMe')).rejects.toThrow(/different account/);
+    await expect(installTransferredKey({ ...out!, privateKeyHex: 'ab'.repeat(32) }, account.did)).rejects.toThrow(/does not match/);
+    const key = await installTransferredKey(out!, account.did);
+    expect(key.did).toBe(account.did);
+    expect((await loadPrincipalKeyFor(account.did))?.did).toBe(account.did);
+    expect(await exportRecoveryPhrase()).toBe(phrase);
   });
 });
