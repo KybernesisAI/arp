@@ -43,6 +43,8 @@ export {
   agentConnectTickets,
   nameGifts,
   NAME_GIFT_STATUSES,
+  loginCodes,
+  LOGIN_CODE_PURPOSES,
   AGENT_LINK_KINDS,
   AGENT_LINK_STATUSES,
 } from './schema.js';
@@ -70,6 +72,8 @@ export type {
   AgentConnectTicketRow,
   NameGiftRow,
   NameGiftStatus,
+  LoginCodeRow,
+  LoginCodePurpose,
   AgentLinkKind,
   AgentLinkStatus,
 } from './schema.js';

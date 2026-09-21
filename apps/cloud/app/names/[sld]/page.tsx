@@ -53,7 +53,7 @@ export default async function NameRecordsPage(props: {
       </ConsoleShell>
     );
   }
-  const { domain, registration, agent, owner, mirror, tenantId } = state;
+  const { domain, registration, agent, owner, mirror, tenantId, defaultOwnerLabel } = state;
   const status = registration?.status ?? (agent ? 'active' : 'unknown');
   // Any name on this account that is not yet owner-verified gets the button — regardless of how the
   // registration reached `active` (Stripe fulfilment, registrar-bind, or an operator-recorded purchase).
@@ -100,7 +100,7 @@ export default async function NameRecordsPage(props: {
               </span>
             </div>
             <div className="col-span-12 md:col-span-3 flex justify-end gap-2">
-              {needsOwner && <FinishSetupButton domain={domain} tenantId={tenantId} />}
+              {needsOwner && <FinishSetupButton domain={domain} tenantId={tenantId} {...(defaultOwnerLabel ? { ownerLabel: defaultOwnerLabel } : {})} />}
               {agent && agent.keyCustody === 'cloud' && <ExportKeyButton agentDid={agent.did} domain={domain} />}
               {(agent === null ? owner !== null || status === 'active' : agent.keyCustody === 'exported') && (
                 <ReprovisionHostedButton sld={sld} hadKey={agent !== null} />
@@ -238,7 +238,8 @@ async function loadState(sld: string) {
   if (!SLD_REGEX.test(sld)) return null;
   const domain = `${sld}.agent`;
   const agentDid = `did:web:${domain}`;
-  const [registration, agentRow, ownerRows] = await Promise.all([
+  const [tenant, registration, agentRow, ownerRows] = await Promise.all([
+    tenantDb.getTenant(),
     tenantDb.getRegistrationByDomain(domain),
     tenantDb.getAgent(agentDid),
     tenantDb.raw
@@ -252,6 +253,7 @@ async function loadState(sld: string) {
   return {
     domain,
     tenantId: tenantDb.tenantId,
+    defaultOwnerLabel: ownerLabelFromName(tenant?.displayName ?? null),
     mirror: mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX),
     registration,
     owner: ownerRows[0] ?? null,
@@ -270,4 +272,11 @@ async function loadState(sld: string) {
         }
       : null,
   };
+}
+
+/** The account name as a DNS-safe owner label: "Ian Borders" → "ian-borders"; null when nothing usable. */
+function ownerLabelFromName(name: string | null): string | null {
+  if (!name) return null;
+  const label = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);
+  return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(label) ? label : null;
 }

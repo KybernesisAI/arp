@@ -69,6 +69,9 @@ export const tenants = pgTable(
     principalDidPrevious: text('principal_did_previous'),
     v1DeprecatedAt: timestamp('v1_deprecated_at', { withTimezone: true }),
     displayName: text('display_name'),
+    // Owner account (S6d): the everyday sign-in address, verified by a one-time code.
+    email: text('email'),
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     stripeCustomerId: text('stripe_customer_id'),
     stripeSubscriptionId: text('stripe_subscription_id'),
     plan: text('plan').notNull().default('free'),
@@ -610,6 +613,28 @@ export const nameGifts = pgTable(
   }),
 );
 
+// ------------------------------------------------------------------ login_codes
+export const LOGIN_CODE_PURPOSES = ['sign_in', 'verify_email'] as const;
+export type LoginCodePurpose = (typeof LOGIN_CODE_PURPOSES)[number];
+
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    codeHash: text('code_hash').notNull(),
+    purpose: text('purpose').$type<LoginCodePurpose>().notNull().default('sign_in'),
+    tenantId: uuid('tenant_id'),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxEmail: index('idx_login_codes_email').on(t.email, t.createdAt),
+  }),
+);
+
 export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;
@@ -622,3 +647,4 @@ export type AgentLinkRow = typeof agentLinks.$inferSelect;
 export type AgentCredentialRow = typeof agentCredentials.$inferSelect;
 export type AgentConnectTicketRow = typeof agentConnectTickets.$inferSelect;
 export type NameGiftRow = typeof nameGifts.$inferSelect;
+export type LoginCodeRow = typeof loginCodes.$inferSelect;

@@ -156,6 +156,21 @@ export default function LoginForm({
         <FieldError>Auto sign-in failed: {autoError}. Use a path below.</FieldError>
       )}
 
+      {/* Email path — any device, no key needed to reach the dashboard */}
+      <div className="border border-rule bg-paper p-7" data-testid="email-code-panel">
+        <Badge tone="ink" className="mb-3">
+          EMAIL · ANY DEVICE
+        </Badge>
+        <h2 className="font-display font-medium text-h3 mt-0 mb-3">
+          Email me a code.
+        </h2>
+        <p className="text-body text-ink-2 mb-5">
+          Use the email on your account and we&apos;ll send a 6-digit code. Good for reaching your
+          dashboard from a phone or a new computer.
+        </p>
+        <EmailCodeSignIn successHref={successHref} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-rule border border-rule">
         {/* Passkey path */}
         <div className="bg-paper p-7">
@@ -512,3 +527,96 @@ async function runChallengeVerify(key: PrincipalKey): Promise<void> {
 }
 
 export { NoTenantError };
+
+/* ---------------- Path 0: one-time email code (S6d) ---------------- */
+
+function EmailCodeSignIn({ successHref }: { successHref: string }): React.JSX.Element {
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [stage, setStage] = useState<'email' | 'sending' | 'code' | 'verifying'>('email');
+  const [error, setError] = useState<string | null>(null);
+
+  async function send(): Promise<void> {
+    setError(null);
+    setStage('sending');
+    try {
+      const res = await fetch('/api/auth/email/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(body.message ?? 'The code could not be sent.');
+      setStage('code');
+    } catch (err) {
+      setError((err as Error).message);
+      setStage('email');
+    }
+  }
+
+  async function verify(): Promise<void> {
+    setError(null);
+    setStage('verifying');
+    try {
+      const res = await fetch('/api/auth/email/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(body.message ?? 'That code is not right.');
+      window.location.assign(successHref);
+    } catch (err) {
+      setError((err as Error).message);
+      setStage('code');
+    }
+  }
+
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
+  return (
+    <div>
+      {error && <FieldError className="mb-3">{error}</FieldError>}
+      {stage === 'email' || stage === 'sending' ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && emailOk) void send(); }}
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            className="w-full border border-rule bg-paper px-3 py-2 text-sm"
+            data-testid="email-code-email-input"
+          />
+          <Button variant="primary" arrow onClick={() => void send()} disabled={stage === 'sending' || !emailOk} data-testid="email-code-send-btn">
+            {stage === 'sending' ? 'Sending…' : 'Send code'}
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="text-body-sm text-ink-2 mb-3">
+            Code sent to <span className="font-medium text-ink">{email.trim().toLowerCase()}</span> if that address has an account. It works for 10 minutes.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) void verify(); }}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              className="w-full border border-rule bg-paper px-3 py-2 font-mono text-lg tracking-[0.3em]"
+              data-testid="email-code-code-input"
+            />
+            <Button variant="primary" arrow onClick={() => void verify()} disabled={stage === 'verifying' || code.length !== 6} data-testid="email-code-verify-btn">
+              {stage === 'verifying' ? 'Checking…' : 'Sign in'}
+            </Button>
+          </div>
+          <button type="button" onClick={() => { setStage('email'); setCode(''); }} className="mt-3 font-mono text-kicker uppercase text-muted hover:text-ink border-b border-current pb-0.5">
+            Use a different email
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
