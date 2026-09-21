@@ -16,6 +16,7 @@ const {
   loadPrincipalKeyFor,
   requirePrincipalKey,
   unlockKeyFromPhrase,
+  importFromRecoveryPhrase,
 } = await import('../lib/principal-key-browser');
 
 describe('device key for a signed-in account', () => {
@@ -66,5 +67,21 @@ describe('device key for a signed-in account', () => {
     await expect(unlockKeyFromPhrase('one two three', 'did:key:z6Mkx')).rejects.toThrow(/12 words/);
     await expect(unlockKeyFromPhrase('abandon '.repeat(12).trim() + 'x', 'did:key:z6Mkx')).rejects.toThrow(/not a valid recovery phrase/);
     await expect(unlockKeyFromPhrase(phrase, 'did:key:z6MkDifferentAccount')).rejects.toThrow(/different account/);
+  });
+
+  it('a v1 key stored without its words rebuilds the phrase from the key', async () => {
+    const PHRASE = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    await importFromRecoveryPhrase(PHRASE, { version: 'v1' });
+    localStorage.removeItem('arp.cloud.principalKey.v1.phrase');
+    localStorage.removeItem('arp.cloud.principalKey.v2.phrase');
+    expect(await exportRecoveryPhrase()).toBe(PHRASE);
+    // …and it is remembered from now on.
+    expect(localStorage.getItem('arp.cloud.principalKey.v1.phrase')).toBe(PHRASE);
+  });
+
+  it('a v2 key stored without its words cannot be rebuilt and says so plainly', async () => {
+    await getOrCreatePrincipalKey();
+    localStorage.removeItem('arp.cloud.principalKey.v2.phrase');
+    await expect(exportRecoveryPhrase()).rejects.toThrow(/cannot be rebuilt/);
   });
 });

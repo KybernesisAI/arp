@@ -219,12 +219,31 @@ export async function principalKeyVersion(): Promise<KeyVersion | null> {
 export async function exportRecoveryPhrase(): Promise<string> {
   ensureBrowser();
   const phrase = loadPhrase('v2') ?? loadPhrase('v1');
-  if (!phrase) {
-    throw new Error(
-      'no recovery phrase available — this account may have been imported without one',
-    );
+  if (phrase) return phrase;
+  // Early accounts stored the key but not the words. A v1 seed is the 16-byte
+  // entropy doubled, so the phrase can be rebuilt from the key itself (and a
+  // v2 key made by rotation came from that same phrase).
+  const rebuilt = rebuildV1Phrase();
+  if (rebuilt) {
+    savePhrase(rebuilt, loadStored('v2') ? 'v2' : 'v1');
+    return rebuilt;
   }
-  return phrase;
+  throw new Error('This browser has your key but not its recovery phrase, and the phrase cannot be rebuilt from this key.');
+}
+
+function rebuildV1Phrase(): string | null {
+  const v1 = loadStored('v1');
+  if (!v1) return null;
+  const seed = fromHex(v1.privateKeyHex);
+  if (seed.length !== 32) return null;
+  const a = seed.slice(0, 16);
+  const b = seed.slice(16, 32);
+  for (let i = 0; i < 16; i++) if (a[i] !== b[i]) return null;
+  try {
+    return entropyToMnemonic(a, wordlist);
+  } catch {
+    return null;
+  }
 }
 
 /**
