@@ -45,8 +45,8 @@ export default async function ConnectionAuditPage(props: {
       </div>
       <ConsoleHead
         plateNum="C.03"
-        kicker="// AUDIT LOG · CHAINED HASH CHAIN"
-        title="Audit log"
+        kicker="Message log"
+        title="Every message, checked and logged."
       />
 
       <div className="mb-8 max-w-2xl text-body text-ink-2">

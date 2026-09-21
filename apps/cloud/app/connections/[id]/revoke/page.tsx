@@ -45,8 +45,8 @@ export default async function RevokeConfirmPage(props: {
       </div>
       <ConsoleHead
         plateNum="C.04"
-        kicker="// REVOKE · OWNER-INITIATED TEARDOWN"
-        title="Revoke connection"
+        kicker="End connection"
+        title="End this connection?"
       />
 
       <div className="max-w-2xl space-y-6">

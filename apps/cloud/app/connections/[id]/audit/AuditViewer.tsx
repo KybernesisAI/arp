@@ -235,7 +235,7 @@ export function AuditViewer({
                         PEER
                       </div>
                       <div className="text-body-sm break-all">
-                        <Code>{e.peerDid}</Code>
+                        <Code>{e.peerDid.replace(/^did:web:/, '')}</Code>
                       </div>
                     </div>
                     {e.policiesFired.length > 0 && (

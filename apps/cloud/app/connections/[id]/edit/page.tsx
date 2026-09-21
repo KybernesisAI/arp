@@ -53,7 +53,7 @@ export default async function ConnectionEditPage(props: {
       <ConsoleShell active="connections">
         <ConsoleHead
           plateNum="C.05"
-          kicker="// EDIT · CONNECTION RESCOPE"
+          kicker="Change permissions"
           title="Cannot edit a revoked connection"
         />
         <Card tone="paper-2" padded>
