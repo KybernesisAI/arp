@@ -104,7 +104,8 @@ export function Card({ children, className = '', glow }: { children: React.React
   return (
     <div className={`group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 shadow-[0_1px_0_rgba(0,0,0,0.03)] transition-shadow duration-300 hover:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.35)] ${className}`}>
       {glow && <div className={`pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full ${g} blur-3xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />}
-      <div className="relative h-full">{children}</div>
+      {/* Flex column so `mt-auto` children (button rows, footers) sit at the bottom of equal-height grid cards. */}
+      <div className="relative flex h-full flex-col">{children}</div>
     </div>
   );
 }
