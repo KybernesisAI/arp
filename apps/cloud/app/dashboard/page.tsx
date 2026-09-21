@@ -234,7 +234,7 @@ function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
   const href = a.state === 'bound_only' ? null : `/names/${a.sld}`;
   const dot = a.state === 'online' ? 'bg-emerald-500' : a.state === 'offline' ? 'bg-amber-400' : 'bg-zinc-300';
   return (
-    <Card glow={a.state === 'online' ? 'emerald' : undefined} className="flex flex-col pb-10">
+    <Card glow={a.state === 'online' ? 'emerald' : undefined} className="flex flex-col">
       <div className="flex items-start gap-4">
         <span
           className="relative inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 text-[20px] font-medium text-zinc-500"
@@ -279,7 +279,8 @@ function AgentCard({ a }: { a: DashboardIdentity }): React.JSX.Element {
           <CreateIdentityButton sld={a.sld} />
         )}
       </div>
-      {a.expiryAt && <span className="absolute bottom-0 right-0 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">renews {mdy(a.expiryAt)}</span>}
+      {/* Own line under the buttons; cards in a row stretch to equal height, so it sits at the same spot on each. */}
+      <div className="mt-4 text-right font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-400">{a.expiryAt ? `renews ${mdy(a.expiryAt)}` : '\u00a0'}</div>
     </Card>
   );
 }
