@@ -304,23 +304,21 @@ function RotateSection({
   return (
     <section>
       <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-        <h2 className="font-display font-medium text-h3">Identity rotation</h2>
+        <h2 className="font-display font-medium text-h3">Account key</h2>
         {hasPreviousDid ? (
-          <Badge tone="blue">ROTATED</Badge>
+          <Badge tone="blue">UPGRADED</Badge>
         ) : (
-          <Badge tone="yellow">V1 · ROTATION AVAILABLE</Badge>
+          <Badge tone="yellow">UPGRADE AVAILABLE</Badge>
         )}
       </header>
 
       <div className="grid grid-cols-12 gap-4 items-baseline">
         <div className="col-span-12 md:col-span-8 space-y-4">
           <div>
-            <div className="font-mono text-kicker uppercase text-muted">// CURRENT DID</div>
+            <div className="font-mono text-kicker uppercase text-muted">// KEY FINGERPRINT</div>
             <div className="mt-2 flex items-baseline gap-3">
               <Code className="text-[13px] break-all" data-testid="current-did-short">
-                {revealed
-                  ? currentPrincipalDid
-                  : `did:key:…${currentPrincipalDid.slice(-8)}`}
+                {revealed ? currentPrincipalDid : `…${currentPrincipalDid.slice(-8)}`}
               </Code>
               <Button
                 variant="ghost"
@@ -328,26 +326,24 @@ function RotateSection({
                 onClick={() => setRevealed((r) => !r)}
                 data-testid="reveal-did-btn"
               >
-                {revealed ? 'Hide' : 'Reveal'}
+                {revealed ? 'Hide' : 'Show full'}
               </Button>
             </div>
           </div>
 
           {hasPreviousDid && graceDaysLeft !== null && graceDaysLeft > 0 && (
             <p className="text-body-sm text-ink-2" data-testid="grace-window">
-              Rotation complete. The previous DID remains valid for
-              signature verification for{' '}
+              Upgrade complete. Your previous key still verifies older records for{' '}
               <strong>{graceDaysLeft} day{graceDaysLeft === 1 ? '' : 's'}</strong>.
-              After that, only the current DID verifies.
+              After that, only the current key does.
             </p>
           )}
 
           {!hasPreviousDid && (
             <p className="text-body-sm text-ink-2">
-              Phase 9d introduced a stronger seed derivation (HKDF-SHA256).
-              Rotating changes your principal DID; your tenant, connections,
-              and audit history carry forward. The old DID stays valid for
-              90 days so pre-rotation audit signatures still verify.
+              A stronger key derivation is available for this account. Upgrading
+              changes your account key; your names, connections and message logs
+              carry forward, and the old key keeps verifying older records for 90 days.
             </p>
           )}
         </div>
@@ -361,8 +357,8 @@ function RotateSection({
             {stage === 'pending'
               ? 'Rotating…'
               : hasPreviousDid
-                ? 'Already rotated'
-                : 'Rotate identity key'}
+                ? 'Already upgraded'
+                : 'Upgrade account key'}
           </Button>
         </div>
       </div>
