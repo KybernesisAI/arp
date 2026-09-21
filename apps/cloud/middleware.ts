@@ -159,6 +159,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/connections',
     // AgentID S2: per-name records page in the console.
     '/names',
+    // AgentID S6d: the owner's account page (name, email sign-in, passkeys, recovery phrase).
+    '/account',
     // Standalone 3D identity badge (side quest, 2026-09-18); no lander chrome.
     '/badge',
     // New AgentID landing page (black hero + badge); app-owned so no lander rewrite.

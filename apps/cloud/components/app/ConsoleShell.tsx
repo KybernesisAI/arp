@@ -9,12 +9,13 @@ import { ConsoleLogout } from './ConsoleLogout';
  * Pages that still use the Swiss `AppShell` keep working; this shell is for
  * the surfaces being moved over, starting with the dashboard.
  */
-export function ConsoleShell({ children, active }: { children: React.ReactNode; active?: 'agents' | 'connections' | 'pair' | 'billing' }): React.JSX.Element {
-  const links: Array<[string, string, 'agents' | 'connections' | 'pair' | 'billing' | null]> = [
+export function ConsoleShell({ children, active }: { children: React.ReactNode; active?: 'agents' | 'connections' | 'pair' | 'billing' | 'account' }): React.JSX.Element {
+  const links: Array<[string, string, 'agents' | 'connections' | 'pair' | 'billing' | 'account' | null]> = [
     ['Agents', '/dashboard', 'agents'],
     ['Connections', '/connections', 'connections'],
     ['Pair', '/pair', 'pair'],
     ['Billing', '/billing', 'billing'],
+    ['Account', '/account', 'account'],
     ['Docs', 'https://arp.run', null],
   ];
   return (
