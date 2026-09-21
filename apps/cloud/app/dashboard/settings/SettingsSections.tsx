@@ -11,6 +11,7 @@ import {
   signWithV2,
 } from '@/lib/principal-key-browser';
 import { registerPasskey } from '@/lib/principal-key-passkey';
+import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 
 export interface CredentialView {
   id: string;
@@ -30,15 +31,31 @@ export function SettingsSections({
   hasPreviousDid: boolean;
   v1DeprecatedAt: string | null;
 }): React.JSX.Element {
+  // The key sections only make sense on a device that holds this account's
+  // key. A device signed in by email (or holding a stray key) gets the unlock
+  // card instead of a reveal button that would fail or show the wrong words.
+  const [hasKey, setHasKey] = useDeviceKey(currentPrincipalDid);
   return (
     <div className="space-y-14">
       <PasskeysSection initial={credentials} />
-      <RotateSection
-        currentPrincipalDid={currentPrincipalDid}
-        hasPreviousDid={hasPreviousDid}
-        v1DeprecatedAt={v1DeprecatedAt}
-      />
-      <RecoveryPhraseSection />
+      {hasKey === false ? (
+        <section>
+          <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
+            <h2 className="font-display font-medium text-h3">Account key</h2>
+            <Badge tone="yellow">NOT ON THIS DEVICE</Badge>
+          </header>
+          <UnlockKey sessionPrincipalDid={currentPrincipalDid} action="show your recovery phrase, upgrade the key, verify names or approve pairings here" onUnlocked={() => setHasKey(true)} />
+        </section>
+      ) : hasKey === true ? (
+        <>
+          <RotateSection
+            currentPrincipalDid={currentPrincipalDid}
+            hasPreviousDid={hasPreviousDid}
+            v1DeprecatedAt={v1DeprecatedAt}
+          />
+          <RecoveryPhraseSection />
+        </>
+      ) : null}
     </div>
   );
 }
