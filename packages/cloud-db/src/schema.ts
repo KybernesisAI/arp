@@ -635,6 +635,29 @@ export const loginCodes = pgTable(
   }),
 );
 
+// ------------------------------------------------------------------ device_links
+export const deviceLinks = pgTable(
+  'device_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    codeHash: text('code_hash').notNull(),
+    receiverPub: text('receiver_pub').notNull(),
+    ciphertext: text('ciphertext'),
+    iv: text('iv'),
+    senderPub: text('sender_pub'),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    idxTenant: index('idx_device_links_tenant').on(t.tenantId, t.createdAt),
+  }),
+);
+export type DeviceLinkRow = typeof deviceLinks.$inferSelect;
+
 export type RegistrarBindingRow = typeof registrarBindings.$inferSelect;
 export type OnboardingSessionRow = typeof onboardingSessions.$inferSelect;
 export type PushRegistrationRow = typeof pushRegistrations.$inferSelect;

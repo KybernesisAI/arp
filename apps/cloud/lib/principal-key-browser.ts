@@ -465,3 +465,32 @@ export async function unlockKeyFromPhrase(phrase: string, sessionDid: string): P
   persistDerivedKey(match.stored, derived.canonicalPhrase, match.version);
   return match.key;
 }
+
+/* ---------------- Device link: install / export the stored key (S6d) ---------------- */
+
+/** What the device with the key sends: its stored key + the phrase if it has one. */
+export function exportStoredKeyFor(sessionDid: string): { privateKeyHex: string; publicKeyMultibase: string; did: string; version: KeyVersion; phrase: string | null } | null {
+  ensureBrowser();
+  for (const version of ['v2', 'v1'] as const) {
+    const stored = loadStored(version);
+    if (stored && stored.did === sessionDid) {
+      const phrase = loadPhrase(version) ?? (version === 'v1' ? rebuildV1Phrase() : null);
+      return { ...stored, version, phrase };
+    }
+  }
+  return null;
+}
+
+/** New device: keep the transferred key (must match the signed-in account); replaces any stray key. */
+export async function installTransferredKey(payload: { privateKeyHex: string; publicKeyMultibase: string; did: string; version: KeyVersion; phrase: string | null }, sessionDid: string): Promise<PrincipalKey> {
+  ensureBrowser();
+  if (payload.did !== sessionDid) throw new Error('The key that arrived belongs to a different account.');
+  const seed = fromHex(payload.privateKeyHex);
+  if (seed.length !== 32) throw new Error('The key that arrived is not usable.');
+  const pub = await ed25519.getPublicKeyAsync(seed);
+  if (`did:key:${ed25519RawToMultibase(pub)}` !== payload.did) throw new Error('The key that arrived does not match its account.');
+  await clearPrincipalKey();
+  saveStored({ privateKeyHex: payload.privateKeyHex, publicKeyMultibase: payload.publicKeyMultibase, did: payload.did }, payload.version);
+  if (payload.phrase) savePhrase(payload.phrase, payload.version);
+  return toPrincipalKey({ privateKeyHex: payload.privateKeyHex, publicKeyMultibase: payload.publicKeyMultibase, did: payload.did });
+}

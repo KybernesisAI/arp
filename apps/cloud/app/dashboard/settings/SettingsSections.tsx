@@ -11,7 +11,7 @@ import {
   signWithV2,
 } from '@/lib/principal-key-browser';
 import { registerPasskey } from '@/lib/principal-key-passkey';
-import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
+import { LinkDevicePanel, UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 
 export interface CredentialView {
   id: string;
@@ -48,6 +48,7 @@ export function SettingsSections({
         </section>
       ) : hasKey === true ? (
         <>
+          <LinkDevicePanel sessionPrincipalDid={currentPrincipalDid} />
           <RotateSection
             currentPrincipalDid={currentPrincipalDid}
             hasPreviousDid={hasPreviousDid}
