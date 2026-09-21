@@ -46,6 +46,8 @@ describe('surfaceForHost (host → surface dispatch)', () => {
     expect(isAppOwnedPath('/badge')).toBe(true);
     expect(isAppOwnedPath('/lander')).toBe(true);
     expect(isAppOwnedPath('/gift')).toBe(true);
+    expect(isAppOwnedPath('/i')).toBe(true);
+    expect(isAppOwnedPath('/identity')).toBe(false);
     expect(isAppOwnedPath('/assets/badge/card.glb')).toBe(true);
     expect(isAppOwnedPath('/namesake')).toBe(false);
   });

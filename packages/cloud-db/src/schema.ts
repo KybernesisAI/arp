@@ -456,6 +456,8 @@ export const pairingInvitations = pgTable(
     requestedScopes: jsonb('requested_scopes').notNull(),
     challenge: text('challenge').notNull(),
     payload: text('payload').notNull(),
+    /** Short-link token (in the URL fragment); null for rows minted before short links. */
+    shortToken: text('short_token'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),

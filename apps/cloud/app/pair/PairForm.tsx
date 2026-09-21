@@ -42,6 +42,8 @@ function suggestContactName(did: string): string {
 interface GeneratedState {
   invitationId: string;
   invitationUrl: string;
+  /** Short link (token in the fragment); the long one still works. */
+  shortUrl?: string;
   expiresAt: string;
   proposalId: string;
   connectionId: string;
@@ -195,7 +197,7 @@ export function PairForm({
   async function copyUrl(): Promise<void> {
     if (!generated) return;
     try {
-      await navigator.clipboard.writeText(generated.invitationUrl);
+      await navigator.clipboard.writeText(generated.shortUrl ?? generated.invitationUrl);
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 1500);
     } catch {
@@ -312,7 +314,7 @@ export function PairForm({
           {generated && (
             <>
               <Pre data-testid="pair-invitation-url">
-                {generated.invitationUrl}
+                {generated.shortUrl ?? generated.invitationUrl}
               </Pre>
               <div className="mt-3 flex gap-2">
                 <Button
@@ -324,7 +326,7 @@ export function PairForm({
                   {copyState === 'copied' ? 'Copied' : 'Copy link'}
                 </Button>
               </div>
-              <InvitationQr url={generated.invitationUrl} />
+              <InvitationQr url={generated.shortUrl ?? generated.invitationUrl} name={suggestContactName(audienceDid)} />
               <div className="mt-4 font-mono text-kicker uppercase text-muted">
                 EXPIRES · {mdy(generated.expiresAt)}
               </div>
@@ -436,22 +438,54 @@ function mdy(iso: string): string {
   return `${m}-${d}-${y}`;
 }
 
-/** The invitation link as a QR, for scanning from the other owner's phone. */
-function InvitationQr({ url }: { url: string }): React.JSX.Element | null {
+/** The invitation link as a QR. Click to enlarge; download as PNG. */
+function InvitationQr({ url, name }: { url: string; name: string }): React.JSX.Element | null {
   const [src, setSrc] = useState<string | null>(null);
+  const [big, setBig] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     let alive = true;
-    void QRCode.toDataURL(url, { margin: 1, width: 512, errorCorrectionLevel: 'M', color: { dark: '#09090b', light: '#ffffff' } })
-      .then((d) => { if (alive) setSrc(d); })
-      .catch(() => { if (alive) setSrc(null); });
+    const opts = { margin: 1, errorCorrectionLevel: 'M' as const, color: { dark: '#09090b', light: '#ffffff' } };
+    void Promise.all([QRCode.toDataURL(url, { ...opts, width: 384 }), QRCode.toDataURL(url, { ...opts, width: 1024 })])
+      .then(([s, b]) => { if (alive) { setSrc(s); setBig(b); } })
+      .catch(() => { if (alive) { setSrc(null); setBig(null); } });
     return () => { alive = false; };
   }, [url]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
   if (!src) return null;
+  const file = `pair-${name || 'agent'}.png`;
   return (
-    <div className="mt-4 flex items-start gap-4">
-      <img src={src} alt="QR code for the invitation link" width={176} height={176} className="h-44 w-44 rounded-2xl border border-zinc-200 bg-white p-2" />
-      <p className="max-w-[26ch] text-[13px] text-zinc-600">Or let the other owner scan this with their phone. It opens the same link.</p>
-    </div>
+    <>
+      <div className="mt-4 flex items-start gap-4">
+        <button type="button" onClick={() => setOpen(true)} className="rounded-2xl border border-zinc-200 bg-white p-2 transition-shadow hover:shadow-[0_16px_40px_-24px_rgba(0,0,0,0.4)]" aria-label="Show the QR code larger">
+          <img src={src} alt="QR code for the invitation link" width={176} height={176} className="h-44 w-44" />
+        </button>
+        <div className="max-w-[26ch] text-[13px] text-zinc-600">
+          <p className="m-0">Or let the other owner scan this with their phone. It opens the same link.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-zinc-300 px-3 py-1.5 text-[12px] font-medium text-zinc-900 hover:border-zinc-900">Enlarge</button>
+            {big && <a href={big} download={file} className="rounded-full border border-zinc-300 px-3 py-1.5 text-[12px] font-medium text-zinc-900 hover:border-zinc-900">Download PNG</a>}
+          </div>
+        </div>
+      </div>
+      {open && big && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }} role="dialog" aria-modal="true" aria-label="Invitation QR code">
+          <div className="w-full max-w-[560px] rounded-3xl bg-white p-6 text-center">
+            <img src={big} alt="QR code for the invitation link" className="mx-auto aspect-square w-full max-w-[480px] rounded-2xl" />
+            <p className="mt-4 break-all font-mono text-[12px] text-zinc-500">{url}</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <a href={big} download={file} className="rounded-full bg-black px-5 py-2.5 text-[14px] font-medium text-white hover:bg-zinc-800">Download PNG</a>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-zinc-300 px-5 py-2.5 text-[14px] font-medium text-zinc-900 hover:border-zinc-900">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
