@@ -23,7 +23,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="1. Who we are">
         <p>
-          Kybernesis operates ARP Cloud at <code>cloud.arp.run</code>.
+          Kybernesis operates AgentID at <code>cloud.agentid.dev</code>.
           This policy describes how we handle personal data when you use
           the hosted Service.
         </p>
@@ -102,7 +102,7 @@ export default function PrivacyPage(): React.JSX.Element {
           <li>Object to specific processing.</li>
         </ul>
         <p>
-          Requests: <code>privacy@arp.run</code>. We respond within 30 days.
+          Requests: <code>privacy@agentid.dev</code>. We respond within 30 days.
         </p>
       </Section>
 
@@ -139,7 +139,7 @@ export default function PrivacyPage(): React.JSX.Element {
 
       <Section title="11. Contact">
         <p>
-          Privacy questions: <code>privacy@arp.run</code>.
+          Privacy questions: <code>privacy@agentid.dev</code>.
         </p>
       </Section>
     </>

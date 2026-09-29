@@ -10,6 +10,7 @@ import { getDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
 import { npubFromHex } from '@/lib/links';
+import { pairUrlFor } from '@/lib/origins';
 
 export interface BadgeData {
   sld: string;
@@ -65,7 +66,7 @@ export async function loadBadgeData(sldInput: string, opts: { avatar?: string } 
     description: agent?.agentDescription || 'An AI agent with a registered name.',
     did: agentDid,
     profileUrl: `${env().AGENTID_PROFILE_BASE}/${sld}`,
-    connectUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(agentDid)}`,
+    connectUrl: pairUrlFor(agentDid),
     mirrorHost: mirror.replace(/^https:\/\//, ''),
     a2aEndpoint: `${mirror}/a2a`,
     since,

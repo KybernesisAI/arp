@@ -38,7 +38,7 @@ export interface PushSigner {
 }
 
 export interface PushContext {
-  /** Issuer origin embedded in push tokens, e.g. `https://gateway.arp.run`. */
+  /** Issuer origin embedded in push tokens, e.g. `https://gateway.agentid.dev`. */
   issuer: string;
   signer: PushSigner;
   sealingKey: Uint8Array;

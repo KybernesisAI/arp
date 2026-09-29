@@ -1,7 +1,7 @@
 /**
  * Phase 10 slice 10e — A1: cloud↔cloud pairing round-trip.
  *
- * Two cloud tenants, both hosted on the same `cloud.arp.run` instance, walk
+ * Two cloud tenants, both hosted on the same `cloud.agentid.dev` instance, walk
  * the full Phase-10a flow:
  *
  *   1. Tenant A's owner posts a signed PairingProposal to
@@ -122,11 +122,11 @@ describe('Phase 10/10e — cloud↔cloud pairing round-trip', () => {
       tenantBAgentDid,
     );
     const inviteRes = await PostInvitation(
-      new Request('https://cloud.arp.run/api/pairing/invitations', {
+      new Request('https://cloud.agentid.dev/api/pairing/invitations', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-forwarded-host': 'cloud.arp.run',
+          'x-forwarded-host': 'cloud.agentid.dev',
           'x-forwarded-proto': 'https',
         },
         body: JSON.stringify({ proposal: issuerOnlyProposal }),
@@ -138,7 +138,7 @@ describe('Phase 10/10e — cloud↔cloud pairing round-trip', () => {
       connectionId: string;
     };
     expect(inviteBody.invitationUrl).toMatch(
-      /^https:\/\/cloud\.arp\.run\/pair\/accept#[A-Za-z0-9_-]+$/,
+      /^https:\/\/cloud\.agentid\.dev\/pair\/accept#[A-Za-z0-9_-]+$/,
     );
     expect(inviteBody.connectionId).toBe(issuerOnlyProposal.connection_id);
     const invitationRows = await currentDb.db.select().from(pairingInvitations);
@@ -164,7 +164,7 @@ describe('Phase 10/10e — cloud↔cloud pairing round-trip', () => {
     ).proposal;
 
     const acceptRes = await PostAccept(
-      new Request('https://cloud.arp.run/api/pairing/accept', {
+      new Request('https://cloud.agentid.dev/api/pairing/accept', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -248,7 +248,7 @@ describe('Phase 10/10e — cloud↔cloud pairing round-trip', () => {
 
     sessionOverride = { principalDid: tenantAOwner.did, tenantId: tenantAId };
     const res = await PostAccept(
-      new Request('https://cloud.arp.run/api/pairing/accept', {
+      new Request('https://cloud.agentid.dev/api/pairing/accept', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

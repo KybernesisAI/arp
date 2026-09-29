@@ -52,7 +52,7 @@ export const ServiceEndpointSchema = z.object({
 /** Principal binding block. Spec §6.1 `principal`. */
 export const PrincipalBindingSchema = z.object({
   did: DidUriSchema.describe(
-    'The human principal DID (e.g. did:key:z6Mk… or did:web:cloud.arp.run:u:<uuid>)',
+    'The human principal DID (e.g. did:key:z6Mk… or did:web:cloud.agentid.dev:u:<uuid>)',
   ),
   representationVC: z
     .string()

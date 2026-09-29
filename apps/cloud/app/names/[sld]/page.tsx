@@ -5,6 +5,7 @@ import { registrarBindings } from '@kybernesis/arp-cloud-db';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
+import { pairUrlFor } from '@/lib/origins';
 import { agentLiveness } from '@/lib/agent-liveness';
 import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { ConsoleHead } from '@/components/app/ConsoleHead';
@@ -70,7 +71,7 @@ export default async function NameRecordsPage(props: {
     { kind: 'CONNECT', name: 'Connect record', value: `${mirror}/.well-known/arp-card.json`, href: `${mirror}/.well-known/arp-card.json`, state: agent ? 'live' : 'pending' },
     { kind: 'OWNER', name: 'Owner proof', value: owner ? `${mirror}/representation.jwt` : 'not yet verified', href: owner ? `${mirror}/representation.jwt` : undefined, state: owner ? 'live' : 'pending' },
     { kind: 'PROFILE', name: 'Public profile', value: `${env().AGENTID_PROFILE_BASE}/${sld}`, href: `${env().AGENTID_PROFILE_BASE}/${sld}`, state: agent ? 'live' : 'pending' },
-    { kind: 'PAIR', name: 'Connect link', value: `https://cloud.arp.run/pair?peer=did:web:${domain}`, href: `https://cloud.arp.run/pair?peer=did:web:${domain}`, state: agent ? 'live' : 'pending' },
+    { kind: 'PAIR', name: 'Connect link', value: pairUrlFor(`did:web:${domain}`), href: pairUrlFor(`did:web:${domain}`), state: agent ? 'live' : 'pending' },
   ];
 
   return (

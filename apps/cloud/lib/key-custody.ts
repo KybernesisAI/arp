@@ -26,6 +26,7 @@ import * as ed25519 from '@noble/ed25519';
 import type { AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
 import { agentAvatarUrl, agentProfileUrl, buildA2aAgentCard, buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
 import { base64urlEncode, ed25519RawToMultibase, signAgentCard } from '@kybernesis/arp-transport';
+import { pairUrlFor, profileUrl } from '@/lib/origins';
 
 // ------------------------------------------------------------------ sealing
 
@@ -121,7 +122,7 @@ export interface MintIdentityInput {
   domainRegistrationId?: string | null;
   /**
    * Origin that serves this identity's well-known documents and endpoints.
-   * Cloud-custody identities use the ICANN mirror (`https://<sld>.agent.arp.run`);
+   * Cloud-custody identities use the ICANN mirror (`https://<sld>.agentid.dev`);
    * bridge agents keep the gateway host.
    */
   wellKnownOrigin: string;
@@ -290,8 +291,8 @@ export async function buildSignedA2aCard(input: {
     description: input.description,
     did: input.did,
     origin,
-    pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(input.did)}`,
-    provider: input.provider ?? { organization: sld, url: `https://agent.arp.run/${sld}` },
+    pairUrl: pairUrlFor(input.did),
+    provider: input.provider ?? { organization: sld, url: profileUrl(sld) },
     ...(input.scopes ? { scopes: input.scopes } : {}),
     ...(input.iconUrl ? { iconUrl: input.iconUrl } : {}),
   }) as Record<string, unknown>;

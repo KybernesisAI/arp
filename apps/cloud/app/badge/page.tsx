@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Standalone 3D identity badge: agent.arp.run/badge (`?name=<sld>`, default
+ * Standalone 3D identity badge: agentid.dev/badge (`?name=<sld>`, default
  * samantha; `?avatar=<https url>` overrides the picture). The badge itself is
  * `AgentBadge` + `loadBadgeData`, reusable on any agent page.
  */

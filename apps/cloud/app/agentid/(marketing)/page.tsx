@@ -20,6 +20,7 @@ import {
   Section,
   Underline,
 } from '@/components/ui';
+import { consoleUrl } from '@/lib/origins';
 
 /**
  * AgentID lander — the identity-first front door.
@@ -430,7 +431,7 @@ export default function AgentIdLandingPage(): React.JSX.Element {
                 'Instant revoke',
               ]}
               ctaLabel="Add Connect"
-              ctaHref="https://cloud.arp.run/pricing"
+              ctaHref={consoleUrl('/pricing')}
             />
             <PricingCard
               tier="TIER 03 · PAYMENTS"
@@ -720,7 +721,7 @@ function Persona({
 function ClaimForm(): React.JSX.Element {
   return (
     <form
-      action="https://cloud.arp.run/dashboard"
+      action={consoleUrl('/dashboard')}
       method="get"
       className="mt-10 flex flex-col sm:flex-row gap-3 max-w-[640px]"
     >

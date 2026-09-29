@@ -38,7 +38,7 @@ export default function GlobalError({
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 24px' }}>
             Something went wrong before the app could render. Reload the page.
-            If it keeps failing, email support@arp.run.
+            If it keeps failing, email support@agentid.dev.
           </p>
           <button
             type="button"

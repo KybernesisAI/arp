@@ -187,7 +187,7 @@ export async function cmdSend(positional: string[], flags: SendFlags): Promise<v
   if (res.status === 403 && body['error'] === 'denied') {
     console.error(
       `\ndenied: the connection's policy doesn't permit this action (msgId=${body['msgId']}, reason=${body['reason'] ?? 'policy_denied'}).\n` +
-        `the audience never saw the request. Edit the connection at cloud.arp.run/connections to grant the needed scope.`,
+        `the audience never saw the request. Edit the connection at cloud.agentid.dev/connections to grant the needed scope.`,
     );
     process.exit(3);
   }
@@ -304,7 +304,7 @@ export async function cmdRequest(positional: string[], flags: RequestFlags): Pro
   if (res.status === 403 && body['error'] === 'denied') {
     console.error(
       `\ndenied: the connection's policy doesn't permit this action (msgId=${body['msgId']}, reason=${body['reason'] ?? 'policy_denied'}).\n` +
-        `the audience never saw the request. Edit the connection at cloud.arp.run/connections to grant the needed scope.`,
+        `the audience never saw the request. Edit the connection at cloud.agentid.dev/connections to grant the needed scope.`,
     );
     process.exit(3);
   }

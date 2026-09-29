@@ -97,7 +97,7 @@ function usage(): string {
 USAGE
   arp-testkit audit <domain> [--json] [--jsonl] [--verbose] [--base <url>] [--timeout <ms>] [--doh <url>]
                              [--via cloud [--cloud-host <url>] [--tenant <tenant-id>]]
-                             [--resolver mirror [--mirror-suffix .agent.arp.run]]
+                             [--resolver mirror [--mirror-suffix .agentid.dev]]
   arp-testkit probe <name> <domain> [--json] [--base <url>] [--timeout <ms>]
   arp-testkit compare <a> <b> [--json]
   arp-testkit --version | --help
@@ -110,7 +110,7 @@ EXAMPLES
   arp-testkit audit localhost:4501 --base http://127.0.0.1:4501
   arp-testkit audit atlas.agent --via cloud
   arp-testkit audit samantha.agent --resolver mirror
-  arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.cloud.arp.run
+  arp-testkit audit atlas.agent --via cloud --cloud-host https://preview.cloud.agentid.dev
   arp-testkit probe dns samantha.agent --doh https://hnsdoh.com/dns-query
   arp-testkit compare samantha.agent ghost.agent --json
 `;
@@ -184,13 +184,13 @@ async function audit(
   // still target URLs like `<base>/.well-known/*` but requests carry the
   // x-forwarded-host override set above.
   let baseUrl: string | undefined = args.flags.base ?? undefined;
-  // AgentID S5: --resolver mirror audits https://<sld>.agent.arp.run (the
+  // AgentID S5: --resolver mirror audits https://<sld>.agentid.dev (the
   // ICANN face of the identity) — no HNS resolution anywhere.
   if (args.flags.resolver === 'mirror' && !baseUrl) {
-    baseUrl = mirrorBaseUrl(target, args.flags.mirrorSuffix ?? '.agent.arp.run');
+    baseUrl = mirrorBaseUrl(target, args.flags.mirrorSuffix ?? '.agentid.dev');
   }
   if (args.flags.via === 'cloud' && !baseUrl) {
-    baseUrl = args.flags.cloudHost ?? 'https://cloud.arp.run';
+    baseUrl = args.flags.cloudHost ?? 'https://cloud.agentid.dev';
   }
   const summary = await runAudit(target, baseUrl, { context: contextOverrides });
   emit(summary, args);
@@ -347,7 +347,7 @@ function emitSingle(result: ProbeResult, args: ParsedArgs): void {
   }
 }
 
-/** `samantha.agent` → `https://samantha.agent.arp.run` (AgentID S5 mirror). */
+/** `samantha.agent` → `https://samantha.agentid.dev` (AgentID S5 mirror). */
 function mirrorBaseUrl(target: string, suffix: string): string {
   const sld = target.replace(/^https?:\/\//, '').replace(/\.agent$/, '').split('.').pop() ?? target;
   return `https://${sld}${suffix.startsWith('.') ? suffix : `.${suffix}`}`;

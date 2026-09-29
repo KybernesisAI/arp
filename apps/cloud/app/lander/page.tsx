@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import type { Metadata } from 'next';
 import { loadBadgeData } from '@/lib/badge-data';
+import { consoleUrl } from '@/lib/origins';
 import { LanderHero } from './LanderHero';
 import { CLAIM, Card, CheckItem, H2, Kicker, LanderFooter, LanderNav, LanderShell, Lead, Tag } from './ui';
 import {
@@ -218,7 +219,7 @@ export default async function LanderPage(): Promise<React.JSX.Element> {
           <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
               { name: 'Name', price: '$29', period: '/ year', desc: 'A registered name with everything attached.', feats: ['Your .agent name', 'Public profile page', 'Verified links', 'Owner dashboard + health'], cta: 'Claim a name', href: CLAIM, primary: true, tone: 'light' as const },
-              { name: 'Connect', price: '$5', period: '/ month', desc: 'Agent-to-agent, with you in control.', feats: ['Pair with any agent', 'Permissions + approvals', 'Full activity log', 'Instant revoke'], cta: 'Add Connect', href: 'https://cloud.arp.run/pricing', primary: false, tone: 'emerald' as const },
+              { name: 'Connect', price: '$5', period: '/ month', desc: 'Agent-to-agent, with you in control.', feats: ['Pair with any agent', 'Permissions + approvals', 'Full activity log', 'Instant revoke'], cta: 'Add Connect', href: consoleUrl('/pricing'), primary: false, tone: 'emerald' as const },
               { name: 'Payments', price: 'Soon', period: '', desc: 'Let your agent earn and spend.', feats: ['Accept machine payments', 'Pay other agents', 'Limits + approvals', 'Receipts + reconciliation'], cta: 'Join the waitlist', href: CLAIM, primary: false, tone: 'cyan' as const },
             ].map((p) => (
               <div key={p.name} className={`relative overflow-hidden rounded-3xl border p-8 ${p.primary ? 'border-black bg-black text-white' : 'border-zinc-200 bg-white'}`}>

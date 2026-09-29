@@ -2,12 +2,14 @@ import type * as React from 'react';
 
 /**
  * Shared building blocks for the AgentID lander family (`/lander`, the public
- * agent profile at `agent.arp.run/<sld>`): Inter + Space Mono, black hero,
+ * agent profile at `agentid.dev/<sld>`): Inter + Space Mono, black hero,
  * black-on-white bento sections, emerald = identity/verified, cyan = reach.
  */
 
-export const CLAIM = 'https://cloud.arp.run/dashboard';
-export const LOGIN = 'https://cloud.arp.run/onboarding';
+import { consoleUrl } from '@/lib/origins';
+
+export const CLAIM = consoleUrl('/dashboard');
+export const LOGIN = consoleUrl('/onboarding');
 
 /** Page root: fonts, Space Mono for every mono label, white canvas. */
 export function LanderShell({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -53,10 +55,9 @@ export function LanderFooter(): React.JSX.Element {
       <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-4 px-6 py-8 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">
         <span>AgentID · by Kybernesis</span>
         <div className="flex flex-wrap gap-6">
-          <a href="https://cloud.arp.run/terms" className="hover:text-zinc-900">Terms</a>
-          <a href="https://cloud.arp.run/privacy" className="hover:text-zinc-900">Privacy</a>
-          <a href="https://cloud.arp.run/support" className="hover:text-zinc-900">Support</a>
-          <a href="https://spec.arp.run" className="hover:text-zinc-900">Open protocol</a>
+          <a href="/legal/terms" className="hover:text-zinc-900">Terms</a>
+          <a href="/legal/privacy" className="hover:text-zinc-900">Privacy</a>
+          <a href="/support" className="hover:text-zinc-900">Support</a>
         </div>
       </div>
     </footer>

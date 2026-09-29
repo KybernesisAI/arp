@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   } else {
     logger.warn(
       { driver: 'pglite' },
-      'DATABASE_URL unset — falling back to PGlite (dev only; gateway state will not be shared with cloud.arp.run)',
+      'DATABASE_URL unset — falling back to PGlite (dev only; gateway state will not be shared with cloud.agentid.dev)',
     );
     const { db: pgliteDb } = await createPgliteDb({
       ...(process.env['PGLITE_DATA_DIR'] ? { dataDir: process.env['PGLITE_DATA_DIR'] } : {}),

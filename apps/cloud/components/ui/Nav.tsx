@@ -7,7 +7,7 @@ export type NavLink = { label: string; href: string; external?: boolean };
 export type NavProps = {
   /** Brand word rendered next to the mark. Defaults to `ARP`. */
   brand?: string;
-  /** Optional brand subtitle (e.g. `// arp.run`). */
+  /** Optional brand subtitle (e.g. `// agentid.dev`). */
   brandSub?: string;
   links?: NavLink[];
   cta?: React.ReactNode;

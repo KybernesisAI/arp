@@ -531,7 +531,7 @@ export default function CloudLandingPage(): React.JSX.Element {
                 'Procurement-ready contracts',
               ]}
               ctaLabel="Talk to us"
-              ctaHref="mailto:hello@arp.run"
+              ctaHref="mailto:hello@agentid.dev"
             />
           </div>
           <Grid12 className="mt-7 items-center">

@@ -21,6 +21,7 @@
  * row). User must save it to disk for arp-cloud-client.
  */
 
+import { hostOf, origins } from '@/lib/origins';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
@@ -56,12 +57,9 @@ const Body = z.object({
 });
 
 const GATEWAY_WS_URL =
-  process.env['ARP_CLOUD_GATEWAY_WS_URL'] ??
-  'wss://arp-cloud-gateway-production.up.railway.app/ws';
+  process.env['ARP_CLOUD_GATEWAY_WS_URL'] ?? `${origins().gateway.replace(/^http/, 'ws')}/ws`;
 
-const GATEWAY_WELL_KNOWN_HOST =
-  process.env['ARP_CLOUD_GATEWAY_HOST'] ??
-  'arp-cloud-gateway-production.up.railway.app';
+const GATEWAY_WELL_KNOWN_HOST = process.env['ARP_CLOUD_GATEWAY_HOST'] ?? hostOf(origins().gateway);
 
 export async function POST(req: Request): Promise<NextResponse> {
   const session = await getSession();

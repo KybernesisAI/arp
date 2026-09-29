@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { BadgeData } from '@/app/badge/AgentBadge';
 import { BadgeHero } from './BadgeHero';
 import { HeroPill } from './ui';
+import { consoleUrl } from '@/lib/origins';
 
 type Availability = { sld: string; domain: string; available: boolean; reason?: string; price_cents_per_year?: number | null; error?: string; message?: string };
 
@@ -63,7 +64,7 @@ function NameSearch(): React.JSX.Element {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> available
             </span>
             <span className="font-mono text-[13px]">{result.domain}{price ? ` · ${price}` : ''}</span>
-            <a href={`https://cloud.arp.run/dashboard?claim=${encodeURIComponent(result.sld)}`} className="underline decoration-white/30 underline-offset-4 hover:decoration-white">Claim it →</a>
+            <a href={consoleUrl(`/dashboard?claim=${encodeURIComponent(result.sld)}`)} className="underline decoration-white/30 underline-offset-4 hover:decoration-white">Claim it →</a>
           </span>
         )}
         {result && !result.available && (

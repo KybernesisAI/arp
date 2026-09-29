@@ -1,7 +1,7 @@
 /**
  * Phase 10 slice 10e — A2: cloud↔sidecar pairing round-trip.
  *
- * One side is a cloud tenant on `cloud.arp.run`; the other side is an agent
+ * One side is a cloud tenant on `cloud.agentid.dev`; the other side is an agent
  * running behind a local sidecar (`createRuntime`). We verify both halves
  * end up with a Connection Token referencing the same `connection_id`,
  * even though the cloud side has no acceptor cloud-tenant insert (the
@@ -167,11 +167,11 @@ describe('Phase 10/10e — cloud↔sidecar pairing round-trip', () => {
       sidecarAgentDid,
     );
     const inviteRes = await PostInvitation(
-      new Request('https://cloud.arp.run/api/pairing/invitations', {
+      new Request('https://cloud.agentid.dev/api/pairing/invitations', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-forwarded-host': 'cloud.arp.run',
+          'x-forwarded-host': 'cloud.agentid.dev',
           'x-forwarded-proto': 'https',
         },
         body: JSON.stringify({ proposal: issuerProposal }),

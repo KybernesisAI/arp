@@ -8,7 +8,7 @@
  * (registrar = 'agentid'), and flip the registration to `active`.
  *
  * The JWT is then served by the gateway at
- * `https://<sld>.agent.arp.run/representation.jwt` (the URL the identity's
+ * `https://<sld>.agentid.dev/representation.jwt` (the URL the identity's
  * DID document already advertises). No DNS involved.
  */
 
@@ -20,6 +20,7 @@ import { registrarBindings } from '@kybernesis/arp-cloud-db';
 import { base64urlDecode, multibaseEd25519ToRaw } from '@kybernesis/arp-transport';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { posthog, track } from '@/lib/posthog';
+import { origins } from '@/lib/origins';
 
 export const runtime = 'nodejs';
 
@@ -75,7 +76,7 @@ export async function POST(req: Request): Promise<Response> {
     const payload = decodeJwtPayload(signed_representation_jwt);
     const iss = typeof payload?.['iss'] === 'string' ? (payload['iss'] as string) : null;
     const sub = typeof payload?.['sub'] === 'string' ? (payload['sub'] as string) : null;
-    const alias = `did:web:cloud.arp.run:u:${tenantDb.tenantId}`;
+    const alias = `did:web:${origins().consoleHost}:u:${tenantDb.tenantId}`;
     if (!iss || !sub || sub !== agentDid || (iss !== alias && iss !== session.principalDid)) {
       return NextResponse.json({ error: 'jwt_claims_mismatch', message: 'The ownership proof does not match this name and account.' }, { status: 400 });
     }

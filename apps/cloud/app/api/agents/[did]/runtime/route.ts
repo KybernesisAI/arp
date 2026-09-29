@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { env } from '@/lib/env';
+import { mirrorOrigin, origins } from '@/lib/origins';
 import { LinkError, makeChallenge, normalizeLinkValue, rebuildWellKnown, verifyFetchedLinkProof } from '@/lib/links';
 import { posthog, track } from '@/lib/posthog';
 
@@ -95,7 +95,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ did: string }>
       event: 'agentid_runtime_attached',
       properties: { tenant_id: tenantDb.tenantId, agent_did: agentDid, kind: parsed.data.kind },
     });
-    const issuer = process.env['ARP_CLOUD_PUSH_ISSUER'] ?? 'https://gateway.arp.run';
+    const issuer = process.env['ARP_CLOUD_PUSH_ISSUER'] ?? origins().gateway;
     return NextResponse.json({
       ok: true,
       agent_did: agentDid,
@@ -109,7 +109,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ did: string }>
         ARP_AGENT_CREDENTIAL: token,
         AGENTID_CHALLENGE: link.challenge,
       },
-      mirror: `https://${agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '')}${env().AGENTID_MIRROR_SUFFIX}`,
+      mirror: mirrorOrigin(agentDid.replace(/^did:web:/, '').replace(/\.agent$/, '')),
     });
   } catch (err) {
     if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status });

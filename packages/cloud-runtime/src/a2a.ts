@@ -103,6 +103,8 @@ export interface A2aHandlerOptions {
   now?: () => number;
   /** How long message/send waits for the reply before returning SUBMITTED. */
   waitMs?: number;
+  /** Console origin for pairing links (`${consoleOrigin}/pair?peer=<did>`). Default `https://cloud.agentid.dev`. */
+  consoleOrigin?: string;
 }
 
 export interface A2aIdentity {
@@ -119,7 +121,7 @@ export async function handleA2aRequest(
 ): Promise<JsonRpcResponse> {
   if (req.jsonrpc !== '2.0' || typeof req.method !== 'string') return rpcError(req.id ?? null, -32600, 'Invalid Request');
   const now = opts.now ?? (() => Date.now());
-  const pairUrl = `https://cloud.arp.run/pair?peer=${encodeURIComponent(identity.agentDid)}`;
+  const pairUrl = `${(opts.consoleOrigin ?? 'https://cloud.agentid.dev').replace(/\/+$/, '')}/pair?peer=${encodeURIComponent(identity.agentDid)}`;
 
   if (req.method === 'agent/getAuthenticatedExtendedCard') {
     return { jsonrpc: '2.0', id: req.id, result: identity.card ?? {} };

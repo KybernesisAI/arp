@@ -117,7 +117,7 @@ might see: \`notes.search\`, \`notes.read\`, \`knowledge.query\`,
 
 If \`peer-actions\` returns no active connection, tell the user there's
 no live ARP connection to that peer yet — they need to pair via
-\`cloud.arp.run/connections\`.
+\`cloud.agentid.dev/connections\`.
 
 ### 3. Pick the right call
 
@@ -138,7 +138,7 @@ none fit, fall back to \`arpc send\` — but ONLY if the connection grants
 If the connection grants neither a relevant typed scope nor relay,
 tell the user: "I don't have a scope on this connection that lets me
 ask <name> about <topic>. They'd need to grant me <suggested-scope>
-through \`cloud.arp.run/connections/<id>/edit\`."
+through \`cloud.agentid.dev/connections/<id>/edit\`."
 
 ### 4. Run the call (with a sane timeout)
 
@@ -167,7 +167,7 @@ fields naturally — don't dump raw JSON unless the user asked for it.
     "Atlas's policy on this connection doesn't grant me a calendar
      scope, so I can't check their availability."
   Then offer the next step: "If you want, edit the connection at
-  cloud.arp.run/connections to widen the access."
+  cloud.agentid.dev/connections to widen the access."
 - **Exit 2, \`reply_timeout\`** — the request was delivered but the peer
   didn't reply in time. Tell the user; don't retry.
 - **\`gateway_unreachable\`** — supervisor or gateway is down. Tell the
@@ -192,7 +192,7 @@ Atlas's grant to me."
 
 Good reply: "I can't see Atlas's notes on Project Beta — their policy on
 this connection only covers Project Alpha. If you want me to ask, you'd
-need to widen access at cloud.arp.run/connections."
+need to widen access at cloud.agentid.dev/connections."
 
 ## Examples
 
@@ -230,7 +230,7 @@ You reply: "I don't have a scope on this connection that lets me query Ghost abo
 - Don't use this for talking to the user — they're already talking to
   you directly. This is for talking to OTHER agents on the user's behalf.
 - Don't add new contacts unless the user explicitly tells you to.
-  Pairing through \`cloud.arp.run\` auto-populates contacts.yaml.
+  Pairing through \`cloud.agentid.dev\` auto-populates contacts.yaml.
 `;
 
 /**
@@ -270,7 +270,7 @@ class Contact(Skill):
         )
         info = json.loads(peer_actions.stdout)
         if not info.get("connections"):
-            return f"no active ARP connection to {name}; ask the user to pair via cloud.arp.run."
+            return f"no active ARP connection to {name}; ask the user to pair via cloud.agentid.dev."
         scopes = {s["id"]: s.get("params", {}) for s in info["connections"][0]["scope_selections"]}
 
         # 2. Choose: typed action (hard data-layer guarantee) or chat fallback.
@@ -288,7 +288,7 @@ class Contact(Skill):
             cmd = ["arpc", "send", name, intent, "--timeout", "90"]
         else:
             return (f"{name}'s policy on this connection doesn't allow that. "
-                    "Widen the connection's access at cloud.arp.run/connections to enable it.")
+                    "Widen the connection's access at cloud.agentid.dev/connections to enable it.")
 
         out = subprocess.run(cmd, capture_output=True, check=True)
         return out.stdout.decode().strip()
@@ -337,7 +337,7 @@ export class ContactSkill extends Agent {
       }>;
     };
     if (!info.connections.length) {
-      return \`no active ARP connection to \${name}; pair via cloud.arp.run.\`;
+      return \`no active ARP connection to \${name}; pair via cloud.agentid.dev.\`;
     }
     const scopes = new Map<string, Record<string, unknown>>(
       info.connections[0].scope_selections.map((s) => [s.id, s.params ?? {}]),
@@ -358,7 +358,7 @@ export class ContactSkill extends Agent {
       cmd = ['send', name, intent, '--timeout', '90'];
     } else {
       return \`\${name}'s policy on this connection doesn't allow that. \` +
-             \`Widen the connection's access at cloud.arp.run/connections to enable it.\`;
+             \`Widen the connection's access at cloud.agentid.dev/connections to enable it.\`;
     }
     return execFileSync('arpc', cmd, { encoding: 'utf-8' }).trim();
   }

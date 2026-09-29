@@ -12,6 +12,7 @@ import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { env } from '@/lib/env';
 import { exportPrivateKey, sealingKey } from '@/lib/key-custody';
 import { posthog, track } from '@/lib/posthog';
+import { origins } from '@/lib/origins';
 
 export const runtime = 'nodejs';
 
@@ -42,7 +43,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ did: string }
       principal_did: agent.principalDid,
       public_key_multibase: agent.publicKeyMultibase,
       agent_private_key_multibase: ed25519RawToMultibase(raw),
-      gateway_ws_url: process.env['ARP_CLOUD_GATEWAY_WS_URL'] ?? 'wss://gateway.arp.run/ws',
+      gateway_ws_url: process.env['ARP_CLOUD_GATEWAY_WS_URL'] ?? `${origins().gateway.replace(/^http/, 'ws')}/ws`,
       handoff: agent.handoffJson,
     });
   } catch (err) {

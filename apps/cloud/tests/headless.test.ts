@@ -260,3 +260,13 @@ describe('webhooks', () => {
     });
   });
 });
+
+describe('reserved product names (agentid.dev)', () => {
+  it('hostnames and root paths of the product cannot be registered', async () => {
+    const { assertValidSld } = await import('../lib/headless');
+    for (const n of ['cloud', 'gateway', 'www', 'badge', 'support', 'pricing', 'account', 'i', 'gift']) {
+      expect(() => assertValidSld(n)).toThrow(/reserved/);
+    }
+    expect(() => assertValidSld('samantha')).not.toThrow();
+  });
+});

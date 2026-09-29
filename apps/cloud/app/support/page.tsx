@@ -7,12 +7,12 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-static';
 
 export const metadata: Metadata = {
-  title: 'Support — ARP Cloud',
+  title: 'Support — AgentID',
   description:
-    'Contact ARP Cloud support. Email support@arp.run for questions + security@arp.run for security disclosures.',
+    'Contact AgentID support. Email support@agentid.dev for questions + security@agentid.dev for security disclosures.',
 };
 
-// SUPPORT-EMAIL-TBD: Ian to confirm support@arp.run and security@arp.run are
+// SUPPORT-EMAIL-TBD: Ian to confirm support@agentid.dev and security@agentid.dev are
 // live mailboxes before launch day. Remove this marker once verified.
 
 export default function SupportPage(): React.JSX.Element {
@@ -36,14 +36,14 @@ export default function SupportPage(): React.JSX.Element {
               // GENERAL SUPPORT
             </div>
             <h2 className="mt-2 font-display font-medium text-h3">
-              support@arp.run
+              support@agentid.dev
             </h2>
             <p className="mt-4 text-body-sm text-ink-2">
               Product questions, billing, pairing help, or anything that isn't
               a security issue. Response target: one business day.
             </p>
             <div className="mt-4">
-              <Link href="mailto:support@arp.run" variant="accent">
+              <Link href="mailto:support@agentid.dev" variant="accent">
                 Open in mail client →
               </Link>
             </div>
@@ -54,7 +54,7 @@ export default function SupportPage(): React.JSX.Element {
               // SECURITY DISCLOSURES
             </div>
             <h2 className="mt-2 font-display font-medium text-h3">
-              security@arp.run
+              security@agentid.dev
             </h2>
             <p className="mt-4 text-body-sm text-ink-2">
               Suspected vulnerabilities, cryptographic concerns, or anything
@@ -63,7 +63,7 @@ export default function SupportPage(): React.JSX.Element {
               disclosure.
             </p>
             <div className="mt-4">
-              <Link href="mailto:security@arp.run" variant="accent">
+              <Link href="mailto:security@agentid.dev" variant="accent">
                 Open in mail client →
               </Link>
             </div>
@@ -77,21 +77,10 @@ export default function SupportPage(): React.JSX.Element {
           <ul className="list-none p-0 m-0">
             <li className="py-3 border-b border-rule">
               <div className="font-mono text-kicker uppercase text-muted mb-1">
-                // STATUS
-              </div>
-              <Link href="https://status.arp.run" variant="plain">
-                <span className="font-display text-h5">status.arp.run</span>
-              </Link>
-              <p className="mt-1 text-body-sm text-ink-2">
-                Live status of ARP Cloud services.
-              </p>
-            </li>
-            <li className="py-3 border-b border-rule">
-              <div className="font-mono text-kicker uppercase text-muted mb-1">
                 // DOCS
               </div>
-              <Link href="https://spec.arp.run" variant="plain">
-                <span className="font-display text-h5">spec.arp.run</span>
+              <Link href="https://github.com/KybernesisAI/arp/tree/main/docs" variant="plain">
+                <span className="font-display text-h5">github.com/KybernesisAI/arp/docs</span>
               </Link>
               <p className="mt-1 text-body-sm text-ink-2">
                 Protocol spec, scope catalog, and integration guides.

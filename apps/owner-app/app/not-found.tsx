@@ -21,7 +21,7 @@ export default function NotFound() {
           Back to connections
         </Link>
         <Link
-          href="https://cloud.arp.run/support"
+          href="https://cloud.agentid.dev/support"
           className="text-sm no-underline"
         >
           Contact support →

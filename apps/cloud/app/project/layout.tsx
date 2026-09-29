@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import type { ReactNode } from 'react';
 import { ButtonLink, Footer, Nav } from '@/components/ui';
+import { consoleUrl } from '@/lib/origins';
 
 export const metadata = {
   title: 'ARP — Agent Relationship Protocol',
@@ -20,8 +21,8 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
           { label: 'GitHub', href: 'https://github.com/KybernesisAI/arp', external: true },
         ]}
         cta={
-          <ButtonLink href="https://cloud.arp.run" variant="primary" size="sm" arrow="up-right">
-            Try ARP Cloud
+          <ButtonLink href={consoleUrl('/')} variant="primary" size="sm" arrow="up-right">
+            Try AgentID
           </ButtonLink>
         }
       />
@@ -61,14 +62,14 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
                 href: 'https://github.com/KybernesisAI/arp/discussions',
                 external: true,
               },
-              { label: 'ARP Cloud', href: 'https://cloud.arp.run', external: true },
+              { label: 'AgentID', href: consoleUrl('/'), external: true },
             ],
           },
           {
             title: 'Company',
             links: [
               { label: 'About', href: '/about' },
-              { label: 'Support', href: 'https://cloud.arp.run/support', external: true },
+              { label: 'Support', href: consoleUrl('/support'), external: true },
             ],
           },
           {
@@ -86,8 +87,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }): Re
             { label: 'Terms', href: '/legal/terms' },
             { label: 'Privacy', href: '/legal/privacy' },
             { label: 'DPA', href: '/legal/dpa' },
-            { label: 'Support', href: 'https://cloud.arp.run/support' },
-            { label: 'Status', href: 'https://status.arp.run' },
+            { label: 'Support', href: consoleUrl('/support') },
           ],
           status: 'STATUS · OPERATIONAL',
         }}

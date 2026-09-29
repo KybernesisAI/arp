@@ -76,8 +76,8 @@ export function cmdSkill(
   if (template.status === 'preview') {
     console.error(
       `arpc skill install: "${name}" is a preview — the ${template.framework} adapter ` +
-        `for arpc isn't shipped yet. Watch cloud.arp.run for the release, or grab the ` +
-        `placeholder content directly: curl https://cloud.arp.run/api/skills/${name}`,
+        `for arpc isn't shipped yet. Watch cloud.agentid.dev for the release, or grab the ` +
+        `placeholder content directly: curl https://cloud.agentid.dev/api/skills/${name}`,
     );
     process.exit(1);
   }

@@ -6,7 +6,7 @@
  *   1. Registrar redirects user to GET /onboard?domain=<sld>&registrar=X&callback=Y
  *   2. User's browser generates a did:key, creates a tenant via POST /api/tenants
  *   3. Browser signs a representation JWT whose iss is the cloud-managed
- *      did:web alias (did:web:cloud.arp.run:u:<tenantId>)
+ *      did:web alias (did:web:cloud.agentid.dev:u:<tenantId>)
  *   4. Browser redirects back to the registrar's callback with principal_did
  *      + signed_representation_jwt
  *   5. Registrar POSTs /internal/registrar/bind (PSK-gated) with the payload
@@ -214,7 +214,7 @@ describe('Phase 9b — v2.1 registrar flow (integration)', () => {
 
     // Step 4: Browser signs a representation JWT whose iss is the cloud-
     // managed did:web alias.
-    const cloudIssuer = `did:web:cloud.arp.run:u:${tenantId}`;
+    const cloudIssuer = `did:web:cloud.agentid.dev:u:${tenantId}`;
     const agentDid = `did:web:${domain}`;
     const representationJwt = await signRepresentationJwt(
       cloudIssuer,
@@ -245,7 +245,7 @@ describe('Phase 9b — v2.1 registrar flow (integration)', () => {
     const bindBody = (await bindRes.json()) as { ok: boolean; tenant_id: string | null };
     expect(bindBody.ok).toBe(true);
     // tenant_id is now linked because the registrar's principal_did is
-    // the cloud-managed alias `did:web:cloud.arp.run:u:<uuid>` — the
+    // the cloud-managed alias `did:web:cloud.agentid.dev:u:<uuid>` — the
     // bind handler parses the UUID + matches it against tenants.id
     // directly (Phase 10.5 fix). For sidecar-hosted agents whose
     // principal_did IS the tenant's stored DID, the exact-match
