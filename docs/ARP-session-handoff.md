@@ -20,6 +20,10 @@
 
 ---
 
+## 2026-09-29 — AgentID moved to its own private repo
+
+AgentID (console, gateway, db, connector, billing, registrar, product docs) now lives in **`github.com/KybernesisAI/AgentID`** (private, local `/Users/ianborders/AgentID`) with the protocol code vendored. Production (agentid.dev, cloud.agentid.dev, gateway.agentid.dev) deploys from that repo only; this repo's Deploy workflow no longer touches the cloud project. **Nothing in this repo should reference AgentID from here on.** The old `apps/cloud` + `packages/cloud-*` code here is scheduled for removal ("the strip") as a later task once AgentID is fully up — Ian schedules it. Continue all product work in the AgentID repo (its own CLAUDE.md + `docs/session-handoff.md`).
+
 ## 1. Current state of the build
 
 ### Main branch
