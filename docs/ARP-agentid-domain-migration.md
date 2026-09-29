@@ -1,6 +1,6 @@
 # AgentID domain migration — everything on agentid.dev
 
-**Status:** brief, locked 2026-09-24 (Ian). **Decision:** AgentID is the product and owns every address a person or a machine touches. ARP is the protocol underneath; no product URL points at arp.run. **Clean cut, no compatibility layer:** Ian is the only user and every identity is his, so nothing issued so far needs to keep working — arp.run hosts are simply removed from the app once agentid.dev is live.
+**Status:** ✅ executed 2026-09-29 (PRs #256–#259; see handoff 2026-09-29 for the residue list). Brief locked 2026-09-24 (Ian). **Decision:** AgentID is the product and owns every address a person or a machine touches. ARP is the protocol underneath; no product URL points at arp.run. **Clean cut, no compatibility layer:** Ian is the only user and every identity is his, so nothing issued so far needs to keep working — arp.run hosts are simply removed from the app once agentid.dev is live.
 
 ## 1. Target layout
 
