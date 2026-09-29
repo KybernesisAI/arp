@@ -82,7 +82,12 @@ describe('a2aOriginForDid', () => {
     expect(a2aOriginForDid('did:web:peer.example')).toBe('https://peer.example');
     expect(a2aOriginForDid('did:web:peer.example:agents:bob')).toBe('https://peer.example/agents/bob');
     expect(a2aOriginForDid('did:web:localhost%3A8080')).toBe('https://localhost:8080');
-    expect(a2aOriginForDid('did:web:samantha.agent', { mirrorSuffix: '.arp.run' })).toBe('https://samantha.agent.arp.run');
+    // Mirror suffix: plain suffix replaces the `.agent` label; a suffix starting with `.agent` is appended (legacy).
+    expect(a2aOriginForDid('did:web:samantha.agent', { mirrorSuffix: '.agentid.dev' })).toBe('https://samantha.agentid.dev');
+    expect(a2aOriginForDid('did:web:samantha.agent', { mirrorSuffix: 'agentid.dev' })).toBe('https://samantha.agentid.dev');
+    expect(a2aOriginForDid('did:web:samantha.agent', { mirrorSuffix: '.agent.arp.run' })).toBe('https://samantha.agent.arp.run');
+    expect(a2aOriginForDid('did:web:peer.example', { mirrorSuffix: '.agentid.dev' })).toBe('https://peer.example');
+    expect(a2aOriginForDid('did:web:samantha.agent', { mirrorSuffix: '.agent.arp.run' })).toBe('https://samantha.agent.arp.run');
     expect(a2aOriginForDid('did:web:samantha.agent')).toBe('https://samantha.agent');
     expect(a2aOriginForDid('did:key:z6Mk')).toBeNull();
   });
