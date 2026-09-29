@@ -18,11 +18,14 @@ export function FinishSetupButton({
   tenantId,
   principalDid,
   ownerLabel = 'owner',
+  refresh = false,
 }: {
   domain: string;
   tenantId: string;
   principalDid: string;
   ownerLabel?: string;
+  /** The name is already verified; re-sign the proof (e.g. after the console moved domains). */
+  refresh?: boolean;
 }): React.JSX.Element {
   const [stage, setStage] = useState<'idle' | 'label' | 'signing' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export function FinishSetupButton({
       {stage === 'label' ? (
         <div className="flex flex-col items-end gap-2">
           <p className="text-body-sm text-ink-2 m-0 max-w-[40ch] text-right">
-            Your browser signs a proof of ownership with this account's key and publishes it with the name. Pick how you are shown as the owner.
+            {refresh ? 'Your browser re-signs the ownership proof with this account\'s key so it names the current address.' : "Your browser signs a proof of ownership with this account's key and publishes it with the name. Pick how you are shown as the owner."}
           </p>
           <div className="flex items-center gap-2">
             <Input
@@ -94,7 +97,7 @@ export function FinishSetupButton({
         </div>
       ) : (
         <Button type="button" variant="primary" size="sm" onClick={() => setStage('label')} disabled={stage === 'signing' || stage === 'done'}>
-          {stage === 'signing' ? 'Verifying…' : stage === 'done' ? 'Verified' : 'Verify ownership'}
+          {stage === 'signing' ? (refresh ? 'Refreshing…' : 'Verifying…') : stage === 'done' ? (refresh ? 'Refreshed' : 'Verified') : refresh ? 'Refresh ownership proof' : 'Verify ownership'}
         </Button>
       )}
       {error && <FieldError>{error}</FieldError>}

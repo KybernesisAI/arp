@@ -5,7 +5,7 @@ import { registrarBindings } from '@kybernesis/arp-cloud-db';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { env } from '@/lib/env';
 import { mirrorOriginFor } from '@/lib/key-custody';
-import { pairUrlFor } from '@/lib/origins';
+import { origins, pairUrlFor } from '@/lib/origins';
 import { agentLiveness } from '@/lib/agent-liveness';
 import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { ConsoleHead } from '@/components/app/ConsoleHead';
@@ -59,6 +59,8 @@ export default async function NameRecordsPage(props: {
   // Any name on this account that is not yet owner-verified gets the button — regardless of how the
   // registration reached `active` (Stripe fulfilment, registrar-bind, or an operator-recorded purchase).
   const needsOwner = !owner && (status === 'registered' || status === 'owner_pending' || status === 'active' || (agent !== null && !registration));
+  // The owner proof names the console that issued it; after a domain move it is re-signed once.
+  const proofStale = owner !== null && owner.issuerHost !== null && owner.issuerHost !== origins().consoleHost;
   const badgeTone = status === 'active' ? 'blue' : status === 'failed' || status === 'expired' ? 'red' : 'yellow';
 
   const cardSigned = ((agent?.wellKnownA2aCard as { signatures?: unknown[] } | null)?.signatures?.length ?? 0) > 0;
@@ -102,6 +104,7 @@ export default async function NameRecordsPage(props: {
             </div>
             <div className="col-span-12 md:col-span-3 flex justify-end gap-2">
               {needsOwner && <FinishSetupButton domain={domain} tenantId={tenantId} principalDid={principalDid} {...(defaultOwnerLabel ? { ownerLabel: defaultOwnerLabel } : {})} />}
+              {proofStale && owner && <FinishSetupButton domain={domain} tenantId={tenantId} principalDid={principalDid} ownerLabel={owner.ownerLabel} refresh />}
               {agent && agent.keyCustody === 'cloud' && <ExportKeyButton agentDid={agent.did} domain={domain} />}
               {(agent === null ? owner !== null || status === 'active' : agent.keyCustody === 'exported') && (
                 <ReprovisionHostedButton sld={sld} hadKey={agent !== null} />
@@ -244,7 +247,7 @@ async function loadState(sld: string) {
     tenantDb.getRegistrationByDomain(domain),
     tenantDb.getAgent(agentDid),
     tenantDb.raw
-      .select({ ownerLabel: registrarBindings.ownerLabel })
+      .select({ ownerLabel: registrarBindings.ownerLabel, representationJwt: registrarBindings.representationJwt })
       .from(registrarBindings)
       .where(and(eq(registrarBindings.domain, domain), eq(registrarBindings.tenantId, tenantDb.tenantId)))
       .orderBy(desc(registrarBindings.createdAt))
@@ -258,7 +261,7 @@ async function loadState(sld: string) {
     defaultOwnerLabel: ownerLabelFromName(tenant?.displayName ?? null),
     mirror: mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX),
     registration,
-    owner: ownerRows[0] ?? null,
+    owner: ownerRows[0] ? { ownerLabel: ownerRows[0].ownerLabel, issuerHost: issuerHostOf(ownerRows[0].representationJwt) } : null,
     agent: agentRow
       ? {
           did: agentRow.did,
@@ -281,4 +284,15 @@ function ownerLabelFromName(name: string | null): string | null {
   if (!name) return null;
   const label = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);
   return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(label) ? label : null;
+}
+
+/** Host of the console that issued an owner proof (`did:web:<host>:u:<uuid>` issuer); null when unreadable. */
+function issuerHostOf(jwt: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1] ?? '', 'base64url').toString('utf8')) as { iss?: string };
+    const m = /^did:web:([^:]+):u:/.exec(payload.iss ?? '');
+    return m?.[1] ? decodeURIComponent(m[1]).toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
