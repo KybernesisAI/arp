@@ -75,6 +75,8 @@ describe('surfaceForHost (host → surface dispatch)', () => {
     expect(isAppOwnedPath('/gift')).toBe(true);
     expect(isAppOwnedPath('/i')).toBe(true);
     expect(isAppOwnedPath('/account')).toBe(true);
+    expect(isAppOwnedPath('/docs')).toBe(true);
+    expect(isAppOwnedPath('/docs/names')).toBe(true);
     expect(isAppOwnedPath('/identity')).toBe(false);
     expect(isAppOwnedPath('/assets/badge/card.glb')).toBe(true);
     expect(isAppOwnedPath('/namesake')).toBe(false);
@@ -132,7 +134,7 @@ describe('rewriteForSurface', () => {
   });
 
   it('shared pages pass through on the site and the protocol landing', () => {
-    for (const p of ['/legal', '/legal/terms', '/legal/privacy', '/legal/dpa', '/support', '/pair', '/pair/accept', '/i', '/gift', '/badge', '/onboard', '/names/samantha']) {
+    for (const p of ['/legal', '/legal/terms', '/legal/privacy', '/legal/dpa', '/support', '/pair', '/pair/accept', '/i', '/gift', '/badge', '/onboard', '/names/samantha', '/docs', '/docs/getting-started']) {
       expect(rewriteForSurface(mockReq(p), 'site')).toBeNull();
     }
     for (const p of ['/legal', '/legal/terms', '/support']) {

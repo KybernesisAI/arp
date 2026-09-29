@@ -27,7 +27,7 @@ export function LanderNav({ links = DEFAULT_LINKS }: { links?: Array<[string, st
   return (
     <header className="bg-black text-white">
       <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-6">
-        <a href="/lander" className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
+        <a href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
           <span className="inline-block h-4 w-4 rounded-[4px] bg-white" /> AgentID
         </a>
         <nav className="hidden items-center gap-7 text-[14px] text-white/70 md:flex">
@@ -42,11 +42,11 @@ export function LanderNav({ links = DEFAULT_LINKS }: { links?: Array<[string, st
   );
 }
 const DEFAULT_LINKS: Array<[string, string]> = [
-  ['How it works', '/lander#how'],
-  ['What you get', '/lander#get'],
-  ['Add-ons', '/lander#addons'],
-  ['Pricing', '/lander#pricing'],
-  ['FAQ', '/lander#faq'],
+  ['How it works', '/#how'],
+  ['What you get', '/#get'],
+  ['Pricing', '/#pricing'],
+  ['Docs', '/docs'],
+  ['FAQ', '/#faq'],
 ];
 
 export function LanderFooter(): React.JSX.Element {

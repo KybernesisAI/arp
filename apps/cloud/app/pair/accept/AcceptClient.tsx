@@ -360,7 +360,7 @@ export function AcceptClient({
             }
             data-testid="accept-approve-btn"
           >
-            {state.stage === 'submitting' ? 'Accepting…' : 'Approve + countersign'}
+            {state.stage === 'submitting' ? 'Accepting…' : 'Approve'}
           </Button>
           <a
             href="/dashboard"

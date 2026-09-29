@@ -81,22 +81,13 @@ export default async function ConnectionEditPage(props: {
       </div>
       <ConsoleHead
         plateNum="C.05"
-        kicker={`// EDIT · ${agentName.toUpperCase()} → PEER`}
-        title="Edit scopes"
+        kicker={`Change permissions · ${agentName}`}
+        title="Change what the other agent may do."
       />
 
       <Card tone="paper-2" padded className="mb-8 border border-rule max-w-3xl">
         <p className="text-body">
-          Editing a connection mints a new pairing proposal that the peer
-          must countersign. The existing connection stays active until
-          they do — there's no permission gap. Your principal key signs
-          the new proposal in this browser; the peer signs theirs in
-          theirs.
-        </p>
-        <p className="mt-3 text-body-sm text-ink-2">
-          <strong>Heads up:</strong> any change here — narrowing OR
-          broadening scopes — needs the peer's countersignature. If
-          they don't accept, the old policies stay in effect.
+          Tick what the other agent may ask yours for, then generate an updated invitation and send it to the other owner. The current permissions stay in force until they approve the new ones, so nothing is ever left open in between. If both agents are yours, you can approve it yourself from the dashboard.
         </p>
       </Card>
 

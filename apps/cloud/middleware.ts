@@ -154,6 +154,8 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/names',
     // AgentID S6d: the owner's account page (name, email sign-in, passkeys, recovery phrase).
     '/account',
+    // Customer docs on the site (agentid.dev/docs).
+    '/docs',
     // Standalone 3D identity badge (side quest, 2026-09-18); no lander chrome.
     '/badge',
     // New AgentID landing page (black hero + badge); app-owned so no lander rewrite.
@@ -170,9 +172,6 @@ export function isAppOwnedPath(pathname: string): boolean {
     // static + auth-optional. Passthrough here prevents the /cloud rewrite
     // from burying it at /cloud/support.
     '/support',
-    // /runtime: single-screen explainer slide for the seven-layer runtime +
-    // policy gate. Same page on every host.
-    '/runtime',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
