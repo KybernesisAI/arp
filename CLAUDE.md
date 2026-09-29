@@ -259,6 +259,7 @@ bash tests/phase-3/atlas-smoke.sh
 - `docs/ARP-adapter-authoring-guide.md` — the adapter contract (used by community adapter authors)
 - `docs/ARP-agentid-plan.md` — **the locked master plan (Sept 2026). Read first.**
 - `docs/ARP-session-handoff.md` — **this session's state when/if you need to resume**
+- `docs/ARP-production-readiness.md` — **what is still missing for a production product, end to end (2026-09-29)**
 
 ## 14. Known tech debt (not blocking, tracked)
 
