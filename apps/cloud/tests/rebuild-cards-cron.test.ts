@@ -30,7 +30,7 @@ describe('GET /api/cron/rebuild-cards', () => {
     process.env['ARP_CLOUD_KEY_ENCRYPTION_KEY'] = Buffer.from(SEAL).toString('hex');
     await mintIdentity({
       tenantDb: tdb, domain: 'atlas.agent', principalDid: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK', agentName: 'Atlas', custody: 'cloud', runtimeKind: 'none',
-      wellKnownOrigin: 'https://atlas.agent.arp.run', mirrorOrigin: 'https://atlas.agent.arp.run', sealKey: SEAL,
+      wellKnownOrigin: 'https://atlas.agentid.dev', mirrorOrigin: 'https://atlas.agentid.dev', sealKey: SEAL,
     });
   });
   afterEach(async () => { await currentDb?.close(); currentDb = null; });
@@ -51,7 +51,7 @@ describe('GET /api/cron/rebuild-cards', () => {
 
     const row = await tdb.getAgent(AGENT);
     const card = A2aAgentCardSchema.parse(row?.wellKnownA2aCard);
-    expect(card.supportedInterfaces[0]?.url).toBe('https://atlas.agent.arp.run/a2a');
+    expect(card.supportedInterfaces[0]?.url).toBe('https://atlas.agentid.dev/a2a');
     const jwks = { keys: [ed25519ToJwk(multibaseEd25519ToRaw(row!.publicKeyMultibase), `${AGENT}#key-1`)] };
     expect(await verifyAgentCardSignature(card as Record<string, unknown>, jwks)).toMatchObject({ ok: true });
 
