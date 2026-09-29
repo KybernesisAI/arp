@@ -10,8 +10,8 @@
 ARP gives any two AI agents a way to pair, message, and prove what each is allowed to do. Sovereign identity (Handshake `.agent` + DIDs), per-purpose Connection Tokens, Cedar policy with plain-English consent, DIDComm v2 transport, tamper-evident audit. MIT-licensed.
 
 - 🌐 **[arp.run](https://arp.run)** — open protocol
-- ☁️ **[cloud.arp.run](https://cloud.arp.run)** — managed hosting (free tier)
-- 🛠️ **[app.arp.run](https://app.arp.run)** — your dashboard once signed in
+- ☁️ **[cloud.agentid.dev](https://cloud.agentid.dev)** — managed hosting (free tier)
+- 🛠️ **[cloud.agentid.dev](https://cloud.agentid.dev)** — your dashboard once signed in
 - 📚 **[docs.arp.run](https://docs.arp.run)** · **[spec.arp.run](https://spec.arp.run)** · **[status.arp.run](https://status.arp.run)**
 
 ---
@@ -24,7 +24,7 @@ You need:
 |---|---|---|
 | **Node.js 20+** | runs the agent + `arpc` | <https://nodejs.org> → LTS |
 | **Terminal** | macOS Terminal / Windows Terminal | — |
-| **ARP Cloud account** | hosts your `.agent` name | sign in at <https://cloud.arp.run> |
+| **ARP Cloud account** | hosts your `.agent` name | sign in at <https://cloud.agentid.dev> |
 
 Then install the CLI once, on the machine where your agent runs:
 
@@ -41,7 +41,7 @@ arpc version          # should print @kybernesis/arp 0.x.x
 
 ### 1. Get a `.agent` name
 
-In your browser at [cloud.arp.run/dashboard](https://cloud.arp.run/dashboard):
+In your browser at [cloud.agentid.dev/dashboard](https://cloud.agentid.dev/dashboard):
 
 1. Sign in (passkey or recovery phrase)
 2. **Register a `.agent` domain** → pick a name (e.g. `atlas.agent`), pay the registrar fee, complete the bind-back
@@ -109,7 +109,7 @@ That's it. Your agent is live on `did:web:atlas.agent`, reachable from anywhere 
 
 ### 8. Verify
 
-In [cloud.arp.run/dashboard](https://cloud.arp.run/dashboard):
+In [cloud.agentid.dev/dashboard](https://cloud.agentid.dev/dashboard):
 
 - **Agents** section shows your agent with a green dot ●
 - Click the agent name → connections page (empty until you pair)
@@ -158,7 +158,7 @@ The contact skill picks it up, runs `arpc send samantha "what time are you free 
 
 ### Manage live connections
 
-In [app.arp.run](https://app.arp.run): the dashboard shows every connection, every scope, every recent message. **Revoke** any connection at any time — kill it surgically without touching any other.
+In [cloud.agentid.dev](https://cloud.agentid.dev): the dashboard shows every connection, every scope, every recent message. **Revoke** any connection at any time — kill it surgically without touching any other.
 
 ---
 
@@ -274,6 +274,14 @@ All four must exit 0. Routes through Turborepo — **never** use `pnpm -r <task>
 | [`docs/ARP-tld-integration-spec-v2.1.md`](./docs/ARP-tld-integration-spec-v2.1.md) | Headless `.agent` TLD contract |
 
 Rendered: **[docs.arp.run](https://docs.arp.run)** · **[spec.arp.run](https://spec.arp.run)** · **[status.arp.run](https://status.arp.run)**
+
+---
+
+## Operations
+
+- **Incident response runbook:** [`atlas/brain/runbooks/incident-response.md`](https://github.com/KybernesisAI/atlas/blob/main/brain/runbooks/incident-response.md) — severity ladder, comms templates (status page + customer email), post-mortem template, retro cadence. Owned by Atlas (Infra/Security/Quality).
+- **Disaster recovery:** [`atlas/brain/kyb66-disaster-recovery.md`](https://github.com/KybernesisAI/atlas/blob/main/brain/kyb66-disaster-recovery.md) — full restore playbook, drilled quarterly.
+- **Status:** [status.arp.run](https://status.arp.run) — live service status, posted within 15 min of confirmed user-impacting incidents.
 
 ---
 
