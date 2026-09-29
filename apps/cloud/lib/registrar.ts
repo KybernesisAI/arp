@@ -25,6 +25,8 @@ export interface RegistrarEnv {
   AGENTID_NAME_PRICE_CENTS: number;
   AGENTID_NAME_MAX_YEARS: number;
   AGENTID_MIRROR_SUFFIX: string;
+  /** Stripe price id for the yearly name subscription; null → inline price_data (dev/tests). */
+  STRIPE_PRICE_NAME_YEARLY?: string | null;
 }
 
 /** The slice of Stripe we touch, typed structurally so tests can stub it. */
@@ -139,6 +141,7 @@ export async function startNameCheckout(
   if (!Number.isFinite(years) || years < 1 || years > input.env.AGENTID_NAME_MAX_YEARS) {
     throw new RegistrarError('bad_years', `years must be 1..${input.env.AGENTID_NAME_MAX_YEARS}`, 400);
   }
+  void years; // the term is always one year now; it renews.
   if (!input.stripe) {
     throw new RegistrarError('payments_not_configured', 'Payments are not configured.', 503);
   }
@@ -165,41 +168,40 @@ export async function startNameCheckout(
     }
   }
 
-  const priceCents = input.env.AGENTID_NAME_PRICE_CENTS * years;
-  const registration = await input.tenantDb.createRegistration({ sld, years, priceCents });
+  // Lander model: a name is a yearly subscription that auto-renews. The
+  // first period is one year regardless of the requested term.
+  const priceCents = input.env.AGENTID_NAME_PRICE_CENTS;
+  const registration = await input.tenantDb.createRegistration({ sld, years: 1, priceCents });
 
+  const meta = {
+    kind: NAME_CHECKOUT_KIND,
+    registration_id: registration.id,
+    tenant_id: input.tenantId,
+    principal_did: input.principalDid,
+    sld,
+    years: '1',
+  };
+  const tenant = await input.tenantDb.getTenant();
   const session = await input.stripe.checkout.sessions.create({
-    mode: 'payment',
+    mode: 'subscription',
     client_reference_id: input.tenantId,
-    metadata: {
-      kind: NAME_CHECKOUT_KIND,
-      registration_id: registration.id,
-      tenant_id: input.tenantId,
-      principal_did: input.principalDid,
-      sld,
-      years: String(years),
-    },
-    payment_intent_data: {
-      metadata: {
-        kind: NAME_CHECKOUT_KIND,
-        registration_id: registration.id,
-        tenant_id: input.tenantId,
-        sld,
-      },
-    },
+    ...(tenant?.stripeCustomerId ? { customer: tenant.stripeCustomerId } : tenant?.email ? { customer_email: tenant.email } : {}),
+    metadata: meta,
+    subscription_data: { metadata: meta, description: `${sld}.agent · renews yearly` },
     line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: 'usd',
-          unit_amount: priceCents,
-          product_data: {
-            name: `${sld}.agent`,
-            description: `AgentID name registration · ${years} year${years === 1 ? '' : 's'}`,
+      input.env.STRIPE_PRICE_NAME_YEARLY
+        ? { quantity: 1, price: input.env.STRIPE_PRICE_NAME_YEARLY }
+        : {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: priceCents,
+              recurring: { interval: 'year' },
+              product_data: { name: `${sld}.agent`, description: 'AgentID name · renews yearly' },
+            },
           },
-        },
-      },
     ],
+    allow_promotion_codes: true,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   });
@@ -220,6 +222,7 @@ export interface FulfilInput {
   session: {
     id: string;
     payment_intent?: string | { id: string } | null;
+    subscription?: string | { id: string } | null;
     metadata?: Record<string, string> | null;
   };
   headless: HeadlessClient;
@@ -263,10 +266,12 @@ export async function fulfilNameCheckout(input: FulfilInput): Promise<FulfilOutc
       ? input.session.payment_intent
       : input.session.payment_intent?.id ?? null;
 
+  const subscriptionId = typeof input.session.subscription === 'string' ? input.session.subscription : (input.session.subscription?.id ?? null);
   await input.tenantDb.updateRegistration(registration.id, {
     status: 'registering',
     stripeCheckoutSessionId: input.session.id,
     stripePaymentIntentId: paymentIntentId,
+    ...(subscriptionId ? { stripeSubscriptionId: subscriptionId, autoRenew: true } : {}),
   });
 
   try {
@@ -293,6 +298,7 @@ export async function fulfilNameCheckout(input: FulfilInput): Promise<FulfilOutc
       registeredAt: (input.now ?? (() => new Date()))(),
       expiryAt: reg.expiryAt,
       graceEndsAt: reg.graceEndsAt,
+      currentPeriodEnd: reg.expiryAt,
       error: null,
     });
     return { outcome: 'registered', registration: updated ?? registration, agentDid: minted.agentDid };

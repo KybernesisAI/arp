@@ -1,55 +1,38 @@
+/** POST /api/billing/checkout — start the Connect subscription ($5/month) for this account. */
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { createCheckoutSession, getBillingContext } from '@/lib/billing';
-import { env } from '@/lib/env';
+import { createConnectCheckoutSession, getBillingContext } from '@/lib/billing';
+import { consoleUrl } from '@/lib/origins';
 import { posthog, track } from '@/lib/posthog';
 
 export const runtime = 'nodejs';
 
-// Phase-10: Pro is the only paid plan. The Stripe subscription's `quantity`
-// carries the per-tenant agent count, defaulting to current provisioned
-// agents at upgrade time.
-const Body = z.object({ quantity: z.number().int().min(1).max(1000).optional() });
-
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   try {
     const { tenantDb, session } = await requireTenantDb();
-    const parsed = Body.safeParse(await req.json().catch(() => ({})));
-    if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     const tenant = await tenantDb.getTenant();
     if (!tenant) return NextResponse.json({ error: 'no_tenant' }, { status: 404 });
-    const ctx = getBillingContext();
-    if (!ctx.stripe) {
-      return NextResponse.json(
-        {
-          error: 'stripe_not_configured',
-          hint: 'set STRIPE_SECRET_KEY + STRIPE_PRICE_PRO_PER_AGENT in .env.local',
-        },
-        { status: 503 },
-      );
+    if (tenant.connectStatus === 'active' || tenant.connectStatus === 'past_due') {
+      return NextResponse.json({ error: 'already_active', message: 'Connect is already on for this account.' }, { status: 409 });
     }
-    const provisionedAgents = (await tenantDb.listAgents()).length;
-    const quantity = parsed.data.quantity ?? Math.max(1, provisionedAgents);
-    const host = env().ARP_CLOUD_HOST;
-    const { url } = await createCheckoutSession(ctx, {
+    const ctx = getBillingContext();
+    if (!ctx.stripe || !ctx.connectPriceId) {
+      return NextResponse.json({ error: 'stripe_not_configured', message: 'Payments are not configured.' }, { status: 503 });
+    }
+    const { url } = await createConnectCheckoutSession(ctx, {
       tenantId: tenant.id,
       principalDid: session.principalDid,
-      quantity,
-      successUrl: `https://${host}/billing?status=success`,
-      cancelUrl: `https://${host}/billing?status=cancel`,
+      customerId: tenant.stripeCustomerId,
+      customerEmail: tenant.email,
+      successUrl: consoleUrl('/billing?status=connect_on'),
+      cancelUrl: consoleUrl('/billing?status=cancel'),
     });
-    track({
-      distinctId: session.principalDid,
-      event: 'billing_checkout_started',
-      properties: { tenant_id: tenant.id, current_plan: tenant.plan, quantity },
-    });
+    track({ distinctId: session.principalDid, event: 'connect_checkout_started', properties: { tenant_id: tenant.id } });
+    if (!url) return NextResponse.json({ error: 'stripe_not_configured' }, { status: 503 });
     return NextResponse.json({ url });
   } catch (err) {
-    if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
+    if (err instanceof AuthError) return NextResponse.json({ error: err.message }, { status: err.status });
     posthog.captureException(err);
-    throw err;
+    return NextResponse.json({ error: 'internal', message: 'Checkout could not be started.' }, { status: 500 });
   }
 }

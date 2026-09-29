@@ -111,7 +111,7 @@ describe('registrar lifecycle', () => {
     expect(err?.message).not.toMatch(/headless/i);
   });
 
-  it('startNameCheckout opens a pending registration and a one-time Stripe session', async () => {
+  it('startNameCheckout opens a pending registration and a yearly Stripe subscription', async () => {
     const stripe = stubStripe();
     const { url, registration } = await startNameCheckout({
       tenantDb: tdb,
@@ -127,7 +127,8 @@ describe('registrar lifecycle', () => {
     });
     expect(url).toBe('https://checkout.stripe.test/cs_test_1');
     expect(registration.status).toBe('pending_payment');
-    expect(registration.priceCents).toBe(5800);
+    expect(registration.priceCents).toBe(2900);
+    expect(registration.years).toBe(1);
     expect(registration.stripeCheckoutSessionId).toBe('cs_test_1');
 
     const params = (stripe.checkout.sessions.create.mock.calls as unknown as unknown[][])[0]![0] as {
@@ -135,10 +136,11 @@ describe('registrar lifecycle', () => {
       metadata: Record<string, string>;
       line_items: Array<{ price_data: { unit_amount: number; product_data: { name: string } } }>;
     };
-    expect(params.mode).toBe('payment');
+    expect(params.mode).toBe('subscription');
     expect(params.metadata['kind']).toBe(NAME_CHECKOUT_KIND);
     expect(params.metadata['registration_id']).toBe(registration.id);
-    expect(params.line_items[0]!.price_data.unit_amount).toBe(5800);
+    expect(params.line_items[0]!.price_data.unit_amount).toBe(2900);
+    expect((params.line_items[0]!.price_data as { recurring?: { interval: string } }).recurring?.interval).toBe('year');
     expect(params.line_items[0]!.price_data.product_data.name).toBe('atlas.agent');
   });
 

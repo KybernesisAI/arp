@@ -41,20 +41,20 @@ export interface PlanLimits {
 }
 
 export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
+  // Lander billing model (2026-09-29): names are paid per registration and
+  // Connect is a per-account subscription, so 'free' and 'pro' are the same
+  // standard account. Both keys stay for rows written under the old model.
   free: {
     plan: 'free',
-    maxAgents: 1,
-    // 1,000 inbound msgs/mo — gives room for real testing without
-    // hitting quota on the second day. Pro stays at 10k for paying
-    // tenants; the gap is meaningful but the floor isn't punitive.
-    maxInboundMessagesPerMonth: 1_000,
+    maxAgents: null,
+    maxInboundMessagesPerMonth: 10_000,
     perAgentPriceCents: 0,
   },
   pro: {
     plan: 'pro',
     maxAgents: null,
     maxInboundMessagesPerMonth: 10_000,
-    perAgentPriceCents: 500,
+    perAgentPriceCents: 0,
   },
   // Internal accounts (ARP team, integration tests, design partners
   // we explicitly comp). Bypasses every quota; never billed.
@@ -71,21 +71,18 @@ export const PLAN_LIMITS: Record<PlanLimits['plan'], PlanLimits> = {
  * PLAN_LIMITS.free.maxAgents; Pro tenants are capped at the Stripe
  * subscription `quantity` (auto-synced on agent create + archive).
  */
-export function effectiveMaxAgents(
-  plan: string,
-  subscriptionQuantity: number,
-): number | null {
-  if (plan === 'free') return PLAN_LIMITS.free.maxAgents;
-  if (plan === 'pro') return Math.max(1, subscriptionQuantity);
+export function effectiveMaxAgents(_plan: string, _subscriptionQuantity: number): number | null {
   return null;
 }
 
+/** Pairing (creating or accepting an invitation) needs the Connect add-on; internal accounts always may. */
+export function canPair(tenant: { plan: string; connectStatus?: string | null }): boolean {
+  if (tenant.plan === 'internal') return true;
+  return tenant.connectStatus === 'active' || tenant.connectStatus === 'past_due';
+}
+
 /** Monthly bill in cents for the given plan + quantity. */
-export function monthlyBillCents(plan: string, subscriptionQuantity: number): number {
-  if (plan === 'free') return 0;
-  if (plan === 'pro') {
-    return PLAN_LIMITS.pro.perAgentPriceCents * Math.max(1, subscriptionQuantity);
-  }
+export function monthlyBillCents(_plan: string, _subscriptionQuantity: number): number {
   return 0;
 }
 

@@ -113,7 +113,7 @@ describe('registrar routes', () => {
     const list = await LIST();
     const rows = (await list.json()).registrations as Array<{ domain: string; status: string; price_cents: number }>;
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ domain: 'atlas.agent', status: 'pending_payment', price_cents: 5800 });
+    expect(rows[0]).toMatchObject({ domain: 'atlas.agent', status: 'pending_payment', price_cents: 2900 });
   });
 
   it('POST /api/registrar/checkout surfaces name_taken as 409 with a neutral message', async () => {

@@ -8,6 +8,7 @@
  */
 
 import {
+  boolean,
   pgTable,
   text,
   uuid,
@@ -72,6 +73,9 @@ export const tenants = pgTable(
     // Owner account (S6d): the everyday sign-in address, verified by a one-time code.
     email: text('email'),
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    // Connect add-on (monthly subscription) — pairing is allowed while active or past_due.
+    connectStatus: text('connect_status').$type<ConnectStatus>().notNull().default('none'),
+    connectSubscriptionId: text('connect_subscription_id'),
     stripeCustomerId: text('stripe_customer_id'),
     stripeSubscriptionId: text('stripe_subscription_id'),
     plan: text('plan').notNull().default('free'),
@@ -149,6 +153,10 @@ export const DOMAIN_REGISTRATION_STATUSES = [
   'expired',
 ] as const;
 export type DomainRegistrationStatus = (typeof DOMAIN_REGISTRATION_STATUSES)[number];
+export const UPSTREAM_RENEWAL_STATUSES = ['none', 'pending', 'renewed', 'failed'] as const;
+export type UpstreamRenewalStatus = (typeof UPSTREAM_RENEWAL_STATUSES)[number];
+export const CONNECT_STATUSES = ['none', 'active', 'past_due', 'canceled'] as const;
+export type ConnectStatus = (typeof CONNECT_STATUSES)[number];
 
 export const domainRegistrations = pgTable(
   'domain_registrations',
@@ -170,11 +178,20 @@ export const domainRegistrations = pgTable(
     graceEndsAt: timestamp('grace_ends_at', { withTimezone: true }),
     ownerLabel: text('owner_label'),
     error: text('error'),
+    // Lander billing model (2026-09-29): each name is a yearly Stripe subscription.
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    autoRenew: boolean('auto_renew').notNull().default(true),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    /** none | pending (customer paid, supplier renewal still to do) | renewed | failed */
+    upstreamRenewalStatus: text('upstream_renewal_status').$type<UpstreamRenewalStatus>().notNull().default('none'),
+    /** Last reminder sent for the current period: 30, 7 or 1 (days before). */
+    lastReminderDays: integer('last_reminder_days'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     idxTenant: index('idx_domain_registrations_tenant').on(t.tenantId),
+    idxSubscription: index('idx_domain_registrations_subscription').on(t.stripeSubscriptionId),
     idxDomain: index('idx_domain_registrations_domain').on(t.domain),
     idxCheckout: uniqueIndex('domain_registrations_checkout_session').on(t.stripeCheckoutSessionId),
   }),
@@ -634,6 +651,24 @@ export const loginCodes = pgTable(
     idxEmail: index('idx_login_codes_email').on(t.email, t.createdAt),
   }),
 );
+
+// ------------------------------------------------------------------ email_log
+/** One row per (kind, ref) so reminders and receipts are sent once. */
+export const emailLog = pgTable(
+  'email_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id'),
+    kind: text('kind').notNull(),
+    ref: text('ref').notNull(),
+    toEmail: text('to_email').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uqKindRef: uniqueIndex('email_log_kind_ref').on(t.kind, t.ref),
+  }),
+);
+export type EmailLogRow = typeof emailLog.$inferSelect;
 
 // ------------------------------------------------------------------ device_links
 export const deviceLinks = pgTable(

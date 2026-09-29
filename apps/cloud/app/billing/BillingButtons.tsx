@@ -2,92 +2,69 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
-import { Button, FieldError } from '@/components/ui';
+import { ErrorText, PrimaryButton, SecondaryButton } from '@/app/lander/ui';
 
-export default function BillingButtons({
-  currentPlan,
-  canManage,
-  agentCount,
-}: {
-  currentPlan: 'free' | 'pro';
-  canManage: boolean;
-  agentCount: number;
-}): React.JSX.Element {
+export default function BillingButtons({ canManage, connectOn, internal }: { canManage: boolean; connectOn: boolean; internal: boolean }): React.JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function checkout(): Promise<void> {
-    setBusy('checkout');
+  async function go(path: string, label: string): Promise<void> {
+    setBusy(label);
     setError(null);
     try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        // Initial Stripe quantity defaults to current agent count so the
-        // first invoice matches what they have provisioned. Server clamps
-        // to >= 1.
-        body: JSON.stringify({ quantity: Math.max(1, agentCount) }),
-      });
-      if (!res.ok) {
-        const body = (await res.json()) as { error: string; hint?: string };
-        throw new Error(body.hint ?? body.error);
-      }
-      const { url } = (await res.json()) as { url: string | null };
-      if (url) window.location.href = url;
-      else throw new Error('no_checkout_url');
+      const res = await fetch(path, { method: 'POST' });
+      const body = (await res.json().catch(() => ({}))) as { url?: string; message?: string; error?: string };
+      if (!res.ok || !body.url) throw new Error(body.message ?? 'Something went wrong. Try again.');
+      window.location.assign(body.url);
     } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function openPortal(): Promise<void> {
-    setBusy('portal');
-    setError(null);
-    try {
-      const res = await fetch('/api/billing/portal', { method: 'POST' });
-      if (!res.ok) {
-        const body = (await res.json()) as { error: string; hint?: string };
-        throw new Error(body.hint ?? body.error);
-      }
-      const { url } = (await res.json()) as { url: string | null };
-      if (url) window.location.href = url;
-      else throw new Error('no_portal_url');
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
       setBusy(null);
     }
   }
 
   return (
-    <div className="mt-8 flex flex-wrap items-center gap-3">
-      {currentPlan === 'free' && (
-        <Button
-          variant="primary"
-          arrow
-          onClick={() => void checkout()}
-          disabled={busy !== null}
-        >
-          {busy === 'checkout' ? 'Redirecting…' : 'Upgrade to Pro'}
-        </Button>
-      )}
-      {canManage && (
-        <Button
-          variant="default"
-          onClick={() => void openPortal()}
-          disabled={busy !== null}
-        >
-          {busy === 'portal' ? 'Redirecting…' : 'Manage subscription'}
-        </Button>
-      )}
-      {currentPlan === 'pro' && (
-        <p className="text-body-sm text-ink-2 m-0">
-          Need more agents? Provision one — billing auto-scales by $5/mo per agent.
-        </p>
-      )}
-      {error && <FieldError className="m-0">{error}</FieldError>}
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-wrap gap-2">
+        {!connectOn && !internal && (
+          <PrimaryButton onClick={() => void go('/api/billing/checkout', 'connect')} disabled={busy !== null} data-testid="connect-checkout-btn">
+            {busy === 'connect' ? 'Opening…' : 'Turn on Connect · $5/mo'}
+          </PrimaryButton>
+        )}
+        {canManage && (
+          <SecondaryButton onClick={() => void go('/api/billing/portal', 'portal')} disabled={busy !== null} data-testid="manage-billing-btn">
+            {busy === 'portal' ? 'Opening…' : 'Manage billing'}
+          </SecondaryButton>
+        )}
+      </div>
+      {error && <ErrorText>{error}</ErrorText>}
+    </div>
+  );
+}
+
+export function AutoRenewToggle({ sld, autoRenew }: { sld: string; autoRenew: boolean }): React.JSX.Element {
+  const [on, setOn] = useState(autoRenew);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function flip(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/billing/autorenew', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sld, auto_renew: !on }) });
+      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      if (!res.ok) throw new Error(body.message ?? 'The change could not be saved.');
+      setOn(!on);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The change could not be saved.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div>
+      <button type="button" onClick={() => void flip()} disabled={busy} className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900 disabled:opacity-50" data-testid="autorenew-toggle">
+        {busy ? 'Saving…' : on ? 'Turn renewal off' : 'Turn renewal on'}
+      </button>
+      {error && <ErrorText className="mt-1">{error}</ErrorText>}
     </div>
   );
 }

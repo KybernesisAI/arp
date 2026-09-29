@@ -71,7 +71,7 @@ export async function seedTenant(
 ): Promise<string> {
   const inserted = await db
     .insert(tenants)
-    .values({ principalDid, plan: 'free', status: 'active' })
+    .values({ connectStatus: 'active', principalDid, plan: 'free', status: 'active' })
     .returning({ id: tenants.id });
   const id = inserted[0]?.id;
   if (!id) throw new Error('seedTenant: no id returned');

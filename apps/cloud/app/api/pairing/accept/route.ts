@@ -27,6 +27,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { canPair } from '@/lib/billing';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import {
@@ -69,6 +70,12 @@ export async function POST(req: Request): Promise<Response> {
       limit: 10,
     });
     if (!limit.ok) return rateLimitedResponse(limit.retryAfter);
+
+    // Pairing is part of Connect (internal accounts always may).
+    const tenantForGate = await tenantDb.getTenant();
+    if (!tenantForGate || !canPair({ plan: tenantForGate.plan, connectStatus: tenantForGate.connectStatus })) {
+      return NextResponse.json({ error: 'connect_required', message: 'Connect is needed to pair agents. Turn it on from the Billing page.' }, { status: 402 });
+    }
 
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
