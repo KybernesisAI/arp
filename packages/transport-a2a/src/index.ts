@@ -30,7 +30,10 @@ export function a2aOriginForDid(did: string, opts: { mirrorSuffix?: string | nul
   if (!hostRaw) return null;
   let host = decodeURIComponent(hostRaw).toLowerCase();
   if (opts.mirrorSuffix && host.endsWith('.agent') && !host.includes('/')) {
-    host = `${host}${opts.mirrorSuffix.startsWith('.') ? opts.mirrorSuffix : `.${opts.mirrorSuffix}`}`;
+    // Mirror host: the `.agent` label is replaced by the configured suffix —
+    // `<sld>.agentid.dev` today, `<sld>.agent.arp.run` with the old `.agent.arp.run` suffix.
+    const suffix = opts.mirrorSuffix.startsWith('.') ? opts.mirrorSuffix : `.${opts.mirrorSuffix}`;
+    host = `${host.slice(0, -'.agent'.length)}${suffix}`;
   }
   const path = segments.map((s) => decodeURIComponent(s)).join('/');
   return `https://${host}${path ? `/${path}` : ''}`;
