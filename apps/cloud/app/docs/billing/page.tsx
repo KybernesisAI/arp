@@ -18,19 +18,20 @@ export default function Page(): React.JSX.Element {
 
       <Section id="manage" title="The Billing page">
         <Where>Billing</Where>
-        <P>The <ConsoleLink path="/billing">Billing</ConsoleLink> page shows your plan, this month&apos;s usage, and each name&apos;s renewal date. <UI>Manage subscription</UI> opens the secure card portal where you can update the card, download invoices and see past payments. <UI>Upgrade to Pro</UI> adds the Connect features to your account.</P>
+        <P>The <ConsoleLink path="/billing">Billing</ConsoleLink> page lists every name with its renewal date and whether it renews automatically, and shows whether Connect is on. <UI>Manage billing</UI> opens the secure card portal where you can update the card, download invoices and see past payments. <UI>Turn on Connect</UI> starts the $5 a month add-on.</P>
       </Section>
 
       <Section id="renewals" title="Renewals and cancelling">
         <Bullets items={[
-          <>Names renew yearly on the date shown on their dashboard card. You get an email before it is due.</>,
-          <>Add-ons are monthly and can be stopped from the card portal; they run to the end of the paid period.</>,
-          <>If a name is not renewed it stops resolving after its date, and after a grace period it becomes available to others. Renew before then to keep it.</>,
+          <>Names renew automatically each year from the card on file. We email you 30, 7 and 1 days before, and a receipt after.</>,
+          <>Prefer not to renew? Press <UI>Turn renewal off</UI> under the name on the Billing page. The name stays yours until its date, then lapses; after a short grace period it becomes available to others.</>,
+          <>Connect is monthly. Stop it from the card portal; it runs to the end of the paid month, and your existing connections keep working.</>,
+          <>If a payment fails we email you; update the card and it retries on its own.</>,
         ]} />
       </Section>
 
       <Section id="receipts" title="Receipts">
-        <P>Every payment gets an emailed receipt. Invoices with your company details are in the card portal under <UI>Manage subscription</UI>.</P>
+        <P>Every payment gets an emailed receipt. Invoices with your company details are in the card portal under <UI>Manage billing</UI>.</P>
       </Section>
 
       <NextUp items={[{ href: '/docs/faq', label: 'Questions' }]} />

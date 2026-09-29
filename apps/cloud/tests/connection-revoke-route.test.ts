@@ -75,7 +75,7 @@ async function seedTenant(principalDid: string): Promise<string> {
   if (!currentDb) throw new Error('db gone');
   const rows = await currentDb.db
     .insert(tenants)
-    .values({ principalDid, plan: 'free', status: 'active' })
+    .values({ principalDid, plan: 'free', status: 'active', connectStatus: 'active' })
     .returning({ id: tenants.id });
   const id = rows[0]?.id;
   if (!id) throw new Error('no tenant');

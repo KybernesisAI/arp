@@ -109,7 +109,7 @@ async function seedTenantAndAgent(
 ): Promise<string> {
   const inserted = await db
     .insert(tenants)
-    .values({ principalDid, plan: 'free', status: 'active' })
+    .values({ principalDid, plan: 'free', status: 'active', connectStatus: 'active' })
     .returning({ id: tenants.id });
   const tenantId = inserted[0]?.id;
   if (!tenantId) throw new Error('no tenant');

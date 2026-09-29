@@ -3,8 +3,8 @@
 **Status:** working list, opened 2026-09-29 after the domain migration. Everything a customer can touch, end to end, and what is missing before we call it production. Ordered by what blocks a paying stranger from using the product without us in the room.
 
 ## 0. Decisions only Ian can make
-- **Pricing model.** The lander sells *Name $29/year* + *Connect $5/month* + *Payments (soon)*. The console bills the older *Free / Pro per agent* model (`STRIPE_PRICE_PRO_PER_AGENT`, "Upgrade to Pro"). One of them has to go. Recommendation: the lander model — name checkout already exists; Connect becomes a monthly subscription that unlocks pairing. Ian confirms prices, then I wire it.
-- **Renewals.** Names are sold for 1–3 years; nothing renews them. The supplier renews only via machine payment (MPP); our side has no renewal job, no reminder, no card charge. Decision: (a) auto-renew from the card on file and pay the supplier ourselves, or (b) reminders + manual "Renew" button. Recommendation: (a) with reminders at 30/7/1 days.
+- ~~**Pricing model.**~~ **Decided 2026-09-29: lander model, built (PR #266).** The lander sells *Name $29/year* + *Connect $5/month* + *Payments (soon)*. The console bills the older *Free / Pro per agent* model (`STRIPE_PRICE_PRO_PER_AGENT`, "Upgrade to Pro"). One of them has to go. Recommendation: the lander model — name checkout already exists; Connect becomes a monthly subscription that unlocks pairing. Ian confirms prices, then I wire it.
+- ~~**Renewals.**~~ **Decided 2026-09-29: auto-renew + 30/7/1 reminders, built (PR #266); the supplier step is an ops email until the registrar exposes renewal.** Names are sold for 1–3 years; nothing renews them. The supplier renews only via machine payment (MPP); our side has no renewal job, no reminder, no card charge. Decision: (a) auto-renew from the card on file and pay the supplier ourselves, or (b) reminders + manual "Renew" button. Recommendation: (a) with reminders at 30/7/1 days.
 - **Mail receiving** for `support@ / security@ / privacy@ / legal@ / hello@agentid.dev` (no MX today: those addresses bounce). Pick Resend inbound, a forwarder (ImprovMX), or Google Workspace; I add the records.
 - **Legal entity + address** for Terms/Privacy/DPA, and who answers `privacy@`.
 
@@ -15,7 +15,7 @@
 - Rotate the keys minted through the browser during build (Resend `arp-cloud-agentid`; delete `arp-cloud`, `arp-cloud-2`), rotate `ARP_CLOUD_KEY_ENCRYPTION_KEY`/`CRON_SECRET` only if they were ever exposed (they were not).
 
 ## 2. Third parties
-- **Stripe:** webhook endpoint → `https://cloud.agentid.dev/api/webhooks/stripe`; products/prices for the chosen model; customer portal branding; tax settings.
+- **Stripe:** ✅ live products/prices/webhook created 2026-09-29. **Open: `STRIPE_SECRET_KEY` on Vercel is test-mode — Ian sets the live key.** Customer portal branding; tax settings.
 - **Headless (registrar supplier):** "Setup" links → `cloud.agentid.dev`; HNS-side records for early names → `<sld>.agentid.dev`; confirm their webhooks target `cloud.agentid.dev/api/webhooks/headless`; ask about renewals by card or an API path we can call.
 - **Vercel:** detach `arp.run`, `cloud.arp.run`, `app.arp.run`, `agent.arp.run`, `*.agent.arp.run` once 1 + Stripe are done. `arp.run` then hosts only the protocol landing/spec/docs from this app (or moves out).
 - **Railway:** alerting on the gateway (see 4).

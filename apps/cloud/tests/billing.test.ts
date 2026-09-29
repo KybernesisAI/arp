@@ -38,8 +38,8 @@ describe('billing (phase-7 task 8)', () => {
 
   it('checkQuota returns null under cap, limits at cap', () => {
     expect(checkQuota('free', 0)).toBeNull();
-    expect(checkQuota('free', 999)).toBeNull();
-    expect(checkQuota('free', 1_000)?.plan).toBe('free');
+    expect(checkQuota('free', 9_999)).toBeNull();
+    expect(checkQuota('free', 10_000)?.plan).toBe('free');
     expect(checkQuota('pro', 9999)).toBeNull();
     expect(checkQuota('pro', 10_000)?.plan).toBe('pro');
     // Pro cap is shared across the tenant's agents; even with many seats
@@ -93,35 +93,19 @@ describe('billing (phase-7 task 8)', () => {
 
   // ----------------------- Phase-10 billing helpers -----------------------
 
-  it('PLAN_LIMITS shape: free + pro + internal', () => {
+  it('PLAN_LIMITS: lander model — no per-agent caps, no per-agent price', () => {
     expect(Object.keys(PLAN_LIMITS).sort()).toEqual(['free', 'internal', 'pro']);
-    expect(PLAN_LIMITS.free.maxAgents).toBe(1);
-    expect(PLAN_LIMITS.free.maxInboundMessagesPerMonth).toBe(1_000);
+    expect(PLAN_LIMITS.free.maxAgents).toBeNull();
+    expect(PLAN_LIMITS.free.maxInboundMessagesPerMonth).toBe(10_000);
     expect(PLAN_LIMITS.free.perAgentPriceCents).toBe(0);
-    // Pro is variable-quantity — no fixed agent cap on the plan record.
-    expect(PLAN_LIMITS.pro.maxAgents).toBeNull();
-    expect(PLAN_LIMITS.pro.maxInboundMessagesPerMonth).toBe(10_000);
-    expect(PLAN_LIMITS.pro.perAgentPriceCents).toBe(500);
-    // Internal — every cap is null, never billed.
-    expect(PLAN_LIMITS.internal.maxAgents).toBeNull();
+    expect(PLAN_LIMITS.pro.perAgentPriceCents).toBe(0);
     expect(PLAN_LIMITS.internal.maxInboundMessagesPerMonth).toBeNull();
-    expect(PLAN_LIMITS.internal.perAgentPriceCents).toBe(0);
   });
 
-  it('effectiveMaxAgents: free hard-capped at 1; pro scales with quantity', () => {
-    expect(effectiveMaxAgents('free', 1)).toBe(1);
-    expect(effectiveMaxAgents('free', 99)).toBe(1); // qty ignored on free
-    expect(effectiveMaxAgents('pro', 1)).toBe(1);
-    expect(effectiveMaxAgents('pro', 5)).toBe(5);
-    expect(effectiveMaxAgents('pro', 0)).toBe(1); // floor at 1
-    expect(effectiveMaxAgents('unknown', 1)).toBeNull();
-  });
-
-  it('monthlyBillCents: free=$0, pro=$5*qty', () => {
+  it('effectiveMaxAgents + monthlyBillCents are neutral under the lander model', () => {
+    expect(effectiveMaxAgents('free', 1)).toBeNull();
+    expect(effectiveMaxAgents('pro', 5)).toBeNull();
     expect(monthlyBillCents('free', 1)).toBe(0);
-    expect(monthlyBillCents('free', 5)).toBe(0); // qty meaningless on free
-    expect(monthlyBillCents('pro', 1)).toBe(500);
-    expect(monthlyBillCents('pro', 4)).toBe(2000);
-    expect(monthlyBillCents('pro', 0)).toBe(500); // floor at 1 agent
+    expect(monthlyBillCents('pro', 4)).toBe(0);
   });
 });
