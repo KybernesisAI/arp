@@ -169,6 +169,11 @@ export interface TenantDb {
         | 'graceEndsAt'
         | 'ownerLabel'
         | 'error'
+        | 'stripeSubscriptionId'
+        | 'autoRenew'
+        | 'currentPeriodEnd'
+        | 'upstreamRenewalStatus'
+        | 'lastReminderDays'
       >
     >,
   ): Promise<DomainRegistrationRow | null>;
