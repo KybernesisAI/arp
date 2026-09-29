@@ -1,98 +1,81 @@
 import type { Metadata } from 'next';
 import type * as React from 'react';
+import { LegalHeader, LegalSection } from '../LegalDoc';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · ARP',
-  description: 'Privacy policy for ARP Cloud.',
+  title: 'Privacy Policy',
+  description: 'Privacy policy for AgentID.',
 };
 
 export default function PrivacyPage(): React.JSX.Element {
   return (
     <>
-      <header>
-        <div className="font-mono text-kicker uppercase tracking-[0.14em] text-muted">
-          // LEGAL / PRIVACY POLICY
-        </div>
-        <h1 className="mt-4 font-display text-display-md text-ink">
-          Privacy Policy
-        </h1>
-        <p className="mt-3 font-mono text-kicker uppercase text-muted">
-          LAST UPDATED 2026-04-24
-        </p>
-      </header>
+      <LegalHeader title="Privacy Policy" updated="2026-04-24" />
 
-      <Section title="1. Who we are">
+      <LegalSection title="1. Who we are">
         <p>
-          Kybernesis operates AgentID at <code>cloud.agentid.dev</code>.
-          This policy describes how we handle personal data when you use
-          the hosted Service.
+          Kybernesis operates AgentID at cloud.agentid.dev. This policy describes how we handle personal data
+          when you use the hosted Service.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="2. Data we collect">
+      <LegalSection title="2. Data we collect">
         <h3>2.1 You provide</h3>
         <ul>
-          <li>Account identifiers: email, billing details via Stripe.</li>
+          <li>Account details: email, billing details via Stripe.</li>
           <li>
-            Public cryptographic material: your principal DID (the public
-            key portion), agent DIDs, consent tokens you have signed.
+            Public key material: the public half of your account key, your agents&apos; public identity
+            records, and the permission grants you have signed.
           </li>
           <li>Support correspondence.</li>
         </ul>
         <h3>2.2 Automatic</h3>
         <ul>
           <li>Request metadata: IP address, user agent, timestamps.</li>
-          <li>Usage counters per tenant: message volume, audit entries.</li>
+          <li>Usage counters per account: message volume, activity-log entries.</li>
           <li>Rate-limit hits for anti-abuse.</li>
         </ul>
         <h3>2.3 We do NOT collect</h3>
         <ul>
           <li>
-            <strong>Principal private keys.</strong> Your keypair is
-            generated in your browser; the private key never leaves your
-            device.
+            <strong>Private keys.</strong> Your key pair is generated in your browser; the private key never
+            leaves your device.
           </li>
           <li>
-            <strong>Recovery phrases.</strong> Stored in your browser only;
-            transmit them yourself if you need to copy them.
+            <strong>Recovery phrases.</strong> Stored in your browser only; transmit them yourself if you need
+            to copy them.
           </li>
           <li>Full message payloads (transport is end-to-end).</li>
         </ul>
-      </Section>
+      </LegalSection>
 
-      <Section title="3. How we use it">
+      <LegalSection title="3. How we use it">
         <p>
-          Operating the Service, enforcing acceptable use, billing,
-          customer support, service announcements. No behavioral
-          advertising.
+          Operating the Service, enforcing acceptable use, billing, customer support, service announcements.
+          No behavioral advertising.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="4. Sharing">
-        <p>
-          We use the following processors (subprocessors):
-        </p>
+      <LegalSection title="4. Sharing">
+        <p>We use the following processors (subprocessors):</p>
         <ul>
           <li>Stripe — billing.</li>
-          <li>Vercel — hosting + deployment.</li>
+          <li>Vercel — hosting and deployment.</li>
           <li>Neon — managed Postgres.</li>
           <li>[TODO: counsel — add any others].</li>
         </ul>
-        <p>
-          We do not sell personal data. We do not share personal data with
-          advertising networks.
-        </p>
-      </Section>
+        <p>We do not sell personal data. We do not share personal data with advertising networks.</p>
+      </LegalSection>
 
-      <Section title="5. Retention">
+      <LegalSection title="5. Retention">
         <p>
-          Account data is retained for the life of your account +
-          [TODO: counsel — TBD] days after termination. Audit entries are
-          retained per plan tier (see pricing). Request logs ≤ 90 days.
+          Account data is retained for the life of your account plus [TODO: counsel — TBD] days after
+          termination. Activity-log entries are retained per plan (see pricing). Request logs are kept for at
+          most 90 days.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="6. Your rights">
+      <LegalSection title="6. Your rights">
         <p>Depending on your jurisdiction, you may have rights to:</p>
         <ul>
           <li>Access a copy of your personal data.</li>
@@ -102,63 +85,41 @@ export default function PrivacyPage(): React.JSX.Element {
           <li>Object to specific processing.</li>
         </ul>
         <p>
-          Requests: <code>privacy@agentid.dev</code>. We respond within 30 days.
+          Requests: <a href="mailto:privacy@agentid.dev">privacy@agentid.dev</a>. We respond within 30 days.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="7. International transfers">
+      <LegalSection title="7. International transfers">
         <p>
-          Our infrastructure runs on Vercel + Neon regions that may
-          be outside your country of residence. Standard Contractual
-          Clauses or equivalent safeguards apply where required.
+          Our infrastructure runs on Vercel and Neon regions that may be outside your country of residence.
+          Standard Contractual Clauses or equivalent safeguards apply where required.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="8. Security">
+      <LegalSection title="8. Security">
         <p>
-          Principal keys are browser-held. Transport is
-          authenticated + integrity-protected. Audit entries are hash-chained
-          to allow tamper detection. The full security posture is
-          documented in the public spec.
+          Your keys stay in your browser. Every message between agents is authenticated and
+          integrity-protected. Activity-log entries are hash-chained so tampering can be detected. The full
+          security posture is documented in the public specification.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="9. Children">
+      <LegalSection title="9. Children">
         <p>
-          The Service is not directed at children under 16. We do
-          not knowingly collect personal data from children.
+          The Service is not directed at children under 16. We do not knowingly collect personal data from
+          children.
         </p>
-      </Section>
+      </LegalSection>
 
-      <Section title="10. Changes">
-        <p>
-          Material changes will be announced with 30 days&apos;
-          notice where practical.
-        </p>
-      </Section>
+      <LegalSection title="10. Changes">
+        <p>Material changes will be announced with 30 days&apos; notice where practical.</p>
+      </LegalSection>
 
-      <Section title="11. Contact">
+      <LegalSection title="11. Contact">
         <p>
-          Privacy questions: <code>privacy@agentid.dev</code>.
+          Privacy questions: <a href="mailto:privacy@agentid.dev">privacy@agentid.dev</a>.
         </p>
-      </Section>
+      </LegalSection>
     </>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section className="border-t border-rule pt-6">
-      <h2 className="mb-3 font-display text-h3 text-ink">{title}</h2>
-      <div className="arp-prose font-sans text-body-sm text-ink-2">
-        {children}
-      </div>
-    </section>
   );
 }

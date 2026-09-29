@@ -3,15 +3,12 @@ import { redirect } from 'next/navigation';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { ConsoleShell } from '@/components/app/ConsoleShell';
 import { ConsoleHead } from '@/components/app/ConsoleHead';
-import {
-  Badge,
-  Card,
-  Code,
-  Dot,
-  Link } from '@/components/ui';
+import { Card, Tag } from '@/app/lander/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const BACK = 'font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900';
 
 export default async function AgentPage(props: {
   params: Promise<{ did: string }>;
@@ -28,13 +25,9 @@ export default async function AgentPage(props: {
   if (!state) {
     return (
       <ConsoleShell active="agents">
-        <ConsoleHead
-          plateNum="A.00"
-          kicker="// AGENT · NOT FOUND"
-          title="Agent not found."
-        />
-        <p className="text-body text-ink-2">
-          <Link href="/dashboard">← Back to dashboard</Link>
+        <ConsoleHead kicker="Agent" title="Agent not found." />
+        <p className="text-[16px] text-zinc-600">
+          <a href="/dashboard" className={BACK}>← Back to your agents</a>
         </p>
       </ConsoleShell>
     );
@@ -42,72 +35,39 @@ export default async function AgentPage(props: {
   const { agent, connections } = state;
   return (
     <ConsoleShell active="agents">
-      <div className="mb-6 font-mono text-kicker uppercase text-muted">
-        <Link href="/dashboard" variant="mono">
-          ← DASHBOARD
-        </Link>
+      <div className="mb-6">
+        <a href="/dashboard" className={BACK}>← Agents</a>
       </div>
-      <ConsoleHead
-        plateNum="A.00"
-        kicker={`// AGENT · ${agent.name.toUpperCase()}`}
-        title={agent.name}
-      />
-      <p className="mb-10">
-        <Code className="break-all">{agent.did}</Code>
-      </p>
+      <ConsoleHead kicker="Agent" title={agent.name} />
+      <p className="-mt-6 mb-10 font-mono text-[14px] text-zinc-600">{nice(agent.did)}</p>
 
       <section>
-        <header className="flex items-baseline justify-between mb-4 pb-3 border-b border-rule">
-          <h2 className="font-display font-medium text-h3">
-            Connections{' '}
-            <span className="text-muted font-mono text-body-sm ml-2">
-              {connections.length}
-            </span>
+        <header className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-[22px] font-medium leading-[1.15] tracking-[-0.015em] text-zinc-950">
+            Connections <span className="ml-2 font-mono text-[14px] text-zinc-500">{connections.length}</span>
           </h2>
           <div className="flex items-center gap-4">
-            <span className="font-mono text-kicker uppercase text-muted hidden md:inline">
-              // C · CONNECTIONS
-            </span>
-            <Link
-              href={`/connections?agentDid=${encodeURIComponent(agent.did)}`}
-              variant="mono"
-            >
-              See all →
-            </Link>
-            <Badge
-              tone={connections.length > 0 ? 'blue' : 'muted'}
-              className="text-[9px] px-2 py-0.5"
-            >
-              {connections.length > 0 ? 'ACTIVE' : 'IDLE'}
-            </Badge>
+            <a href={`/connections?agentDid=${encodeURIComponent(agent.did)}`} className={BACK}>See all →</a>
+            <Tag tone={connections.length > 0 ? 'emerald' : 'zinc'}>{connections.length > 0 ? 'Active' : 'Idle'}</Tag>
           </div>
         </header>
         {connections.length === 0 ? (
-          <Card tone="paper-2" padded>
-            <p className="text-body text-ink-2">No active connections.</p>
+          <Card>
+            <p className="m-0 text-[15px] text-zinc-600">No connections yet. Pair this agent with another agent to start.</p>
           </Card>
         ) : (
-          <Card tone="paper-2" padded={false} className="border border-rule">
-            <ul className="list-none p-0 m-0">
-              {connections.map((c, i) => (
-                <li
-                  key={c.connectionId}
-                  className={
-                    'grid grid-cols-12 gap-4 px-5 py-4 items-baseline ' +
-                    (i === connections.length - 1 ? '' : 'border-b border-rule')
-                  }
-                >
-                  <div className="col-span-12 md:col-span-3 font-mono text-kicker uppercase text-ink">
-                    {c.connectionId}
+          <Card className="!p-0">
+            <ul className="m-0 list-none divide-y divide-zinc-200 p-0">
+              {connections.map((c) => (
+                <li key={c.connectionId} className="grid grid-cols-12 items-baseline gap-4 px-6 py-4">
+                  <div className="col-span-12 text-[15px] text-zinc-950 md:col-span-6">
+                    <a href={`/connections/${encodeURIComponent(c.connectionId)}`} className="hover:underline">{nice(c.peerDid)}</a>
+                    {c.purpose && <div className="mt-1 text-[13px] text-zinc-500">{c.purpose}</div>}
                   </div>
-                  <div className="col-span-12 md:col-span-5 text-body-sm text-ink-2 break-all">
-                    → <Code>{c.peerDid}</Code>
+                  <div className="col-span-6 md:col-span-3">
+                    <Tag tone={c.status === 'active' ? 'emerald' : 'zinc'}>{c.status}</Tag>
                   </div>
-                  <div className="col-span-6 md:col-span-2 font-mono text-kicker uppercase inline-flex items-center gap-2">
-                    <Dot tone={c.status === 'active' ? 'green' : 'yellow'} />
-                    {c.status.toUpperCase()}
-                  </div>
-                  <div className="col-span-6 md:col-span-2 md:text-right font-mono text-kicker uppercase text-muted">
+                  <div className="col-span-6 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 md:col-span-3 md:text-right">
                     {new Date(c.createdAt).toLocaleDateString()}
                   </div>
                 </li>
@@ -118,6 +78,11 @@ export default async function AgentPage(props: {
       </section>
     </ConsoleShell>
   );
+}
+
+/** `did:web:kyber.agent` → `kyber.agent`; anything else untouched (mirrors the dashboard). */
+function nice(did: string): string {
+  return did.replace(/^did:web:/, '');
 }
 
 async function loadState(did: string) {

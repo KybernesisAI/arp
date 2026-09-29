@@ -3,7 +3,7 @@
  *
  * v2.1 TLD integration spec §4 Option A entry point. A registrar (Headless or
  * any other speaking v2.1) redirects the buyer's browser here after they pick
- * "Use ARP Cloud account" in the owner-binding step. We run the same
+ * "Use AgentID account" in the owner-binding step. We run the same
  * browser-held `did:key` onboarding as `/onboarding`, then on success redirect
  * back to the registrar's callback with the principal DID + signed
  * representation JWT.
@@ -18,8 +18,9 @@ import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { onboardingSessions } from '@kybernesis/arp-cloud-db';
 import { checkDualRateLimit } from '@/lib/rate-limit';
+import { AuthShell } from '@/components/app/AuthShell';
+import { Kicker } from '@/app/lander/ui';
 import OnboardRedirectForm from './OnboardRedirectForm';
-import { PlateHead, Container, Section, Code } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -102,6 +103,18 @@ function clientIpFromHeaders(h: Headers): string {
   return 'unknown';
 }
 
+const OTHER = { label: 'Log in', href: '/cloud/login' };
+
+function Head({ kicker, title, children }: { kicker: string; title: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <header className="mb-10 max-w-[60ch]">
+      <Kicker>{kicker}</Kicker>
+      <h1 className="mt-2 text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">{title}</h1>
+      <div className="mt-4 space-y-3 text-[16px] text-zinc-600">{children}</div>
+    </header>
+  );
+}
+
 export default async function OnboardPage({
   searchParams,
 }: {
@@ -121,19 +134,14 @@ export default async function OnboardPage({
   );
   if (!limitResult.ok) {
     return (
-      <Section>
-        <Container>
-          <PlateHead
-            plateNum="O.01"
-            kicker="// ONBOARD · RATE LIMITED"
-            title="Too many onboarding attempts."
-          />
-          <p className="text-body text-ink-2 max-w-[640px]">
-            We&apos;re pacing new-account creation to keep the queue healthy. Try again in about{' '}
-            {limitResult.retryAfter} seconds.
+      <AuthShell other={OTHER}>
+        <Head kicker="Finish setup" title="Too many attempts.">
+          <p>
+            We are pacing new accounts to keep things running smoothly. Please wait about{' '}
+            {limitResult.retryAfter} seconds and try again.
           </p>
-        </Container>
-      </Section>
+        </Head>
+      </AuthShell>
     );
   }
 
@@ -141,53 +149,37 @@ export default async function OnboardPage({
 
   if ('reason' in validated) {
     return (
-      <Section>
-        <Container>
-          <PlateHead
-            plateNum="O.01"
-            kicker="// ONBOARD · INVALID REQUEST"
-            title="This onboarding link is malformed."
-          />
-          <p className="text-body text-ink-2 max-w-[640px]">
-            The registrar sent a <Code>/onboard</Code> link with a bad{' '}
-            <Code>{validated.field}</Code> parameter: {validated.reason}.
+      <AuthShell other={OTHER}>
+        <Head kicker="Finish setup" title="This setup link is not valid.">
+          <p>
+            Go back to where you bought your name and try the setup step again. If this keeps
+            happening, tell them the link they sent is incomplete.
           </p>
-          <p className="text-body text-ink-2 max-w-[640px] mt-4">
-            Return to the registrar and retry. If this keeps happening, the registrar needs to
-            update their v2.1 TLD integration.
+          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">
+            Detail · {validated.field} · {validated.reason}
           </p>
-        </Container>
-      </Section>
+        </Head>
+      </AuthShell>
     );
   }
 
   const sessionId = await createSession(validated);
 
   return (
-    <Section>
-      <Container>
-        <PlateHead
-          plateNum="O.01"
-          kicker={`// ONBOARD · ${validated.registrar.toUpperCase()} · ${validated.domain.toUpperCase()}`}
-          title="Bind ARP Cloud to your new .agent domain."
-        />
-        <div className="max-w-[720px]">
-          <p className="text-body-lg text-ink-2 mb-6">
-            You clicked &quot;Use ARP Cloud account&quot; from your registrar. We&apos;ll create
-            your agent-owner identity in this browser, then hand the signed binding back to your
-            registrar so they can complete your domain setup.
-          </p>
-          <p className="text-body text-ink-2 mb-8">
-            Your keys stay in this browser. We never see them.
-          </p>
-          <OnboardRedirectForm
-            sessionId={sessionId}
-            domain={validated.domain}
-            registrar={validated.registrar}
-            callback={validated.callback}
-          />
-        </div>
-      </Container>
-    </Section>
+    <AuthShell other={OTHER}>
+      <Head kicker="Finish setup" title={`Finish setting up ${validated.domain}.`}>
+        <p>
+          You chose to use an AgentID account for your new name. We will create your account in this
+          browser, then send a signed confirmation back so your name can be finished.
+        </p>
+        <p>Your key stays in this browser. We never see it.</p>
+      </Head>
+      <OnboardRedirectForm
+        sessionId={sessionId}
+        domain={validated.domain}
+        registrar={validated.registrar}
+        callback={validated.callback}
+      />
+    </AuthShell>
   );
 }

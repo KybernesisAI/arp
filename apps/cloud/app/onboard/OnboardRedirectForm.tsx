@@ -2,13 +2,7 @@
 
 import type * as React from 'react';
 import { useState } from 'react';
-import {
-  Badge,
-  Button,
-  Code,
-  FieldError,
-  Pre,
-} from '@/components/ui';
+import { Card, ErrorText, Kicker, PrimaryButton, QuietLink, SecondaryButton } from '@/app/lander/ui';
 import {
   getOrCreatePrincipalKey,
   exportRecoveryPhrase,
@@ -46,6 +40,8 @@ interface Props {
   registrar: string;
   callback: string;
 }
+
+const PRE = 'mt-3 whitespace-pre-wrap break-all rounded-xl border border-zinc-200 bg-zinc-50 p-4 font-mono text-[13px] leading-relaxed text-zinc-800';
 
 export default function OnboardRedirectForm(props: Props): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('idle');
@@ -128,121 +124,98 @@ export default function OnboardRedirectForm(props: Props): React.JSX.Element {
 
   if (stage === 'redirecting' || stage === 'cancelled') {
     return (
-      <div className="border border-rule bg-paper p-7">
-        <Badge tone="blue" className="mb-4">
-          HANDING OFF TO {props.registrar.toUpperCase()}
-        </Badge>
-        <p className="text-body text-ink-2">
-          Redirecting back to your registrar. If nothing happens, return to the registrar tab
-          manually.
+      <Card className="max-w-[640px]">
+        <Kicker>Sending you back</Kicker>
+        <p className="mt-3 text-[16px] text-zinc-600">
+          Taking you back to where you bought your name. If nothing happens, return to that tab yourself.
         </p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="border border-rule bg-paper p-7">
+    <Card className="max-w-[640px]">
       {error && (
-        <FieldError data-testid="onboard-error" className="mb-4">
-          Error: {error}
-        </FieldError>
+        <ErrorText data-testid="onboard-error" className="mb-4">
+          Something went wrong: {error}
+        </ErrorText>
       )}
 
-      <p className="font-mono text-kicker uppercase text-muted mb-3">
-        // DOMAIN · <Code>{props.domain}</Code>
-      </p>
+      <Kicker>Your name</Kicker>
+      <p className="mt-1 mb-6 text-[20px] font-medium tracking-[-0.015em] text-zinc-950">{props.domain}</p>
 
       {stage === 'idle' && (
         <>
-          <h2 className="font-display font-medium text-h3 mt-0 mb-3">
-            Create your agent-owner identity.
-          </h2>
-          <p className="text-body text-ink-2 mb-6">
-            This binds <Code>{props.domain}</Code> to a new ARP Cloud tenant. No password, no
-            email — your browser generates the keys locally.
+          <h2 className="text-[22px] font-medium leading-[1.15] tracking-[-0.015em] text-zinc-950">Create your account.</h2>
+          <p className="mt-3 mb-6 text-[16px] text-zinc-600">
+            This connects {props.domain} to a new AgentID account. No password and no email needed: your
+            browser creates a key and keeps it here.
           </p>
-          <Button
-            variant="primary"
-            arrow
-            onClick={() => void handleGenerate()}
-            data-testid="onboard-generate-btn"
-          >
-            Generate identity
-          </Button>
+          <div>
+            <PrimaryButton onClick={() => void handleGenerate()} data-testid="onboard-generate-btn">
+              Create my account
+            </PrimaryButton>
+          </div>
           <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="font-mono text-kicker uppercase text-muted hover:text-ink transition-colors"
-              data-testid="onboard-cancel-btn"
-            >
-              Cancel &amp; return to registrar
-            </button>
+            <QuietLink onClick={handleCancel} data-testid="onboard-cancel-btn">
+              Cancel and go back
+            </QuietLink>
           </div>
         </>
       )}
 
       {stage === 'generating' && (
-        <p className="text-body text-ink-2">
-          Your identity is being generated securely in your browser…
-        </p>
+        <p className="text-[16px] text-zinc-600">Creating your account key in this browser…</p>
       )}
 
       {stage === 'show_phrase' && principal && phrase && (
         <>
-          <h2 className="font-display font-medium text-h3 mt-0 mb-2">Save your recovery phrase</h2>
-          <p className="font-mono text-kicker uppercase text-muted mb-3">
-            // THIS IS THE ONLY WAY TO RECOVER THIS ACCOUNT
+          <h2 className="text-[22px] font-medium leading-[1.15] tracking-[-0.015em] text-zinc-950">Save your recovery phrase.</h2>
+          <p className="mt-3 text-[16px] text-zinc-600">
+            This is the only way to get back into this account if you lose this browser. Write it down or
+            keep it in a password manager.
           </p>
-          <Pre data-testid="onboard-principal-did">{principal.did}</Pre>
+          <details className="mt-4">
+            <summary className="cursor-pointer font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">Show account key</summary>
+            <pre className={PRE} data-testid="onboard-principal-did">{principal.did}</pre>
+          </details>
           {!phraseRevealed && (
-            <div className="mt-4">
-              <Button
-                variant="ghost"
-                arrow
-                onClick={() => setPhraseRevealed(true)}
-                data-testid="onboard-reveal-phrase-btn"
-              >
-                Reveal recovery phrase
-              </Button>
+            <div className="mt-5">
+              <SecondaryButton onClick={() => setPhraseRevealed(true)} data-testid="onboard-reveal-phrase-btn">
+                Show recovery phrase
+              </SecondaryButton>
             </div>
           )}
           {phraseRevealed && (
             <>
-              <div className="mt-4">
-                <Pre data-testid="onboard-recovery-phrase">{phrase}</Pre>
-              </div>
-              <label className="flex items-center gap-2 font-mono text-kicker uppercase text-ink-2 mt-3 mb-3">
+              <pre className={PRE} data-testid="onboard-recovery-phrase">{phrase}</pre>
+              <label className="mt-4 mb-5 flex items-start gap-3 text-[15px] text-zinc-700">
                 <input
                   type="checkbox"
                   checked={phraseSaved}
                   onChange={(e) => setPhraseSaved(e.target.checked)}
                   data-testid="onboard-phrase-saved-checkbox"
-                  className="accent-signal-blue"
+                  className="mt-1 h-4 w-4 accent-black"
                 />
-                I HAVE SAVED MY RECOVERY PHRASE SOMEWHERE SAFE
+                <span>I have saved my recovery phrase somewhere safe.</span>
               </label>
-              <Button
-                variant="primary"
-                arrow
-                disabled={!phraseSaved}
-                onClick={() => void handleComplete()}
-                data-testid="onboard-complete-btn"
-              >
-                Finish &amp; return to registrar
-              </Button>
+              <div>
+                <PrimaryButton disabled={!phraseSaved} onClick={() => void handleComplete()} data-testid="onboard-complete-btn">
+                  Finish
+                </PrimaryButton>
+              </div>
             </>
           )}
         </>
       )}
 
       {(stage === 'creating_tenant' || stage === 'signing_jwt') && (
-        <p className="text-body text-ink-2">
-          {stage === 'creating_tenant' && 'Creating your tenant…'}
-          {stage === 'signing_jwt' && 'Signing domain binding…'}
+        <p className="text-[16px] text-zinc-600">
+          {stage === 'creating_tenant' && 'Creating your account…'}
+          {stage === 'signing_jwt' && 'Confirming your name…'}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 

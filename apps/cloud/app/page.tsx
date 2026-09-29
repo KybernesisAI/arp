@@ -5,9 +5,9 @@ import { redirect } from 'next/navigation';
  * Send visitors straight to the dashboard; dashboard redirects to
  * `/onboarding` for users without a tenant.
  *
- * Requests to the marketing hostname (`agentid.dev`) never
- * hit this component — the middleware rewrites them to `/project` /
- * `/cloud` first.
+ * Requests to the site hostname (`agentid.dev`) never
+ * hit this component — the middleware rewrites them to `/lander` (and
+ * `/project` on the protocol host) first.
  */
 export default function RootPage(): never {
   redirect('/dashboard');

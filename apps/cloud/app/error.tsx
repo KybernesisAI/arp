@@ -1,8 +1,8 @@
 'use client';
 
 import type * as React from 'react';
-import { AppShell } from '@/components/app/AppShell';
-import { Button, ButtonLink, Code, Link, PlateHead } from '@/components/ui';
+import { SiteShell } from '@/components/app/SiteShell';
+import { Kicker, PrimaryButton } from '@/app/lander/ui';
 
 export default function Error({
   error,
@@ -13,42 +13,28 @@ export default function Error({
 }): React.JSX.Element {
   const showDetails = process.env.NODE_ENV !== 'production';
   return (
-    <AppShell showMainActions={false}>
-      <PlateHead
-        plateNum="E.500"
-        kicker="// STATUS · UNEXPECTED FAILURE"
-        title="Something went wrong."
-      />
-      <p className="max-w-2xl text-body text-ink-2">
-        We hit an error rendering this page. The event has been logged. Try
-        again — if it persists, reach out via the support link below.
-      </p>
+    <SiteShell>
+      <header className="max-w-[60ch]">
+        <Kicker>Something went wrong</Kicker>
+        <h1 className="mt-2 text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">Sorry, that did not work.</h1>
+        <p className="mt-4 text-[16px] text-zinc-600">
+          We hit a problem showing this page. Nothing on your account changed. Try again, and if it keeps happening, let us know.
+        </p>
+      </header>
       {showDetails && (
-        <div className="mt-6 max-w-2xl border border-rule bg-paper-2 p-4">
-          <div className="font-mono text-kicker uppercase text-muted">
-            // DEV-ONLY DIAGNOSTIC
-          </div>
-          <Code className="mt-2 block whitespace-pre-wrap break-all text-[12px]">
-            {error.message}
-          </Code>
-          {error.digest && (
-            <div className="mt-2 font-mono text-body-sm text-muted">
-              digest · {error.digest}
-            </div>
-          )}
+        <div className="mt-6 max-w-[60ch] rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <Kicker>Development only</Kicker>
+          <pre className="mt-2 whitespace-pre-wrap break-all font-mono text-[12px] text-zinc-800">{error.message}</pre>
+          {error.digest && <div className="mt-2 font-mono text-[12px] text-zinc-500">digest · {error.digest}</div>}
         </div>
       )}
       <div className="mt-8 flex flex-wrap items-center gap-4">
-        <Button variant="primary" arrow onClick={reset}>
-          Try again
-        </Button>
-        <ButtonLink href="/dashboard" variant="default">
-          Back to dashboard
-        </ButtonLink>
-        <Link href="/support" variant="mono">
-          Contact support →
-        </Link>
+        <PrimaryButton onClick={reset}>Try again</PrimaryButton>
+        <a href="/dashboard" className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-[14px] font-medium text-zinc-900 transition hover:border-zinc-900">
+          Back to the console
+        </a>
+        <a href="/support" className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">Support →</a>
       </div>
-    </AppShell>
+    </SiteShell>
   );
 }

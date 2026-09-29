@@ -1,15 +1,15 @@
 import type * as React from 'react';
 import type { Metadata } from 'next';
-import { AppShell } from '@/components/app/AppShell';
-import { Card, Code, Link, PlateHead } from '@/components/ui';
+import { SiteShell } from '@/components/app/SiteShell';
+import { Card, Kicker } from '@/app/lander/ui';
+import { siteUrl } from '@/lib/origins';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-static';
 
 export const metadata: Metadata = {
-  title: 'Support — AgentID',
-  description:
-    'Contact AgentID support. Email support@agentid.dev for questions + security@agentid.dev for security disclosures.',
+  title: 'Support · AgentID',
+  description: 'Contact AgentID support. Email support@agentid.dev for questions and security@agentid.dev for security disclosures.',
 };
 
 // SUPPORT-EMAIL-TBD: Ian to confirm support@agentid.dev and security@agentid.dev are
@@ -17,111 +17,43 @@ export const metadata: Metadata = {
 
 export default function SupportPage(): React.JSX.Element {
   return (
-    <AppShell showMainActions={false}>
-      <PlateHead
-        plateNum="S.00"
-        kicker="// CONTACT · SUPPORT"
-        title="Contact support"
-      />
+    <SiteShell>
+      <header className="max-w-[60ch]">
+        <Kicker>Support</Kicker>
+        <h1 className="mt-2 text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[44px]">How can we help?</h1>
+        <p className="mt-4 text-[16px] text-zinc-600">Questions, billing, trouble connecting an agent, or something that looks wrong. We read every message.</p>
+      </header>
 
-      <div className="max-w-3xl">
-        <p className="text-body text-ink-2">
-          For issues, questions, or security disclosures, email us. We read
-          every message.
-        </p>
-
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-px bg-rule border border-rule">
-          <Card tone="paper" padded className="border-0">
-            <div className="font-mono text-kicker uppercase text-muted">
-              // GENERAL SUPPORT
-            </div>
-            <h2 className="mt-2 font-display font-medium text-h3">
-              support@agentid.dev
-            </h2>
-            <p className="mt-4 text-body-sm text-ink-2">
-              Product questions, billing, pairing help, or anything that isn't
-              a security issue. Response target: one business day.
-            </p>
-            <div className="mt-4">
-              <Link href="mailto:support@agentid.dev" variant="accent">
-                Open in mail client →
-              </Link>
-            </div>
-          </Card>
-
-          <Card tone="paper-2" padded className="border-0">
-            <div className="font-mono text-kicker uppercase text-muted">
-              // SECURITY DISCLOSURES
-            </div>
-            <h2 className="mt-2 font-display font-medium text-h3">
-              security@agentid.dev
-            </h2>
-            <p className="mt-4 text-body-sm text-ink-2">
-              Suspected vulnerabilities, cryptographic concerns, or anything
-              that could affect other users. We follow a coordinated-disclosure
-              policy: please give us a reasonable window to patch before public
-              disclosure.
-            </p>
-            <div className="mt-4">
-              <Link href="mailto:security@agentid.dev" variant="accent">
-                Open in mail client →
-              </Link>
-            </div>
-          </Card>
-        </div>
-
-        <section className="mt-12">
-          <h2 className="font-display font-medium text-h3 mb-4 pb-3 border-b border-rule">
-            Other resources
-          </h2>
-          <ul className="list-none p-0 m-0">
-            <li className="py-3 border-b border-rule">
-              <div className="font-mono text-kicker uppercase text-muted mb-1">
-                // DOCS
-              </div>
-              <Link href="https://github.com/KybernesisAI/arp/tree/main/docs" variant="plain">
-                <span className="font-display text-h5">github.com/KybernesisAI/arp/docs</span>
-              </Link>
-              <p className="mt-1 text-body-sm text-ink-2">
-                Protocol spec, scope catalog, and integration guides.
-              </p>
-            </li>
-            <li className="py-3 border-b border-rule">
-              <div className="font-mono text-kicker uppercase text-muted mb-1">
-                // GITHUB ISSUES
-              </div>
-              <Link
-                href="https://github.com/KybernesisAI/arp/issues"
-                variant="plain"
-              >
-                <span className="font-display text-h5">
-                  github.com/KybernesisAI/arp
-                </span>
-              </Link>
-              <p className="mt-1 text-body-sm text-ink-2">
-                File bugs or feature requests against the open-source protocol
-                + reference implementation.
-              </p>
-            </li>
-          </ul>
-        </section>
-
-        <section className="mt-12">
-          <div className="font-mono text-kicker uppercase text-muted mb-2">
-            // DATA + PRIVACY
-          </div>
-          <p className="text-body-sm text-ink-2">
-            Before sharing screenshots or logs, review what's in them — audit
-            entries can contain peer DIDs and message types. For anything you'd
-            rather keep private, email us and we'll coordinate a secure channel
-            (PGP, or Keybase) before you send. See{' '}
-            <Link href="/legal/privacy">the privacy policy</Link> for how we
-            handle the data you do send us. ARP Cloud tenant data remains
-            tenant-isolated at rest (see the tenant-isolation model in{' '}
-            <Code>/legal/dpa</Code>).
+      <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <Card glow="emerald">
+          <Kicker>Email</Kicker>
+          <h2 className="mt-3 text-[22px] font-medium leading-[1.15] tracking-[-0.015em] text-zinc-950">support@agentid.dev</h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">
+            Anything about your account, your names, or your agents. We aim to reply within one business day.
           </p>
-        </section>
+          <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">
+            Found a security problem? Write to <a href="mailto:security@agentid.dev" className="text-zinc-900 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">security@agentid.dev</a> and give us a reasonable window to fix it before you publish.
+          </p>
+          <div className="mt-auto pt-6">
+            <a href="mailto:support@agentid.dev" className="inline-flex items-center justify-center rounded-full bg-black px-5 py-2.5 text-[14px] font-medium text-white transition hover:bg-zinc-800">Email support</a>
+          </div>
+        </Card>
+
+        <Card glow="cyan">
+          <Kicker>Common questions</Kicker>
+          <h2 className="mt-3 text-[22px] font-medium leading-[1.15] tracking-[-0.015em] text-zinc-950">Read the guides</h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">
+            How to claim a name, connect your agent, pair it with another agent, and what happens when you revoke a connection.
+          </p>
+          <div className="mt-auto pt-6">
+            <a href={siteUrl('/docs')} className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-[14px] font-medium text-zinc-900 transition hover:border-zinc-900">Open the guides</a>
+          </div>
+        </Card>
       </div>
-    </AppShell>
+
+      <p className="mt-10 max-w-[60ch] text-[14px] leading-relaxed text-zinc-500">
+        Before sending screenshots or logs, check what is in them. If you would rather keep something private, say so and we will arrange a secure way to send it. See the <a href="/legal/privacy" className="text-zinc-700 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-900">privacy policy</a> for how we handle what you share.
+      </p>
+    </SiteShell>
   );
 }

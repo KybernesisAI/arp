@@ -1,72 +1,30 @@
-// Layout wraps the three legal pages with a uniform editorial container
-// and shared nav. Metadata defaults to indexable; individual pages can
-// opt out if needed.
+// Layout wraps the legal pages in the public site chrome and adds a small
+// row of links between the three documents. Metadata defaults to
+// indexable; individual pages can opt out if needed.
 import type { Metadata } from 'next';
 import type * as React from 'react';
-import { Container, Link, Nav } from '@/components/ui';
-import { consoleUrl, siteUrl } from '@/lib/origins';
+import { SiteShell } from '@/components/app/SiteShell';
 
 export const metadata: Metadata = {
-  title: { default: 'Legal', template: '%s — Legal — AgentID' },
+  title: { default: 'Legal · AgentID', template: '%s · AgentID' },
 };
 
-const LEGAL_NAV = [
-  { label: 'Terms', href: '/legal/terms' },
-  { label: 'Privacy', href: '/legal/privacy' },
-  { label: 'DPA', href: '/legal/dpa' },
+const LEGAL_NAV: Array<[string, string]> = [
+  ['Overview', '/legal'],
+  ['Terms', '/legal/terms'],
+  ['Privacy', '/legal/privacy'],
+  ['Data processing', '/legal/dpa'],
 ];
 
-export default function LegalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.JSX.Element {
+export default function LegalLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="flex min-h-screen flex-col bg-paper">
-      <Nav
-        brandSub="// legal"
-        links={[
-          { label: 'AgentID', href: siteUrl('/'), external: true },
-          { label: 'Console', href: consoleUrl('/'), external: true },
-        ]}
-      />
-      <main className="flex-1 py-12 lg:py-16">
-        <Container>
-          <div className="grid grid-cols-12 gap-4">
-            <aside className="col-span-12 md:col-span-3">
-              <nav aria-label="Legal" className="sticky top-24">
-                <h2 className="mb-3 font-mono text-kicker uppercase text-muted">
-                  LEGAL
-                </h2>
-                <ul className="list-none p-0">
-                  {LEGAL_NAV.map((item) => (
-                    <li key={item.href} className="border-t border-rule py-2">
-                      <Link href={item.href} variant="mono">
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            </aside>
-            <article className="col-span-12 md:col-span-9 space-y-6">
-              {children}
-            </article>
-          </div>
-        </Container>
-      </main>
-      <footer className="border-t border-rule bg-paper py-6 font-mono text-kicker uppercase text-muted">
-        <Container>
-          <div className="grid grid-cols-12 gap-4 items-center">
-            <div className="col-span-12 md:col-span-6">
-              <b className="text-ink font-medium">AGENTID</b> · LEGAL
-            </div>
-            <div className="col-span-12 md:col-span-6 md:text-right">
-              © 2026 KYBERNESIS
-            </div>
-          </div>
-        </Container>
-      </footer>
-    </div>
+    <SiteShell>
+      <nav aria-label="Legal documents" className="mb-10 flex flex-wrap gap-6 font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">
+        {LEGAL_NAV.map(([label, href]) => (
+          <a key={href} href={href} className="hover:text-zinc-900">{label}</a>
+        ))}
+      </nav>
+      <article className="space-y-8">{children}</article>
+    </SiteShell>
   );
 }
