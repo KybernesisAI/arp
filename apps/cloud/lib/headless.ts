@@ -14,6 +14,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { RESERVED_NAMES } from './origins';
 import { z } from 'zod';
 import {
   INFRASTRUCTURE_RESERVED_NAMES,
@@ -55,6 +56,8 @@ export const SLD_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 const RESERVED = new Set<string>([
   ...PROTOCOL_RESERVED_NAMES.map((n) => n.toLowerCase()),
   ...INFRASTRUCTURE_RESERVED_NAMES.map((n) => n.toLowerCase()),
+  // Product hostnames + root paths on agentid.dev (a name is also `<name>.agentid.dev` and `agentid.dev/<name>`).
+  ...RESERVED_NAMES,
 ]);
 
 export function normalizeSld(input: string): string {
@@ -283,6 +286,7 @@ export function createHeadlessClient(opts: HeadlessClientOptions): HeadlessClien
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   if (!fetchImpl) throw new Error('fetch not available');
   const baseUrl = (opts.baseUrl ?? 'https://headlessdomains.com').replace(/\/+$/, '');
+  // Supplier-side account label (not a URL) — stays 'arp.run' until the registrar is told otherwise.
   const resellerChannel = opts.resellerChannel ?? 'arp.run';
   const timeoutMs = opts.timeoutMs ?? 15_000;
 

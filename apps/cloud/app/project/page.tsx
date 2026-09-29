@@ -18,6 +18,7 @@ import {
   Section,
   Underline,
 } from '@/components/ui';
+import { consoleUrl } from '@/lib/origins';
 
 export default function ProjectLandingPage(): React.JSX.Element {
   return (
@@ -454,7 +455,7 @@ export default function ProjectLandingPage(): React.JSX.Element {
             >
               GitHub Discussions
             </ButtonLink>
-            <ButtonLink href="https://cloud.arp.run" variant="inverse" size="lg" arrow>
+            <ButtonLink href={consoleUrl('/')} variant="inverse" size="lg" arrow>
               Try the hosted runtime
             </ButtonLink>
           </div>

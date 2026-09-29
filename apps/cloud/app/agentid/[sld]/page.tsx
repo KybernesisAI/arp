@@ -25,7 +25,7 @@ export async function generateMetadata(props: { params: Promise<{ sld: string }>
 }
 
 /**
- * Public identity profile: `agent.arp.run/<sld>`.
+ * Public identity profile: `agentid.dev/<sld>`.
  *
  * Same visual language as the lander: black hero with the agent's 3D badge,
  * then black-on-white bento tiles. Reads across tenants by name (identity is

@@ -113,7 +113,7 @@ describe('A2A endpoint (AgentID S5)', () => {
     const anon = await rpc(msg('hi'));
     expect(anon.status).toBe(200);
     expect(anon.body.result?.status.state).toBe('TASK_STATE_AUTH_REQUIRED');
-    expect(anon.body.result?.status.message?.parts[0]?.text).toContain('cloud.arp.run/pair?peer=did%3Aweb%3Aatlas.agent');
+    expect(anon.body.result?.status.message?.parts[0]?.text).toContain('cloud.agentid.dev/pair?peer=did%3Aweb%3Aatlas.agent');
     expect(anon.ext).toBe('https://arp.run/ext/arp/v1');
 
     // Allowed connection → COMPLETED with the runtime's reply.

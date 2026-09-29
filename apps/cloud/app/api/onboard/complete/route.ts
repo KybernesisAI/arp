@@ -20,6 +20,7 @@ import { eq } from 'drizzle-orm';
 import { onboardingSessions } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
 import { getSession } from '@/lib/session';
+import { origins } from '@/lib/origins';
 
 export const runtime = 'nodejs';
 
@@ -46,7 +47,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   // session), so accept either.
   if (
     parsed.data.principalDid !== session.principalDid &&
-    parsed.data.principalDid !== `did:web:cloud.arp.run:u:${session.tenantId ?? ''}`
+    parsed.data.principalDid !== `did:web:${origins().consoleHost}:u:${session.tenantId ?? ''}`
   ) {
     return NextResponse.json({ error: 'principal_mismatch' }, { status: 403 });
   }

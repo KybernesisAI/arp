@@ -74,7 +74,7 @@ export default function TermsPage(): React.JSX.Element {
       <Section title="5. Fees + billing">
         <p>
           Paid tiers are billed via Stripe. Prices + quotas are
-          published at <code>cloud.arp.run/pricing</code>. You authorize
+          published at <code>cloud.agentid.dev/pricing</code>. You authorize
           recurring charges until you cancel.
         </p>
       </Section>
@@ -135,7 +135,7 @@ export default function TermsPage(): React.JSX.Element {
 
       <Section title="13. Contact">
         <p>
-          Questions: <code>legal@arp.run</code>.
+          Questions: <code>legal@agentid.dev</code>.
         </p>
       </Section>
     </>

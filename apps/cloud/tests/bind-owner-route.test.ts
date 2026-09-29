@@ -69,7 +69,7 @@ describe('POST /api/registrar/bind-owner', () => {
   });
 
   it('binds the owner with a valid signature + claims and activates the registration', async () => {
-    const jwt = await signJwt(priv, { iss: `did:web:cloud.arp.run:u:${tenantId}`, sub: 'did:web:atlas.agent', iat: 1, exp: 2 });
+    const jwt = await signJwt(priv, { iss: `did:web:cloud.agentid.dev:u:${tenantId}`, sub: 'did:web:atlas.agent', iat: 1, exp: 2 });
     const res = await POST(req({ domain: 'atlas.agent', owner_label: 'ian', public_key_multibase: pubMb, signed_representation_jwt: jwt }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -83,7 +83,7 @@ describe('POST /api/registrar/bind-owner', () => {
   });
 
   it('is idempotent on (domain, owner_label): a re-bind overwrites the JWT', async () => {
-    const iss = `did:web:cloud.arp.run:u:${tenantId}`;
+    const iss = `did:web:cloud.agentid.dev:u:${tenantId}`;
     const a = await signJwt(priv, { iss, sub: 'did:web:atlas.agent', iat: 1 });
     const b = await signJwt(priv, { iss, sub: 'did:web:atlas.agent', iat: 2 });
     await POST(req({ domain: 'atlas.agent', public_key_multibase: pubMb, signed_representation_jwt: a }));
@@ -96,7 +96,7 @@ describe('POST /api/registrar/bind-owner', () => {
   });
 
   it('rejects a bad signature, mismatched claims, and names not on the account', async () => {
-    const iss = `did:web:cloud.arp.run:u:${tenantId}`;
+    const iss = `did:web:cloud.agentid.dev:u:${tenantId}`;
     const other = ed25519.utils.randomPrivateKey();
     const forged = await signJwt(other, { iss, sub: 'did:web:atlas.agent' });
     const bad = await POST(req({ domain: 'atlas.agent', public_key_multibase: pubMb, signed_representation_jwt: forged }));
@@ -108,7 +108,7 @@ describe('POST /api/registrar/bind-owner', () => {
     expect(mismatch.status).toBe(400);
     expect((await mismatch.json()).error).toBe('jwt_claims_mismatch');
 
-    const foreignIss = await signJwt(priv, { iss: 'did:web:cloud.arp.run:u:00000000-0000-0000-0000-000000000000', sub: 'did:web:atlas.agent' });
+    const foreignIss = await signJwt(priv, { iss: 'did:web:cloud.agentid.dev:u:00000000-0000-0000-0000-000000000000', sub: 'did:web:atlas.agent' });
     const foreign = await POST(req({ domain: 'atlas.agent', public_key_multibase: pubMb, signed_representation_jwt: foreignIss }));
     expect(foreign.status).toBe(400);
 

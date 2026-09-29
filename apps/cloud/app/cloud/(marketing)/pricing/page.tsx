@@ -118,7 +118,7 @@ export default function PricingPage(): React.JSX.Element {
                 'Dedicated runtime region',
               ]}
               ctaLabel="Talk to us"
-              ctaHref="mailto:hello@arp.run"
+              ctaHref="mailto:hello@agentid.dev"
               footnote="VOLUME + COMPLIANCE"
             />
           </div>

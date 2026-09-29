@@ -2,7 +2,7 @@
 /**
  * arp-cloud-bridge CLI.
  *
- * Connects an ARP-provisioned agent (handoff JSON from cloud.arp.run)
+ * Connects an ARP-provisioned agent (handoff JSON from cloud.agentid.dev)
  * to a locally running agent framework (KyberBot, OpenClaw, Hermes,
  * generic HTTP). The agent framework is **not modified** — the bridge
  * speaks each framework's existing native API.
@@ -97,7 +97,7 @@ Usage:
   arp-cloud-bridge --handoff <path> --target <kind> [adapter options]
 
 Common flags:
-  --handoff <path>          Path to the handoff JSON downloaded from cloud.arp.run.
+  --handoff <path>          Path to the handoff JSON downloaded from cloud.agentid.dev.
   --target kyberbot|generic-http
                             Which adapter to load. Defaults to "kyberbot" if --kyberbot-root
                             is given, "generic-http" if --url is given.

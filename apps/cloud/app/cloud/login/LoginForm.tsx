@@ -14,7 +14,7 @@ import {
 import { base64urlEncode } from '@kybernesis/arp-transport/browser';
 
 /**
- * Login for cloud.arp.run, in the lander language.
+ * Login for cloud.agentid.dev, in the lander language.
  *
  *   0. Silent: a key already in this browser signs a challenge and you are in.
  *   1. Email code — any device; opens the dashboard without the key.

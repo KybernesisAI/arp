@@ -10,6 +10,9 @@ import {
   type Surface,
 } from '../middleware';
 
+// Defaults from lib/origins.ts (no env in tests): agentid.dev / cloud.agentid.dev /
+// <sld>.agentid.dev / gateway.agentid.dev.
+
 describe('parseAgentDidFromHost (HNS bridge)', () => {
   it('extracts DID from bare .agent host', () => {
     expect(parseAgentDidFromHost('samantha.agent')).toBe('did:web:samantha.agent');
@@ -25,9 +28,10 @@ describe('parseAgentDidFromHost (HNS bridge)', () => {
     expect(parseAgentDidFromHost('samantha.agent:8080')).toBe('did:web:samantha.agent');
   });
   it('returns null for non-.agent hosts', () => {
+    expect(parseAgentDidFromHost('agentid.dev')).toBeNull();
+    expect(parseAgentDidFromHost('cloud.agentid.dev')).toBeNull();
+    expect(parseAgentDidFromHost('samantha.agentid.dev')).toBeNull();
     expect(parseAgentDidFromHost('arp.run')).toBeNull();
-    expect(parseAgentDidFromHost('cloud.arp.run')).toBeNull();
-    expect(parseAgentDidFromHost('app.arp.run')).toBeNull();
     expect(parseAgentDidFromHost('example.com')).toBeNull();
     expect(parseAgentDidFromHost('')).toBeNull();
     expect(parseAgentDidFromHost('localhost')).toBeNull();
@@ -35,43 +39,49 @@ describe('parseAgentDidFromHost (HNS bridge)', () => {
 });
 
 describe('surfaceForHost (host → surface dispatch)', () => {
-  it('routes arp.run and www.arp.run to project', () => {
+  it('routes arp.run and www.arp.run to the protocol landing', () => {
     expect(surfaceForHost('arp.run')).toBe<Surface>('project');
     expect(surfaceForHost('www.arp.run')).toBe<Surface>('project');
-    expect(surfaceForHost('ARP.RUN')).toBe<Surface>('project'); // case-insensitive via stripPort lowercase
+    expect(surfaceForHost('ARP.RUN')).toBe<Surface>('project');
   });
-  it('keeps /names/* on the app surface for every host', () => {
+  it('routes agentid.dev and www to the site', () => {
+    expect(surfaceForHost('agentid.dev')).toBe<Surface>('site');
+    expect(surfaceForHost('www.agentid.dev')).toBe<Surface>('site');
+    expect(surfaceForHost('AGENTID.DEV:443')).toBe<Surface>('site');
+  });
+  it('routes cloud.agentid.dev to the console', () => {
+    expect(surfaceForHost('cloud.agentid.dev')).toBe<Surface>('app');
+  });
+  it('routes <sld>.agentid.dev to the mirror', () => {
+    expect(surfaceForHost('samantha.agentid.dev')).toBe<Surface>('mirror');
+  });
+  it('old product hosts are not special any more', () => {
+    expect(surfaceForHost('cloud.arp.run')).toBe<Surface>('app');
+    expect(surfaceForHost('app.arp.run')).toBe<Surface>('app');
+    expect(surfaceForHost('agent.arp.run')).toBe<Surface>('app');
+    expect(surfaceForHost('samantha.agent.arp.run')).toBe<Surface>('app');
+  });
+  it('defaults unknown hosts to the console surface', () => {
+    expect(surfaceForHost('localhost')).toBe<Surface>('app');
+    expect(surfaceForHost('localhost:3000')).toBe<Surface>('app');
+    expect(surfaceForHost('arp-cloud-git-abc.vercel.app')).toBe<Surface>('app');
+    expect(surfaceForHost('10.0.0.1')).toBe<Surface>('app');
+  });
+  it('keeps app-owned paths on the app tree for every host', () => {
     expect(isAppOwnedPath('/names/samantha')).toBe(true);
     expect(isAppOwnedPath('/names')).toBe(true);
     expect(isAppOwnedPath('/badge')).toBe(true);
     expect(isAppOwnedPath('/lander')).toBe(true);
     expect(isAppOwnedPath('/gift')).toBe(true);
     expect(isAppOwnedPath('/i')).toBe(true);
+    expect(isAppOwnedPath('/account')).toBe(true);
     expect(isAppOwnedPath('/identity')).toBe(false);
     expect(isAppOwnedPath('/assets/badge/card.glb')).toBe(true);
     expect(isAppOwnedPath('/namesake')).toBe(false);
   });
-  it('routes agent.arp.run to agentid', () => {
-    expect(surfaceForHost('agent.arp.run')).toBe<Surface>('agentid');
-    expect(surfaceForHost('AGENT.ARP.RUN')).toBe<Surface>('agentid');
-    expect(surfaceForHost('agent.arp.run:443')).toBe<Surface>('agentid');
-  });
-  it('routes cloud.arp.run to cloud', () => {
-    expect(surfaceForHost('cloud.arp.run')).toBe<Surface>('cloud');
-  });
-  it('routes app.arp.run to app', () => {
-    expect(surfaceForHost('app.arp.run')).toBe<Surface>('app');
-  });
-  it('defaults unknown hosts to app surface', () => {
-    expect(surfaceForHost('localhost')).toBe<Surface>('app');
-    expect(surfaceForHost('localhost:3000')).toBe<Surface>('app');
-    expect(surfaceForHost('arp-cloud-git-abc.vercel.app')).toBe<Surface>('app');
-    expect(surfaceForHost('10.0.0.1')).toBe<Surface>('app');
-  });
 });
 
 describe('rewriteForSurface', () => {
-  // Minimal NextRequest stub — only pathname is read.
   function mockReq(pathname: string): NextRequest {
     const url = new URL(`https://localhost${pathname}`);
     return {
@@ -83,145 +93,82 @@ describe('rewriteForSurface', () => {
       },
     } as unknown as NextRequest;
   }
+  const target = (res: ReturnType<typeof rewriteForSurface>): string | null => res?.headers.get('x-middleware-rewrite') ?? null;
 
-  it('rewrites arp.run / → /project', () => {
-    const res = rewriteForSurface(mockReq('/'), 'project');
-    expect(res).not.toBeNull();
-    expect(res?.headers.get('x-middleware-rewrite')).toContain('/project');
+  it('protocol landing: / → /project, /about → /project/about, no double prefix', () => {
+    expect(target(rewriteForSurface(mockReq('/'), 'project'))).toContain('/project');
+    expect(target(rewriteForSurface(mockReq('/about'), 'project'))).toContain('/project/about');
+    expect(rewriteForSurface(mockReq('/project/about'), 'project')).toBeNull();
   });
-  it('rewrites arp.run /about → /project/about', () => {
-    const res = rewriteForSurface(mockReq('/about'), 'project');
-    expect(res?.headers.get('x-middleware-rewrite')).toContain('/project/about');
+
+  it('site: / is the lander', () => {
+    expect(target(rewriteForSurface(mockReq('/'), 'site'))).toBe('https://localhost/lander');
+    expect(rewriteForSurface(mockReq('/lander'), 'site')).toBeNull();
+    expect(rewriteForSurface(mockReq('/lander/'), 'site')).toBeNull();
   });
-  it('leaves arp.run /project/* alone (no double-prefix)', () => {
-    const res = rewriteForSurface(mockReq('/project/about'), 'project');
-    expect(res).toBeNull();
+  it('site: /<sld> is the public profile', () => {
+    expect(target(rewriteForSurface(mockReq('/samantha'), 'site'))).toBe('https://localhost/agentid/samantha');
+    expect(target(rewriteForSurface(mockReq('/Samantha/'), 'site'))).toBe('https://localhost/agentid/samantha');
+    expect(target(rewriteForSurface(mockReq('/agentid-test'), 'site'))).toBe('https://localhost/agentid/agentid-test');
+    expect(rewriteForSurface(mockReq('/agentid/samantha'), 'site')).toBeNull();
   });
+  it('site: reserved words, nested paths and app-owned paths are never profiles', () => {
+    for (const p of ['/pricing', '/support', '/badge', '/i', '/gift', '/pair', '/legal/terms', '/account', '/dashboard', '/assets/x.png', '/samantha/extra', '/-bad', '/api/x']) {
+      const res = rewriteForSurface(mockReq(p), 'site');
+      expect(res === null || !target(res)?.includes('/agentid/')).toBe(true);
+    }
+  });
+
   it('never rewrites API routes', () => {
     expect(rewriteForSurface(mockReq('/api/tenants'), 'project')).toBeNull();
-    expect(rewriteForSurface(mockReq('/api/tenants'), 'cloud')).toBeNull();
-  });
-
-  it('rewrites cloud.arp.run / → /cloud', () => {
-    const res = rewriteForSurface(mockReq('/'), 'cloud');
-    expect(res?.headers.get('x-middleware-rewrite')).toContain('/cloud');
-  });
-  it('rewrites cloud.arp.run /pricing → /cloud/pricing', () => {
-    const res = rewriteForSurface(mockReq('/pricing'), 'cloud');
-    expect(res?.headers.get('x-middleware-rewrite')).toContain('/cloud/pricing');
-  });
-  it('passes authenticated paths through on cloud surface', () => {
-    // These must resolve to the top-level authenticated routes even when the
-    // host is cloud.arp.run, so existing bookmarks + Stripe redirects work.
-    expect(rewriteForSurface(mockReq('/dashboard'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/onboarding'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/billing'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/agent/did:web:foo.agent'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/settings/keys'), 'cloud')).toBeNull();
-  });
-
-  it('passes /pair and /pair/accept through on cloud surface (slice 10a)', () => {
-    // Phase 10a: URL-fragment pairing pages must resolve on cloud.arp.run
-    // without being rewritten under /cloud/pair/* — the fragment payload
-    // lives in the browser URL and the marketing rewrite would obscure it.
-    expect(rewriteForSurface(mockReq('/pair'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/pair/accept'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/pair'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/pair/accept'), 'app')).toBeNull();
-  });
-
-  it('passes /connections and /connections/[id]/* through on cloud + app surfaces (slice 10b)', () => {
-    // Phase 10b: the connections list / detail / audit / revoke pages are
-    // authenticated app routes. They must remain reachable on cloud.arp.run
-    // (same pattern as /dashboard) without the /cloud/ rewrite swallowing
-    // them, and must pass through untouched on app.arp.run.
-    expect(rewriteForSurface(mockReq('/connections'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/connections/abc-123'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/connections/abc-123/audit'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/connections/abc-123/revoke'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/connections'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/connections/abc-123'), 'app')).toBeNull();
-  });
-
-  it('passes v2.1 routes through on cloud surface (onboard, internal, u)', () => {
-    // Phase 9b: registrar-facing + DID-doc routes must resolve at the top
-    // level on cloud.arp.run so external registrars can link directly.
-    expect(rewriteForSurface(mockReq('/onboard'), 'cloud')).toBeNull();
-    expect(
-      rewriteForSurface(mockReq('/onboard?domain=x&registrar=y&callback=z'), 'cloud'),
-    ).toBeNull();
-    expect(rewriteForSurface(mockReq('/internal/registrar/bind'), 'cloud')).toBeNull();
-    expect(
-      rewriteForSurface(mockReq('/u/00000000-0000-0000-0000-000000000000/did.json'), 'cloud'),
-    ).toBeNull();
-  });
-
-  it('passes /legal/* through on every surface', () => {
-    // Phase 9e: legal pages are linked from project (arp.run) + cloud
-    // (cloud.arp.run) + app (app.arp.run) footers. They must not be
-    // rewritten into the /cloud/ marketing subtree or the /project/
-    // subtree — the shared /legal layout owns all three routes.
-    expect(rewriteForSurface(mockReq('/legal'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/terms'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/privacy'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/dpa'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/terms'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal'), 'project')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/terms'), 'project')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/privacy'), 'project')).toBeNull();
-    expect(rewriteForSurface(mockReq('/legal/dpa'), 'project')).toBeNull();
-  });
-
-  it('passes app surface through untouched', () => {
-    expect(rewriteForSurface(mockReq('/'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/dashboard'), 'app')).toBeNull();
-    expect(rewriteForSurface(mockReq('/onboarding'), 'app')).toBeNull();
+    expect(rewriteForSurface(mockReq('/api/tenants'), 'site')).toBeNull();
     expect(rewriteForSurface(mockReq('/api/tenants'), 'app')).toBeNull();
   });
 
-  it('passes /support through on every surface', () => {
-    // Phase 10c: the support page is linked from every surface's footer.
-    // It must resolve at the top level so the marketing-subtree rewrites on
-    // cloud.arp.run and arp.run don't bury it at /cloud/support or
-    // /project/support (neither exists).
-    expect(rewriteForSurface(mockReq('/support'), 'cloud')).toBeNull();
-    expect(rewriteForSurface(mockReq('/support'), 'project')).toBeNull();
-    expect(rewriteForSurface(mockReq('/support'), 'app')).toBeNull();
+  it('console surface passes everything through', () => {
+    for (const p of ['/', '/dashboard', '/onboarding', '/billing', '/agent/did:web:foo.agent', '/settings/keys', '/pair', '/pair/accept', '/connections', '/connections/abc-123/audit', '/onboard?domain=x', '/internal/registrar/bind', '/u/00000000-0000-0000-0000-000000000000/did.json', '/legal/terms', '/support', '/account', '/api/tenants']) {
+      expect(rewriteForSurface(mockReq(p), 'app')).toBeNull();
+    }
+  });
+
+  it('shared pages pass through on the site and the protocol landing', () => {
+    for (const p of ['/legal', '/legal/terms', '/legal/privacy', '/legal/dpa', '/support', '/pair', '/pair/accept', '/i', '/gift', '/badge', '/onboard', '/names/samantha']) {
+      expect(rewriteForSurface(mockReq(p), 'site')).toBeNull();
+    }
+    for (const p of ['/legal', '/legal/terms', '/support']) {
+      expect(rewriteForSurface(mockReq(p), 'project')).toBeNull();
+    }
   });
 });
 
-describe('mirror host (<sld>.agent.arp.run)', () => {
-  it('parses the sld and ignores the bare host + unrelated hosts', () => {
-    expect(mirrorSldFromHost('samantha.agent.arp.run')).toBe('samantha');
-    expect(mirrorSldFromHost('SAMANTHA.AGENT.ARP.RUN:443')).toBe('samantha');
-    expect(mirrorSldFromHost('ian.samantha.agent.arp.run')).toBe('samantha');
-    expect(mirrorSldFromHost('agent.arp.run')).toBeNull();
-    expect(mirrorSldFromHost('cloud.arp.run')).toBeNull();
+describe('mirror host (<sld>.agentid.dev)', () => {
+  it('parses the sld and ignores the site host + unrelated hosts', () => {
+    expect(mirrorSldFromHost('samantha.agentid.dev')).toBe('samantha');
+    expect(mirrorSldFromHost('SAMANTHA.AGENTID.DEV:443')).toBe('samantha');
+    expect(mirrorSldFromHost('ian.samantha.agentid.dev')).toBe('samantha');
+    expect(mirrorSldFromHost('agentid.dev')).toBeNull();
     expect(mirrorSldFromHost('samantha.agent')).toBeNull();
-    expect(surfaceForHost('samantha.agent.arp.run')).toBe<Surface>('mirror');
-    expect(surfaceForHost('agent.arp.run')).toBe<Surface>('agentid');
+    expect(mirrorSldFromHost('samantha.agent.arp.run')).toBeNull();
+    // `cloud.agentid.dev` and `www.agentid.dev` match the suffix but are claimed first by surfaceForHost.
+    expect(surfaceForHost('cloud.agentid.dev')).toBe<Surface>('app');
+    expect(surfaceForHost('www.agentid.dev')).toBe<Surface>('site');
   });
   it('proxies machine paths to the gateway with ?target and renders the profile otherwise', () => {
     const mk = (path: string): NextRequest => {
-      const url = new URL(`https://samantha.agent.arp.run${path}`);
+      const url = new URL(`https://samantha.agentid.dev${path}`);
       return { nextUrl: { clone: () => new URL(url.toString()) } } as unknown as NextRequest;
     };
-    const wk = rewriteForMirror(mk('/.well-known/did.json'), 'samantha.agent.arp.run');
-    expect(wk?.headers.get('x-middleware-rewrite')).toBe(
-      'https://gateway.arp.run/.well-known/did.json?target=samantha.agent',
-    );
-    const avatar = rewriteForMirror(mk('/avatar.png'), 'samantha.agent.arp.run');
+    const wk = rewriteForMirror(mk('/.well-known/did.json'), 'samantha.agentid.dev');
+    expect(wk?.headers.get('x-middleware-rewrite')).toBe('https://gateway.agentid.dev/.well-known/did.json?target=samantha.agent');
+    const avatar = rewriteForMirror(mk('/avatar.png'), 'samantha.agentid.dev');
     expect(avatar?.headers.get('x-middleware-rewrite')).toContain('/avatar.png');
     expect(avatar?.headers.get('x-middleware-rewrite')).toContain('target=samantha.agent');
-    const rep = rewriteForMirror(mk('/representation.jwt?v=1'), 'samantha.agent.arp.run');
-    expect(rep?.headers.get('x-middleware-rewrite')).toBe(
-      'https://gateway.arp.run/representation.jwt?v=1&target=samantha.agent',
-    );
-    const root = rewriteForMirror(mk('/'), 'samantha.agent.arp.run');
-    expect(root?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agent.arp.run/agentid/samantha');
-    const other = rewriteForMirror(mk('/anything/else?x=1'), 'ian.samantha.agent.arp.run');
-    expect(other?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agent.arp.run/agentid/samantha');
-    expect(rewriteForMirror(mk('/'), 'agent.arp.run')).toBeNull();
+    const rep = rewriteForMirror(mk('/representation.jwt?v=1'), 'samantha.agentid.dev');
+    expect(rep?.headers.get('x-middleware-rewrite')).toBe('https://gateway.agentid.dev/representation.jwt?v=1&target=samantha.agent');
+    const root = rewriteForMirror(mk('/'), 'samantha.agentid.dev');
+    expect(root?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agentid.dev/agentid/samantha');
+    const other = rewriteForMirror(mk('/anything/else?x=1'), 'ian.samantha.agentid.dev');
+    expect(other?.headers.get('x-middleware-rewrite')).toBe('https://samantha.agentid.dev/agentid/samantha');
+    expect(rewriteForMirror(mk('/'), 'agentid.dev')).toBeNull();
   });
 });

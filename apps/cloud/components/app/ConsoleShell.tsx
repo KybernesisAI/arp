@@ -16,7 +16,6 @@ export function ConsoleShell({ children, active }: { children: React.ReactNode; 
     ['Pair', '/pair', 'pair'],
     ['Billing', '/billing', 'billing'],
     ['Account', '/account', 'account'],
-    ['Docs', 'https://arp.run', null],
   ];
   return (
     <LanderShell>
@@ -43,7 +42,6 @@ export function ConsoleShell({ children, active }: { children: React.ReactNode; 
             <a href="/legal/terms" className="hover:text-zinc-900">Terms</a>
             <a href="/legal/privacy" className="hover:text-zinc-900">Privacy</a>
             <a href="/support" className="hover:text-zinc-900">Support</a>
-            <a href="https://status.arp.run" className="hover:text-zinc-900">Status</a>
           </div>
         </div>
       </footer>

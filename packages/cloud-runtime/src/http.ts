@@ -49,15 +49,23 @@ export interface GatewayHonoOptions {
   auditFactory: (tenantDbForAgent: ReturnType<typeof withTenant>) => PostgresAudit;
   now?: () => number;
   /**
-   * AgentID S2: ICANN mirror suffix. `<sld>.agent<suffix>` (e.g.
-   * `samantha.agent.arp.run` with suffix `.arp.run`) resolves to
-   * `did:web:samantha.agent` exactly like the HNS hostname does.
-   * Note the suffix is what follows `.agent`, so `.agent.arp.run` and
-   * `.arp.run` are both accepted for the same host.
+   * AgentID S2: ICANN mirror suffix. The mirror host for `<sld>.agent` is
+   * `<sld><suffix>` (e.g. `samantha.agentid.dev` with suffix `.agentid.dev`)
+   * and resolves to `did:web:samantha.agent` exactly like the HNS hostname
+   * does. The legacy `<sld>.agent<suffix>` form is still accepted on input.
    */
   mirrorSuffix?: string | null;
-  /** AgentID S2: `GET /` on a mirror host 302s to `${profileBase}/<sld>`. */
+  /**
+   * AgentID S2: public profile base. `GET /` on a mirror host 302s to
+   * `${profileBase}/<sld>`; the A2A card's `provider.url` points there too.
+   * Default `https://agentid.dev`.
+   */
   profileBase?: string | null;
+  /**
+   * Console origin used for pairing links (`${consoleOrigin}/pair?peer=<did>`)
+   * in the A2A card + A2A auth-required replies. Default `https://cloud.agentid.dev`.
+   */
+  consoleOrigin?: string;
   /** AgentID S4: push delivery + agent-API signer; absent = push disabled. */
   push?: PushContext;
   /** AgentID S5: how long message/send waits for a reply (ms). Default 120s. */
@@ -74,25 +82,39 @@ export interface GatewayHonoOptions {
   connectTimeoutMs?: number;
 }
 
+const DEFAULT_PROFILE_BASE = 'https://agentid.dev';
+const DEFAULT_CONSOLE_ORIGIN = 'https://cloud.agentid.dev';
+
+/**
+ * Mirror origin for `<sld>.agent`: `https://<sld><suffix>` (e.g.
+ * `https://samantha.agentid.dev`), or the bare `.agent` host without a suffix.
+ */
+function mirrorOrigin(sld: string, mirrorSuffix?: string | null): string {
+  if (!mirrorSuffix) return `https://${sld}.agent`;
+  return `https://${sld}${mirrorSuffix.replace(/^\.?/, '.')}`;
+}
+
 /**
  * Parse Host header into the target agent DID, or null if not routable.
  *
- * `mirrorSuffix` (optional) is an ICANN suffix appended to the `.agent`
- * name for browsers + A2A clients that cannot resolve HNS — e.g.
- * `samantha.agent.arp.run`. Public HNS resolvers were measured unreliable
+ * `mirrorSuffix` (optional) is the ICANN suffix that replaces the `.agent`
+ * label for browsers + A2A clients that cannot resolve HNS — e.g.
+ * `samantha.agentid.dev`. Public HNS resolvers were measured unreliable
  * on 2026-09-17, so the mirror is the primary reachable face of an identity.
  */
 export function agentDidFromHost(host: string, mirrorSuffix?: string | null): string | null {
   const normalized = host.toLowerCase().replace(/:[0-9]+$/, '');
   if (!normalized) return null;
-  // Strip the ICANN mirror suffix (accept both `.agent.arp.run` and `.arp.run` forms).
+  // Strip the ICANN mirror suffix. Accept both `<sld>.agent<suffix>` (legacy)
+  // and `<sld><suffix>` (current, e.g. `samantha.agentid.dev`).
   let hostCore = normalized;
   if (mirrorSuffix) {
     const suffix = mirrorSuffix.toLowerCase().replace(/^\.?/, '.');
-    // Accept `<sld>.agent.arp.run` for either configured form of the suffix.
-    const full = suffix.startsWith('.agent.') ? suffix : `.agent${suffix}`;
-    if (hostCore.endsWith(full) && hostCore.length > full.length) {
-      hostCore = `${hostCore.slice(0, -full.length)}.agent`;
+    const withAgent = suffix.startsWith('.agent.') ? suffix : `.agent${suffix}`;
+    if (hostCore.endsWith(withAgent) && hostCore.length > withAgent.length) {
+      hostCore = `${hostCore.slice(0, -withAgent.length)}.agent`;
+    } else if (hostCore.endsWith(suffix) && hostCore.length > suffix.length) {
+      hostCore = `${hostCore.slice(0, -suffix.length)}.agent`;
     }
   }
   // Strip hns.to gateway suffix.
@@ -145,7 +167,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
    *
    * Required because Railway overwrites X-Forwarded-Host with its own
    * load-balancer hostname, breaking Host-based multi-tenant routing.
-   * Until the gateway sits behind a custom domain (gateway.arp.run),
+   * Until the gateway sits behind a custom domain (gateway.agentid.dev),
    * callers must pass ?target=atlas.agent or the gateway returns
    * unknown_agent.
    */
@@ -241,9 +263,9 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     )?.serviceEndpoint;
     let origin: string;
     try {
-      origin = fromDoc ? new URL(fromDoc).origin : `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+      origin = fromDoc ? new URL(fromDoc).origin : mirrorOrigin(sld, opts.mirrorSuffix);
     } catch {
-      origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+      origin = mirrorOrigin(sld, opts.mirrorSuffix);
     }
     try {
       const iconUrl = agentAvatarUrl(origin, Boolean(row.avatarData));
@@ -252,8 +274,8 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
         description: row.agentDescription || 'Personal agent',
         did: ctx.agentDid,
         origin,
-        pairUrl: `https://cloud.arp.run/pair?peer=${encodeURIComponent(ctx.agentDid)}`,
-        provider: { organization: sld, url: `https://agent.arp.run/${sld}` },
+        pairUrl: `${(opts.consoleOrigin ?? DEFAULT_CONSOLE_ORIGIN).replace(/\/+$/, '')}/pair?peer=${encodeURIComponent(ctx.agentDid)}`,
+        provider: { organization: sld, url: `${(opts.profileBase ?? DEFAULT_PROFILE_BASE).replace(/\/+$/, '')}/${sld}` },
         ...(iconUrl ? { iconUrl } : {}),
       }) as Record<string, unknown>;
       let out = card;
@@ -349,9 +371,9 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
     const fromDoc = (row.wellKnownDid as { service?: Array<{ type: string; serviceEndpoint: string }> } | null)?.service?.find((svc) => svc.type === 'AgentCard')?.serviceEndpoint;
     let origin: string;
     try {
-      origin = fromDoc ? new URL(fromDoc).origin : `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+      origin = fromDoc ? new URL(fromDoc).origin : mirrorOrigin(sld, opts.mirrorSuffix);
     } catch {
-      origin = `https://${sld}.agent${opts.mirrorSuffix ?? ''}`;
+      origin = mirrorOrigin(sld, opts.mirrorSuffix);
     }
     const links = await opts.db
       .select({ kind: agentLinks.kind, value: agentLinks.value, verifiedAt: agentLinks.verifiedAt })
@@ -365,7 +387,7 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       description: row.agentDescription,
       picture: agentAvatarUrl(origin, Boolean(row.avatarData)),
       accent: row.accent ?? null,
-      profileUrl: `${(opts.profileBase ?? 'https://agent.arp.run').replace(/\/+$/, '')}/${sld}`,
+      profileUrl: `${(opts.profileBase ?? DEFAULT_PROFILE_BASE).replace(/\/+$/, '')}/${sld}`,
       origin,
       links: links.map((l) => ({ kind: l.kind, value: l.value, verified_at: l.verifiedAt?.toISOString() ?? null })),
       updatedAt: (row.profileUpdatedAt ?? row.createdAt).toISOString(),
@@ -709,7 +731,12 @@ export function createGatewayApp(opts: GatewayHonoOptions): Hono {
       ...(opts.push ? { push: opts.push } : {}),
     };
     const res = await handleA2aRequest(
-      { resolver: opts.resolver, now, ...(opts.a2aWaitMs !== undefined ? { waitMs: opts.a2aWaitMs } : {}) },
+      {
+        resolver: opts.resolver,
+        now,
+        ...(opts.a2aWaitMs !== undefined ? { waitMs: opts.a2aWaitMs } : {}),
+        ...(opts.consoleOrigin !== undefined ? { consoleOrigin: opts.consoleOrigin } : {}),
+      },
       { agentDid: ctx.agentDid, card: (ctx.agentRow.wellKnownA2aCard as Record<string, unknown> | null) ?? null, ctx: dispatchCtx },
       req,
       c.req.header('authorization'),

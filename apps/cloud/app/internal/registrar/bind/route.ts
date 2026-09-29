@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { registrarBindings, tenants } from '@kybernesis/arp-cloud-db';
 import { getDb } from '@/lib/db';
+import { origins } from '@/lib/origins';
 import {
   checkDualRateLimit,
   clientIpFromRequest,
@@ -110,7 +111,7 @@ export async function POST(req: Request): Promise<Response> {
   // before the user has completed /onboard.
   //
   // Two lookup paths:
-  //   1. Cloud-managed alias `did:web:cloud.arp.run:u:<uuid>` — the UUID
+  //   1. Cloud-managed alias `did:web:<console host>:u:<uuid>` — the UUID
   //      IS the tenant id; look up by primary key directly so the
   //      registrar-side principal DID format doesn't have to match the
   //      tenants table's stored principal_did (which is the user's
@@ -119,11 +120,12 @@ export async function POST(req: Request): Promise<Response> {
   //      that path catches sidecar-hosted agents where the bound
   //      principal IS the tenant's stored DID.
   let tenantId: string | null = null;
-  const cloudAliasMatch = body.principal_did.match(
-    /^did:web:cloud\.arp\.run:u:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
-  );
-  if (cloudAliasMatch) {
-    const candidateId = cloudAliasMatch[1]!;
+  const cloudAliasPrefix = `did:web:${origins().consoleHost}:u:`;
+  const cloudAliasTail = body.principal_did.startsWith(cloudAliasPrefix)
+    ? body.principal_did.slice(cloudAliasPrefix.length)
+    : null;
+  if (cloudAliasTail && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cloudAliasTail)) {
+    const candidateId = cloudAliasTail;
     const byId = await db
       .select({ id: tenants.id })
       .from(tenants)

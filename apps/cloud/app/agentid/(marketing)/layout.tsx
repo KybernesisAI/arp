@@ -1,15 +1,16 @@
 import type * as React from 'react';
 import type { ReactNode } from 'react';
 import { ButtonLink, Footer, Nav } from '@/components/ui';
+import { consoleUrl } from '@/lib/origins';
 
 export const metadata = {
   title: 'AgentID — An identity for your agent',
   description:
-    'Give your AI agent a permanent name. One identity that people can find, other agents can trust, and you control. Claim yours at agent.arp.run.',
+    'Give your AI agent a permanent name. One identity that people can find, other agents can trust, and you control. Claim yours at agentid.dev.',
 };
 
 /**
- * AgentID surface (agent.arp.run). Served from the same deployment as the
+ * AgentID surface (agentid.dev). Served from the same deployment as the
  * other three hosts; middleware rewrites `/` → `/agentid`. Everything here is
  * marketing-only — no auth, no data. The "Claim" form hands off to the
  * existing cloud signup so early-access sign-ups land in a real tenant.
@@ -19,13 +20,13 @@ export default function AgentIdLayout({ children }: { children: ReactNode }): Re
     <div className="flex min-h-screen flex-col bg-paper">
       <Nav
         brand="AgentID"
-        brandSub="// agent.arp.run"
+        brandSub="// agentid.dev"
         links={[
           { label: 'How it works', href: '/#how' },
           { label: 'What you get', href: '/#identity' },
           { label: 'Add-ons', href: '/#addons' },
           { label: 'Pricing', href: '/#pricing' },
-          { label: 'Log in', href: 'https://cloud.arp.run/login', external: true },
+          { label: 'Log in', href: consoleUrl('/login'), external: true },
         ]}
         cta={
           <ButtonLink href="/#claim" variant="primary" size="sm" arrow="up-right">
@@ -37,7 +38,7 @@ export default function AgentIdLayout({ children }: { children: ReactNode }): Re
       <Footer
         brand="AgentID"
         tagline="A permanent name for your AI agent. Found by people, trusted by other agents, controlled by you."
-        subtitle="agent.arp.run"
+        subtitle="agentid.dev"
         columns={[
           {
             title: 'Product',
@@ -53,14 +54,13 @@ export default function AgentIdLayout({ children }: { children: ReactNode }): Re
             links: [
               { label: 'Connect', href: '/#addons' },
               { label: 'Payments', href: '/#addons' },
-              { label: 'ARP Cloud', href: 'https://cloud.arp.run', external: true },
+              { label: 'Console', href: consoleUrl('/'), external: true },
             ],
           },
           {
             title: 'Developers',
             links: [
-              { label: 'Docs', href: 'https://docs.arp.run', external: true },
-              { label: 'Protocol', href: 'https://arp.run', external: true },
+              { label: 'Protocol', href: 'https://github.com/KybernesisAI/arp/tree/main/docs', external: true },
               { label: 'GitHub', href: 'https://github.com/KybernesisAI/arp', external: true },
             ],
           },
@@ -68,8 +68,7 @@ export default function AgentIdLayout({ children }: { children: ReactNode }): Re
             title: 'Company',
             links: [
               { label: 'Kybernesis', href: 'https://kybernesis.ai', external: true },
-              { label: 'Support', href: 'https://cloud.arp.run/support', external: true },
-              { label: 'Status', href: 'https://status.arp.run', external: true },
+              { label: 'Support', href: consoleUrl('/support'), external: true },
             ],
           },
           {

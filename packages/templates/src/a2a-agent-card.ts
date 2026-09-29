@@ -12,7 +12,7 @@ export interface BuildA2aAgentCardInput {
   name: string;
   description?: string;
   did: DidUri;
-  /** Origin that serves this identity to the ICANN world, e.g. `https://samantha.agent.arp.run`. */
+  /** Origin that serves this identity to the ICANN world, e.g. `https://samantha.agentid.dev`. */
   origin: string;
   /** Where a counterparty requests a connection. */
   pairUrl: string;
@@ -42,7 +42,7 @@ export function buildA2aAgentCard(input: BuildA2aAgentCardInput): A2aAgentCard {
     ],
     ...(input.provider ? { provider: input.provider } : {}),
     version: input.version ?? '1',
-    documentationUrl: 'https://docs.arp.run',
+    documentationUrl: 'https://agentid.dev',
     capabilities: {
       streaming: false,
       pushNotifications: false,

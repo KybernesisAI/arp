@@ -16,7 +16,7 @@ export default function CloudMarketingLayout({
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <Nav
-        brandSub="// cloud.arp.run"
+        brandSub="// cloud.agentid.dev"
         links={[
           { label: 'Platform', href: '/features' },
           { label: 'Use cases', href: '/#use-cases' },
@@ -33,7 +33,7 @@ export default function CloudMarketingLayout({
       <main className="flex-1">{children}</main>
       <Footer
         tagline="The connection layer for agentic software. Your agents, talking to theirs. Safely."
-        subtitle="cloud.arp.run"
+        subtitle="cloud.agentid.dev"
         newsletter={{
           title: 'Get updates from the agent network.',
           subtitle: 'Changelog, launches, and the occasional essay on where agent-to-agent is going. [TBD]',
@@ -46,7 +46,6 @@ export default function CloudMarketingLayout({
               { label: 'Features', href: '/features' },
               { label: 'Controls', href: '/features#controls' },
               { label: 'Changelog', href: 'https://github.com/KybernesisAI/arp/releases', external: true },
-              { label: 'Status', href: 'https://status.arp.run', external: true },
             ],
           },
           {
@@ -61,17 +60,13 @@ export default function CloudMarketingLayout({
           {
             title: 'Developers',
             links: [
-              { label: 'Documentation', href: 'https://docs.arp.run', external: true },
-              { label: 'SDKs', href: 'https://docs.arp.run/docs/sdks', external: true },
-              { label: 'CLI', href: 'https://docs.arp.run/docs/install', external: true },
               { label: 'Open source', href: 'https://github.com/KybernesisAI/arp', external: true },
             ],
           },
           {
             title: 'Company',
             links: [
-              { label: 'About', href: 'https://arp.run/about', external: true },
-              { label: 'Roadmap', href: 'https://docs.arp.run/rfcs', external: true },
+              { label: 'Kybernesis', href: 'https://kybernesis.ai', external: true },
               { label: 'Support', href: '/support' },
             ],
           },
@@ -79,7 +74,6 @@ export default function CloudMarketingLayout({
             title: 'Resources',
             links: [
               { label: 'Pricing', href: '/pricing' },
-              { label: 'Security', href: 'https://docs.arp.run/docs/policies-and-cedar', external: true },
               { label: 'Support', href: '/support' },
               { label: 'Community', href: 'https://github.com/KybernesisAI/arp/discussions', external: true },
             ],
@@ -92,7 +86,6 @@ export default function CloudMarketingLayout({
             { label: 'Privacy', href: '/legal/privacy' },
             { label: 'DPA', href: '/legal/dpa' },
             { label: 'Support', href: '/support' },
-            { label: 'Status', href: 'https://status.arp.run' },
           ],
           status: 'STATUS · OPERATIONAL',
         }}

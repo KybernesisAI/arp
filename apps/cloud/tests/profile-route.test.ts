@@ -33,7 +33,7 @@ describe('identity profile', () => {
     tenantId = (await currentDb.db.insert(tenants).values({ principalDid: PRINCIPAL }).returning({ id: tenants.id }))[0]!.id;
     tdb = withTenant(currentDb.db, toTenantId(tenantId));
     await currentDb.db.insert(registrarBindings).values({ tenantId, domain: 'kyber.agent', ownerLabel: 'ian', registrar: 'test', principalDid: PRINCIPAL, publicKeyMultibase: 'z6Mk', representationJwt: 'x' });
-    await mintIdentity({ tenantDb: tdb, domain: 'kyber.agent', principalDid: PRINCIPAL, agentName: 'Kyber', agentDescription: 'desc', custody: 'cloud', runtimeKind: 'none', wellKnownOrigin: 'https://kyber.agent.arp.run', mirrorOrigin: 'https://kyber.agent.arp.run', sealKey: SEAL });
+    await mintIdentity({ tenantDb: tdb, domain: 'kyber.agent', principalDid: PRINCIPAL, agentName: 'Kyber', agentDescription: 'desc', custody: 'cloud', runtimeKind: 'none', wellKnownOrigin: 'https://kyber.agentid.dev', mirrorOrigin: 'https://kyber.agentid.dev', sealKey: SEAL });
   });
   afterEach(async () => { if (currentDb) await currentDb.close(); currentDb = null; noSession = false; });
 
@@ -45,18 +45,18 @@ describe('identity profile', () => {
   it('the identity document lists the profile service from mint', async () => {
     const agent = await tdb.getAgent('did:web:kyber.agent');
     const svc = (agent?.wellKnownDid as { service: Array<{ type: string; serviceEndpoint: string }> }).service.find((s) => s.type === 'AgentProfile');
-    expect(svc?.serviceEndpoint).toBe('https://kyber.agent.arp.run/.well-known/agent-profile.json');
+    expect(svc?.serviceEndpoint).toBe('https://kyber.agentid.dev/.well-known/agent-profile.json');
   });
 
   it('saves name, description, accent and picture; the card carries the picture', async () => {
     const res = await put('kyber', { name: 'Kyber', description: 'Ian’s ops agent.', accent: '#10B981', avatar: DATA_URL });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; profile: Record<string, unknown> };
-    expect(body.profile).toMatchObject({ description: 'Ian’s ops agent.', accent: '#10b981', picture: 'https://kyber.agent.arp.run/avatar.png' });
+    expect(body.profile).toMatchObject({ description: 'Ian’s ops agent.', accent: '#10b981', picture: 'https://kyber.agentid.dev/avatar.png' });
     const agent = await tdb.getAgent('did:web:kyber.agent');
     expect(agent?.avatarData).toBe(PNG_1PX);
     expect(agent?.avatarMime).toBe('image/png');
-    expect((agent?.wellKnownA2aCard as { iconUrl?: string }).iconUrl).toBe('https://kyber.agent.arp.run/avatar.png');
+    expect((agent?.wellKnownA2aCard as { iconUrl?: string }).iconUrl).toBe('https://kyber.agentid.dev/avatar.png');
     expect(((agent?.wellKnownA2aCard as { signatures?: unknown[] }).signatures?.length ?? 0) > 0).toBe(true);
   });
 
@@ -85,7 +85,7 @@ describe('identity profile', () => {
     const agent = await tdb.getAgent('did:web:kyber.agent');
     expect(agent?.avatarData).toBe(PNG_1PX);
     expect(agent?.accent).toBe('#22d3ee');
-    expect((agent?.wellKnownA2aCard as { iconUrl?: string }).iconUrl).toBe('https://kyber.agent.arp.run/avatar.png');
+    expect((agent?.wellKnownA2aCard as { iconUrl?: string }).iconUrl).toBe('https://kyber.agentid.dev/avatar.png');
   });
 
   it('404 for a name the account does not hold, 401 without a session', async () => {

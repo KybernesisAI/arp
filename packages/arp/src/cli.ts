@@ -152,7 +152,7 @@ function resolveFromAutoDetect(cwd: string, flags: Flags): ResolvedConfig {
     console.error(
       `arpc: no handoff file in ${cwd}.\n\n` +
         `Either:\n` +
-        `  • Download arp-handoff.json from https://cloud.arp.run/dashboard\n` +
+        `  • Download arp-handoff.json from https://cloud.agentid.dev/dashboard\n` +
         `    (provision your .agent domain → "Download <domain>.arp-handoff.json")\n` +
         `  • Or run \`arpc init\` in this folder to declare the framework + handoff path.`,
     );

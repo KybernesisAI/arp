@@ -127,7 +127,7 @@ export default function DpaPage(): React.JSX.Element {
       <Section title="11. Contact">
         <p>
           DPA questions + data protection officer correspondence:{' '}
-          <code>privacy@arp.run</code>.
+          <code>privacy@agentid.dev</code>.
         </p>
       </Section>
     </>

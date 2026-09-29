@@ -46,13 +46,15 @@ export interface GatewayOptions {
   hostname?: string;
   /** Optional clock injection. */
   now?: () => number;
-  /** AgentID S2: ICANN mirror suffix (default from AGENTID_MIRROR_SUFFIX, `.agent.arp.run`). */
+  /** AgentID S2: ICANN mirror suffix (default from AGENTID_MIRROR_SUFFIX, `.agentid.dev`). */
   mirrorSuffix?: string | null;
-  /** AgentID S2: profile base for `/` redirects (default from AGENTID_PROFILE_BASE). */
+  /** AgentID S2: profile base for `/` redirects + `provider.url` (default from AGENTID_PROFILE_BASE, `https://agentid.dev`). */
   profileBase?: string | null;
+  /** Console origin for pairing links (default from ARP_CLOUD_CONSOLE_ORIGIN, `https://cloud.agentid.dev`). */
+  consoleOrigin?: string;
   /** AgentID S4: push signer JWK (default from ARP_CLOUD_PUSH_SIGNING_JWK); null disables push. */
   pushSigningJwk?: string | null;
-  /** AgentID S4: issuer origin for push tokens (default ARP_CLOUD_PUSH_ISSUER or https://gateway.arp.run). */
+  /** AgentID S4: issuer origin for push tokens (default ARP_CLOUD_PUSH_ISSUER or https://gateway.agentid.dev). */
   pushIssuer?: string;
   /** AgentID S4: sealing key override (default from ARP_CLOUD_KEY_ENCRYPTION_KEY / dev key). */
   sealingKey?: Uint8Array;
@@ -89,7 +91,7 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
   if (jwkJson) {
     const signer = await pushSignerFromJwk(jwkJson);
     push = {
-      issuer: opts.pushIssuer ?? process.env['ARP_CLOUD_PUSH_ISSUER'] ?? 'https://gateway.arp.run',
+      issuer: opts.pushIssuer ?? process.env['ARP_CLOUD_PUSH_ISSUER'] ?? 'https://gateway.agentid.dev',
       signer,
       sealingKey: opts.sealingKey ?? sealingKeyFromEnv(),
       ...(opts.pushFetch ? { fetchImpl: opts.pushFetch } : {}),
@@ -112,11 +114,12 @@ export async function startGateway(port: number, opts: GatewayOptions): Promise<
     mirrorSuffix:
       opts.mirrorSuffix !== undefined
         ? opts.mirrorSuffix
-        : (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run'),
+        : (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agentid.dev'),
     profileBase:
       opts.profileBase !== undefined
         ? opts.profileBase
-        : (process.env['AGENTID_PROFILE_BASE'] ?? 'https://agent.arp.run'),
+        : (process.env['AGENTID_PROFILE_BASE'] ?? 'https://agentid.dev'),
+    consoleOrigin: opts.consoleOrigin ?? process.env['ARP_CLOUD_CONSOLE_ORIGIN'] ?? 'https://cloud.agentid.dev',
   });
 
   const hostname = opts.hostname ?? '127.0.0.1';
@@ -186,7 +189,7 @@ function buildDefaultResolver(): PeerResolver {
 
 /**
  * Resolver that first checks the cloud's own `agents` table — peers
- * provisioned through cloud.arp.run have their public keys stored
+ * provisioned through cloud.agentid.dev have their public keys stored
  * locally and don't need (and often can't be reached via) public DNS.
  * Falls back to standard did:web HTTPS resolution for anyone outside
  * our tenant graph.

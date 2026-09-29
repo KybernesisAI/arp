@@ -1,7 +1,7 @@
 /**
  * Cloud-aware peer resolver.
  *
- * Cloud-managed agents (provisioned via cloud.arp.run) have their public
+ * Cloud-managed agents (provisioned via cloud.agentid.dev) have their public
  * keys stored in this server's own `agents` table — and their `.agent`
  * hostnames typically don't resolve via public DNS, so the standard
  * did:web HTTPS resolver can't reach their `/.well-known/did.json`.

@@ -16,13 +16,14 @@ import { z } from 'zod';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
 import { LinkError, makeChallenge, normalizeLinkValue, rebuildWellKnown } from '@/lib/links';
 import { posthog, track } from '@/lib/posthog';
+import { origins } from '@/lib/origins';
 
 export const runtime = 'nodejs';
 
 const Body = z.object({ url: z.string().min(1).max(512) });
 
 export function gatewayOrigin(): string {
-  return (process.env['ARP_CLOUD_PUSH_ISSUER'] ?? 'https://gateway.arp.run').replace(/\/+$/, '');
+  return (process.env['ARP_CLOUD_PUSH_ISSUER'] ?? origins().gateway).replace(/\/+$/, '');
 }
 
 /** Turn what an owner types into the runtime URL the add-on serves. */

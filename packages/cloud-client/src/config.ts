@@ -3,7 +3,7 @@
  * ~/.arp-cloud/config.json. Schema:
  *
  *   {
- *     "cloud_ws_url": "wss://cloud.arp.run/ws",
+ *     "cloud_ws_url": "wss://gateway.agentid.dev/ws",
  *     "agent_did": "did:web:samantha.agent",
  *     "agent_api_url": "http://127.0.0.1:4500",
  *     "private_key_path": "~/.arp-cloud/private.key"

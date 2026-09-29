@@ -94,7 +94,7 @@ export async function POST(req: Request): Promise<Response> {
     // Short link: 128-bit token in the fragment. The long link (payload in the fragment) still works.
     const shortToken = randomBytes(16).toString('base64url');
     const url = new URL(req.url);
-    // Prefer the host the caller actually reached (app.arp.run, cloud.arp.run,
+    // Prefer the host the caller actually reached (cloud.agentid.dev,
     // or a local dev host); falls back to the runtime-configured cloud base.
     const host = req.headers.get('x-forwarded-host') ?? url.host;
     const proto = req.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');

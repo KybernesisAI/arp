@@ -48,11 +48,11 @@ export default function GlobalError({
               margin: '0 0 16px',
             }}
           >
-            ARP Cloud couldn't load.
+            AgentID couldn't load.
           </h1>
           <p style={{ fontSize: 15, lineHeight: 1.5, margin: '0 0 24px' }}>
             Something went wrong before the app could even render. Reload the
-            page. If the problem persists, email support@arp.run.
+            page. If the problem persists, email support@agentid.dev.
           </p>
           <button
             type="button"

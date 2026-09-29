@@ -6,6 +6,7 @@ import { Button, FieldError, Input } from '@/components/ui';
 import { requirePrincipalKey } from '@/lib/principal-key-browser';
 import { UnlockKey, useDeviceKey } from '@/components/app/UnlockKey';
 import { signRepresentationJwtBrowser } from '@/lib/representation-jwt-browser';
+import { origins } from '@/lib/origins';
 
 /**
  * "Verify ownership" (AgentID S2 / T6): signs the owner proof in the browser
@@ -34,7 +35,7 @@ export function FinishSetupButton({
     setError(null);
     try {
       const principal = await requirePrincipalKey(principalDid);
-      const issuerDid = `did:web:cloud.arp.run:u:${tenantId}`;
+      const issuerDid = `did:web:${origins().consoleHost}:u:${tenantId}`;
       const jwt = await signRepresentationJwtBrowser({
         principal,
         issuerDid,

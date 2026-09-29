@@ -4,9 +4,10 @@
 import type { Metadata } from 'next';
 import type * as React from 'react';
 import { Container, Link, Nav } from '@/components/ui';
+import { consoleUrl, siteUrl } from '@/lib/origins';
 
 export const metadata: Metadata = {
-  title: { default: 'Legal', template: '%s — Legal — ARP' },
+  title: { default: 'Legal', template: '%s — Legal — AgentID' },
 };
 
 const LEGAL_NAV = [
@@ -25,9 +26,8 @@ export default function LegalLayout({
       <Nav
         brandSub="// legal"
         links={[
-          { label: 'ARP', href: 'https://arp.run', external: true },
-          { label: 'Cloud', href: 'https://cloud.arp.run', external: true },
-          { label: 'Spec', href: 'https://spec.arp.run', external: true },
+          { label: 'AgentID', href: siteUrl('/'), external: true },
+          { label: 'Console', href: consoleUrl('/'), external: true },
         ]}
       />
       <main className="flex-1 py-12 lg:py-16">
@@ -59,7 +59,7 @@ export default function LegalLayout({
         <Container>
           <div className="grid grid-cols-12 gap-4 items-center">
             <div className="col-span-12 md:col-span-6">
-              <b className="text-ink font-medium">ARP</b> · LEGAL
+              <b className="text-ink font-medium">AGENTID</b> · LEGAL
             </div>
             <div className="col-span-12 md:col-span-6 md:text-right">
               © 2026 KYBERNESIS

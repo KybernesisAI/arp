@@ -17,7 +17,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <Nav
-        brandSub="// app.arp.run"
+        brandSub="// cloud.agentid.dev"
         links={
           showMainActions
             ? [
@@ -25,9 +25,8 @@ export function AppShell({
                 { label: 'Connections', href: '/connections' },
                 { label: 'Pair', href: '/pair' },
                 { label: 'Billing', href: '/billing' },
-                { label: 'Docs', href: 'https://arp.run', external: true },
               ]
-            : [{ label: 'About ARP', href: 'https://arp.run', external: true }]
+            : []
         }
         cta={showMainActions ? <LogoutButton /> : undefined}
       />
@@ -48,13 +47,6 @@ export function AppShell({
               <a href="/legal/dpa" className="text-muted hover:text-ink">DPA</a>
               {' · '}
               <a href="/support" className="text-muted hover:text-ink">SUPPORT</a>
-              {' · '}
-              <a
-                href="https://status.arp.run"
-                className="text-muted hover:text-ink"
-              >
-                STATUS
-              </a>
             </div>
           </div>
         </Container>

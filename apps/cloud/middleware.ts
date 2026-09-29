@@ -1,29 +1,27 @@
 /**
- * Host dispatch + HNS gateway bridge.
+ * Host dispatch (AgentID, 2026-09-29) + the Phase-7 HNS bridge.
  *
- * The cloud Next.js app serves three public hostnames from one deployment:
+ * One deployment serves:
  *
- *   - arp.run          → project / open-source landing (routes rewritten to /project/*)
- *   - cloud.arp.run    → cloud marketing + signup (routes rewritten to /cloud/*)
- *   - app.arp.run      → authenticated dashboard (pass through to top-level routes)
- *   - agent.arp.run    → AgentID identity lander (routes rewritten to /agentid/*)
- *   - <sld>.agent.arp.run → AgentID ICANN mirror for one name: machine paths
- *     (/.well-known/*, /representation.jwt, /didcomm, /pairing) are proxied to
- *     the gateway with ?target=<sld>.agent; everything else renders the
- *     public profile. (Railway's plan caps custom domains per service, so the
- *     mirror lives on Vercel, which already owns the arp.run zone.)
+ *   - agentid.dev            → the site: lander at `/`, public profile at `/<sld>`,
+ *                              badge at `/badge`; app-owned paths pass through
+ *   - cloud.agentid.dev      → the signed-in console + API + webhooks
+ *   - <sld>.agentid.dev      → an identity's machine surface: machine paths
+ *                              (/.well-known/*, /representation.jwt, /avatar.png,
+ *                              /didcomm, /pairing, /a2a …) proxy to the gateway with
+ *                              ?target=<sld>.agent; anything else shows the profile
+ *   - arp.run                → the ARP protocol's own open-source landing (/project/*);
+ *                              nothing in the product links here
  *
- * Plus the Phase-7 HNS bridge for `<owner>.<agent>.agent.hns.to` visitors,
- * which is still routed to `/agent/<did>/…` regardless of surface.
+ * Plus the HNS bridge for `<owner>.<agent>.agent.hns.to` visitors, routed to
+ * `/agent/<did>/…` regardless of surface.
  *
- * Localhost + Vercel preview URLs default to the app surface so the dev
- * + staging flow stays identical to what developers already expect.
- *
- * Auth is NOT enforced here — every page enforces its own auth. Middleware
- * only rewrites paths.
+ * Localhost + Vercel preview URLs default to the console surface.
+ * Auth is NOT enforced here — every page enforces its own auth.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { RESERVED_NAMES, hostOf, origins } from '@/lib/origins';
 
 export const config = {
   matcher: [
@@ -32,15 +30,15 @@ export const config = {
   ],
 };
 
-export type Surface = 'project' | 'cloud' | 'app' | 'agentid' | 'mirror' | 'hns';
+export type Surface = 'project' | 'site' | 'app' | 'mirror' | 'hns';
 
+const O = origins();
 const PROJECT_HOSTS = new Set<string>(['arp.run', 'www.arp.run']);
-const CLOUD_HOSTS = new Set<string>(['cloud.arp.run']);
-const APP_HOSTS = new Set<string>(['app.arp.run']);
-const AGENTID_HOSTS = new Set<string>(['agent.arp.run']);
-/** ICANN mirror suffix — `<sld>.agent.arp.run`. Override for staging. */
-const MIRROR_SUFFIX = (process.env['AGENTID_MIRROR_SUFFIX'] ?? '.agent.arp.run').toLowerCase();
-const GATEWAY_ORIGIN = (process.env['ARP_CLOUD_GATEWAY_ORIGIN'] ?? 'https://gateway.arp.run').replace(/\/+$/, '');
+const SITE_HOSTS = new Set<string>([hostOf(O.site), `www.${hostOf(O.site)}`]);
+const APP_HOSTS = new Set<string>([hostOf(O.console)]);
+/** ICANN mirror suffix — `<sld>.agentid.dev`. */
+const MIRROR_SUFFIX = O.mirrorSuffix;
+const GATEWAY_ORIGIN = O.gateway;
 /** Paths on a mirror host that belong to the identity's machine surface (served by the gateway). */
 const MIRROR_GATEWAY_PATHS = ['/.well-known/', '/representation.jwt', '/avatar.png', '/didcomm', '/pairing', '/agent-connections', '/a2a'];
 
@@ -74,13 +72,10 @@ export function middleware(req: NextRequest): NextResponse {
 export function surfaceForHost(host: string): Surface {
   const bare = stripPort(host).toLowerCase();
   if (PROJECT_HOSTS.has(bare)) return 'project';
-  if (CLOUD_HOSTS.has(bare)) return 'cloud';
+  if (SITE_HOSTS.has(bare)) return 'site';
   if (APP_HOSTS.has(bare)) return 'app';
-  if (AGENTID_HOSTS.has(bare)) return 'agentid';
   if (mirrorSldFromHost(bare) !== null) return 'mirror';
-  // Default: treat everything else (localhost, Vercel preview domains, ngrok
-  // tunnels, IP literals) as the app surface so local dev + preview flows
-  // behave identically to app.arp.run.
+  // Default: localhost, Vercel preview domains, tunnels, IP literals → console.
   return 'app';
 }
 
@@ -103,27 +98,24 @@ export function rewriteForSurface(
     return NextResponse.rewrite(url);
   }
 
-  if (surface === 'cloud') {
+  if (surface === 'site') {
     if (pathname.startsWith('/api/')) return null;
-    if (pathname.startsWith('/cloud/')) return null;
-    if (pathname === '/cloud') return null;
-    // The authenticated sub-tree (dashboard, onboarding, agent, billing,
-    // settings) must remain reachable on cloud.arp.run so existing
-    // bookmarks + Stripe webhook redirects continue to resolve.
-    if (isAppOwnedPath(pathname)) return null;
-    url.pathname = `/cloud${pathname === '/' ? '' : pathname}`;
-    return NextResponse.rewrite(url);
-  }
-
-  if (surface === 'agentid') {
-    if (pathname.startsWith('/api/')) return null;
+    // The lander is the site's root.
+    if (pathname === '/' || pathname === '') {
+      url.pathname = '/lander';
+      return NextResponse.rewrite(url);
+    }
+    if (pathname === '/lander' || pathname.startsWith('/lander/')) return null;
     if (pathname.startsWith('/agentid/')) return null;
-    if (pathname === '/agentid') return null;
-    // Same passthrough set as the other marketing hosts so /legal, /support,
-    // /pair etc. still resolve if someone lands on them via agent.arp.run.
+    // App-owned paths (badge, legal, support, pair, gift, short links …) pass through.
     if (isAppOwnedPath(pathname)) return null;
-    url.pathname = `/agentid${pathname === '/' ? '' : pathname}`;
-    return NextResponse.rewrite(url);
+    // `/<sld>` → the public profile. One label, valid name, not a reserved word.
+    const m = /^\/([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)\/?$/i.exec(pathname);
+    if (m && m[1] && !RESERVED_NAMES.has(m[1].toLowerCase())) {
+      url.pathname = `/agentid/${m[1].toLowerCase()}`;
+      return NextResponse.rewrite(url);
+    }
+    return null;
   }
 
   // surface === 'app': pass through.
@@ -136,7 +128,7 @@ export function isAppOwnedPath(pathname: string): boolean {
   //
   // `/onboard` is the v2.1 TLD registrar entry point (used by Headless's
   // Option A redirect); external registrars link directly to
-  // `cloud.arp.run/onboard`, so it must not be rewritten under /cloud.
+  // the console's `/onboard`, so it must never be rewritten.
   // `/internal` is the PSK-authenticated server-to-server callback space.
   // `/u` serves cloud-managed DID documents.
   const appRoots = [
@@ -148,14 +140,9 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/settings',
     '/internal',
     '/u',
-    // Phase 10a: URL-fragment pairing is reachable on cloud.arp.run — the
-    // marketing surface's /cloud rewrite would bury the hash payload under
-    // a non-existent route. Also enables the "open invite link in another
-    // browser" smoke flow without forcing users onto app.arp.run.
+    // URL-fragment pairing links.
     '/pair',
-    // Phase 10b: connection list / detail / audit / revoke pages are
-    // authenticated surfaces. They must resolve at the top level on both
-    // cloud.arp.run (marketing host passthrough) and app.arp.run.
+    // Connection list / detail / audit / revoke pages.
     '/connections',
     // AgentID S2: per-name records page in the console.
     '/names',
@@ -171,25 +158,22 @@ export function isAppOwnedPath(pathname: string): boolean {
     '/i',
     // Static assets under public/assets (badge model etc.) must never be rewritten.
     '/assets',
-    // /legal/* pages are referenced from footers on all three surfaces
-    // (arp.run, cloud.arp.run, app.arp.run); pass through to the shared
-    // /legal layout regardless of which host the user is on.
+    // /legal/* pages are shared by every host.
     '/legal',
     // Phase 10c: /support is linked from every surface's footer; the page is
     // static + auth-optional. Passthrough here prevents the /cloud rewrite
     // from burying it at /cloud/support.
     '/support',
     // /runtime: single-screen explainer slide for the seven-layer runtime +
-    // policy gate. Same page on every host (arp.run, cloud.arp.run,
-    // app.arp.run) — must not be rewritten under /project or /cloud.
+    // policy gate. Same page on every host.
     '/runtime',
   ];
   return appRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
 
 /**
- * `<sld>.agent.arp.run` (or `<owner>.<sld>.agent.arp.run`) → `<sld>`; null for
- * the bare `agent.arp.run` host or anything not under the mirror suffix.
+ * `<sld>.agentid.dev` (or `<owner>.<sld>.agentid.dev`) → `<sld>`; null for the
+ * bare site host or anything not under the mirror suffix.
  */
 export function mirrorSldFromHost(host: string, suffix: string = MIRROR_SUFFIX): string | null {
   const bare = stripPort(host).toLowerCase();
@@ -234,7 +218,7 @@ export function parseAgentDidFromHost(host: string): string | null {
   if (labels.length < 2) return null;
   // The HNS bridge specifically matches `<label>.agent` or
   // `<owner>.<label>.agent`. Bail out if the TLD is something else —
-  // otherwise we'd try to rewrite `arp.run` into `/agent/did:web:run`.
+  // otherwise we'd try to rewrite `agentid.dev` into `/agent/did:web:dev`.
   if (labels[labels.length - 1] !== 'agent') return null;
   const agentLabel = labels[labels.length - 2];
   if (!agentLabel) return null;
