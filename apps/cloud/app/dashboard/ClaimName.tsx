@@ -8,7 +8,6 @@ type SearchResult = { sld: string; domain: string; available: boolean; reason?: 
 /** Claim a new name from the dashboard (lander-style). Same API as the old panel. */
 export function ClaimName({ initialQuery }: { initialQuery?: string | undefined }): React.JSX.Element {
   const [query, setQuery] = useState(initialQuery ?? '');
-  const [years, setYears] = useState(1);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [busy, setBusy] = useState<'idle' | 'searching' | 'checkout'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +36,7 @@ export function ClaimName({ initialQuery }: { initialQuery?: string | undefined 
     setBusy('checkout');
     setError(null);
     try {
-      const res = await fetch('/api/registrar/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sld: result.sld, years }) });
+      const res = await fetch('/api/registrar/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sld: result.sld, years: 1 }) });
       const body = (await res.json()) as { url?: string; message?: string };
       if (!res.ok || !body.url) { setError(body.message ?? 'Checkout could not be started.'); setBusy('idle'); return; }
       window.location.assign(body.url);
@@ -46,7 +45,7 @@ export function ClaimName({ initialQuery }: { initialQuery?: string | undefined 
       setBusy('idle');
     }
   }
-  const price = result ? ((result.price_cents_per_year * years) / 100).toFixed(2) : null;
+  const price = result ? (result.price_cents_per_year / 100).toFixed(2) : null;
 
   return (
     <div>
@@ -80,9 +79,7 @@ export function ClaimName({ initialQuery }: { initialQuery?: string | undefined 
             <span className="font-mono text-[13px] text-zinc-900">{result.domain}</span>
             <label className="flex items-center gap-2 text-[13px] text-zinc-600">
               for
-              <select value={years} onChange={(e) => setYears(Number(e.target.value))} className="rounded-full border border-zinc-300 bg-white px-3 py-1 font-mono text-[13px] text-zinc-900">
-                {Array.from({ length: result.max_years }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n} {n === 1 ? 'year' : 'years'}</option>)}
-              </select>
+              <span className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500">Renews yearly · cancel any time</span>
             </label>
             <span className="font-mono text-[13px] text-zinc-900">${price}</span>
             <button type="button" onClick={() => void checkout()} disabled={busy !== 'idle'} className="rounded-full bg-black px-4 py-2 text-[13px] font-medium text-white disabled:opacity-40">

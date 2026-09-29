@@ -15,6 +15,11 @@ interface EnvShape {
   /** Phase-10: single $5/mo licensed price; subscription `quantity` carries
    *  the per-tenant agent count. Replaces the v0 STRIPE_PRICE_PRO + _TEAM split. */
   STRIPE_PRICE_PRO_PER_AGENT: string | null;
+  /** Lander billing model: yearly price for a name, monthly price for Connect. */
+  STRIPE_PRICE_NAME_YEARLY: string | null;
+  STRIPE_PRICE_CONNECT_MONTHLY: string | null;
+  /** Where operational mail (supplier renewals to do) goes. */
+  OPS_EMAIL: string;
   DATABASE_URL: string | null;
   APP_ARP_SPEC_HOST: string;
   WEBAUTHN_RP_ID: string;
@@ -69,6 +74,9 @@ export function env(): EnvShape {
     // the env var name yet still work.
     STRIPE_PRICE_PRO_PER_AGENT:
       process.env['STRIPE_PRICE_PRO_PER_AGENT'] ?? process.env['STRIPE_PRICE_PRO'] ?? null,
+    STRIPE_PRICE_NAME_YEARLY: process.env['STRIPE_PRICE_NAME_YEARLY'] ?? null,
+    STRIPE_PRICE_CONNECT_MONTHLY: process.env['STRIPE_PRICE_CONNECT_MONTHLY'] ?? null,
+    OPS_EMAIL: process.env['OPS_EMAIL'] ?? 'ian@kybernesis.ai',
     DATABASE_URL: process.env['DATABASE_URL'] ?? null,
     APP_ARP_SPEC_HOST: process.env['APP_ARP_SPEC_HOST'] ?? origins().consoleHost,
     // Phase 9d WebAuthn: rp.id is the apex domain so passkeys registered on

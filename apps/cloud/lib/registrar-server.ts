@@ -13,6 +13,11 @@ import { sealingKey } from './key-custody';
 import { posthog, track } from './posthog';
 import { fulfilNameCheckout, type RegistrarEnv } from './registrar';
 import { tenantDbById } from './tenant-context';
+import { getDb } from './db';
+import { nameClaimedEmail } from './email';
+import { sendOnce } from './notify';
+import { consoleUrl, profileUrl } from './origins';
+import { applyNameSubscriptionChange, notifyConnectChanged, notifyPaymentFailed, recordNameRenewalPaid, type RenewalDeps } from './renewals';
 
 export function registrarEnv(): RegistrarEnv {
   const e = env();
@@ -20,6 +25,7 @@ export function registrarEnv(): RegistrarEnv {
     AGENTID_NAME_PRICE_CENTS: e.AGENTID_NAME_PRICE_CENTS,
     AGENTID_NAME_MAX_YEARS: e.AGENTID_NAME_MAX_YEARS,
     AGENTID_MIRROR_SUFFIX: e.AGENTID_MIRROR_SUFFIX,
+    STRIPE_PRICE_NAME_YEARLY: e.STRIPE_PRICE_NAME_YEARLY,
   };
 }
 
@@ -39,6 +45,7 @@ export async function fulfilNameCheckoutFromWebhook(
     session: {
       id: session.id,
       payment_intent: session.payment_intent as string | { id: string } | null,
+      subscription: session.subscription as string | { id: string } | null,
       metadata: session.metadata ?? null,
     },
     headless: headlessFromEnv(),
@@ -49,6 +56,9 @@ export async function fulfilNameCheckoutFromWebhook(
 
   const principal = session.metadata?.['principal_did'] ?? tenantId;
   if (outcome.outcome === 'registered') {
+    const tenant = await tenantDb.getTenant();
+    const sld = outcome.registration.sld;
+    await sendOnce(await getDb(), { kind: 'name_claimed', ref: outcome.registration.id, to: tenant?.email ?? null, tenantId }, nameClaimedEmail({ domain: outcome.registration.domain, renewsOn: outcome.registration.expiryAt, nameUrl: consoleUrl(`/names/${sld}`), profileUrl: profileUrl(sld) }));
     track({
       distinctId: principal,
       event: 'agentid_name_registered',
@@ -79,3 +89,24 @@ export async function fulfilNameCheckoutFromWebhook(
     });
   }
 }
+
+function renewalDeps(): RenewalDeps {
+  return { opsEmail: env().OPS_EMAIL };
+}
+
+/** Stripe webhook hooks beyond the first checkout. */
+export const billingWebhookHooks = {
+  onNameCheckout: fulfilNameCheckoutFromWebhook,
+  onNameRenewalPaid: async (input: { subscriptionId: string; tenantId: string; periodEnd: Date | null; invoiceId: string }) => {
+    await recordNameRenewalPaid(await getDb(), input, renewalDeps());
+  },
+  onNameSubscriptionChanged: async (input: { subscriptionId: string; tenantId: string; autoRenew: boolean; periodEnd: Date | null }) => {
+    await applyNameSubscriptionChange(await getDb(), input);
+  },
+  onPaymentFailed: async (input: { tenantId: string; subscriptionId: string | null; kind: string | null }) => {
+    await notifyPaymentFailed(await getDb(), input, renewalDeps());
+  },
+  onConnectChanged: async (input: { tenantId: string; active: boolean }) => {
+    await notifyConnectChanged(await getDb(), input, renewalDeps());
+  },
+};

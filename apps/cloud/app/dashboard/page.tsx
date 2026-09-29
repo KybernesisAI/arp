@@ -2,7 +2,7 @@ import type * as React from 'react';
 import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { AuthError, requireTenantDb } from '@/lib/tenant-context';
-import { PLAN_LIMITS, agentLinks, agents, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
+import { agentLinks, agents, pairingInvitations, registrarBindings } from '@kybernesis/arp-cloud-db';
 import { monthlyBillCents, currentUsagePeriod } from '@/lib/billing';
 import { listCredentialsForTenant } from '@/lib/webauthn';
 import { env } from '@/lib/env';
@@ -37,7 +37,6 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
     throw err;
   }
   const { tenant, identities, hasPasskey, outgoingInvitations, incomingInvitations, recentActivity, totalActiveConnections, usage } = state;
-  const limits = PLAN_LIMITS[tenant.plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
   const needsAttention = identities.filter((i) => i.attention).length;
   const nameByDid = new Map(identities.map((i) => [i.did, i.domain]));
 
@@ -152,17 +151,17 @@ export default async function DashboardPage(props: { searchParams?: Promise<Reco
         </Card>
         <Card glow="cyan">
           <div className="flex items-baseline justify-between">
-            <Kicker>Plan</Kicker>
+            <Kicker>Billing</Kicker>
             <a href="/billing" className="font-mono text-[12px] uppercase tracking-[0.14em] text-zinc-500 hover:text-zinc-900">Billing →</a>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-[24px] font-medium tracking-[-0.02em] capitalize">
-            {tenant.plan}
-            <span className={`ml-1 h-2 w-2 rounded-full ${tenant.status === 'active' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+          <div className="mt-3 flex items-center gap-2 text-[24px] font-medium tracking-[-0.02em]">
+            {tenant.connectOn ? 'Connect on' : 'Connect off'}
+            <span className={`ml-1 h-2 w-2 rounded-full ${tenant.connectOn ? 'bg-emerald-500' : 'bg-zinc-300'}`} />
           </div>
           <dl className="mt-5 space-y-3 text-[14px]">
-            <Row k="Messages this month" v={limits.maxInboundMessagesPerMonth ? `${usage.inboundMessages} / ${limits.maxInboundMessagesPerMonth}` : String(usage.inboundMessages)} />
-            <Row k="Agents" v={limits.maxAgents ? `${identities.length} / ${limits.maxAgents}` : String(identities.length)} />
-            <Row k="This month" v={`$${(usage.monthlyBillCents / 100).toFixed(2)}`} />
+            <Row k="Names" v={String(identities.length)} />
+            <Row k="Renewing automatically" v={`${tenant.autoRenewing} of ${tenant.paidNames}`} />
+            <Row k="Messages this month" v={String(usage.inboundMessages)} />
           </dl>
         </Card>
       </section>
@@ -298,7 +297,7 @@ interface ActivityEntry {
 }
 
 async function loadState(): Promise<{
-  tenant: { plan: string; status: string };
+  tenant: { plan: string; status: string; connectOn: boolean; autoRenewing: number; paidNames: number };
   identities: DashboardIdentity[];
   hasPasskey: boolean;
   outgoingInvitations: Array<{ id: string; issuerAgentDid: string; audienceDid: string; expiresAt: string; invitationUrl: string; approveHref: string | null }>;
@@ -455,7 +454,13 @@ async function loadState(): Promise<{
   }));
 
   return {
-    tenant: { plan: tenant.plan, status: tenant.status },
+    tenant: {
+      plan: tenant.plan,
+      status: tenant.status,
+      connectOn: tenant.plan === 'internal' || tenant.connectStatus === 'active' || tenant.connectStatus === 'past_due',
+      autoRenewing: registrationRows.filter((r) => r.stripeSubscriptionId && r.autoRenew).length,
+      paidNames: registrationRows.filter((r) => r.stripeSubscriptionId).length,
+    },
     identities,
     hasPasskey: passkeys.length > 0,
     // When the other agent is also this account's, the owner can approve here (same signed payload).
