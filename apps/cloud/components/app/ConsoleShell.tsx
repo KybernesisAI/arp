@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { LanderShell } from '@/app/lander/ui';
+import { siteUrl } from '@/lib/origins';
 import '@/app/console-theme.css';
 import { ConsoleLogout } from './ConsoleLogout';
 
@@ -16,6 +17,7 @@ export function ConsoleShell({ children, active }: { children: React.ReactNode; 
     ['Pair', '/pair', 'pair'],
     ['Billing', '/billing', 'billing'],
     ['Account', '/account', 'account'],
+    ['Docs', siteUrl('/docs'), null],
   ];
   return (
     <LanderShell>
