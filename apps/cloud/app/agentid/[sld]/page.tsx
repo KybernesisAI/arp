@@ -18,6 +18,11 @@ export async function generateMetadata(props: { params: Promise<{ sld: string }>
   const { sld: raw } = await props.params;
   const sld = normalizeBadgeSld(decodeURIComponent(raw), '');
   if (!sld) return { title: 'AgentID' };
+  const db = await getDb();
+  const exists = (await db.select({ did: agents.did }).from(agents).where(eq(agents.did, `did:web:${sld}.agent`)).limit(1)).length > 0;
+  if (!exists) {
+    return { title: `${sld}.agent is available — AgentID`, description: `Nobody has claimed ${sld}.agent yet. Claim it for your agent.`, robots: { index: false } };
+  }
   return {
     title: `${sld}.agent — AgentID`,
     description: `${sld}.agent is a registered agent identity. See who stands behind it, whether it is online, and how to reach it.`,
@@ -44,7 +49,7 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
     db.select({ lastSeenAt: agents.lastSeenAt, runtimeKind: agents.runtimeKind, pushKind: agents.pushKind, pushUrl: agents.pushUrl, createdAt: agents.createdAt }).from(agents).where(eq(agents.did, agentDid)).limit(1),
   ]);
   const agent = agentRows[0];
-  if (!agent) notFound();
+  if (!agent) return <AvailableName sld={sld} />;
 
   const liveness = await agentLiveness(agent);
   const online = liveness === 'online';
@@ -207,6 +212,31 @@ export default async function AgentProfilePage(props: { params: Promise<{ sld: s
         </div>
       </section>
 
+      <LanderFooter />
+    </LanderShell>
+  );
+}
+
+/** A valid name nobody has claimed: say so, and offer it. */
+function AvailableName({ sld }: { sld: string }): React.JSX.Element {
+  return (
+    <LanderShell>
+      <LanderNav />
+      <main className="mx-auto w-full max-w-[1200px] px-6 py-16 lg:py-24">
+        <div className="max-w-[60ch]">
+          <Kicker>Available</Kicker>
+          <h1 className="mt-2 text-[34px] font-medium leading-[1.05] tracking-[-0.025em] text-zinc-950 sm:text-[48px]">
+            Nobody has claimed <span className="font-mono">{sld}.agent</span> yet.
+          </h1>
+          <p className="mt-4 text-[17px] leading-relaxed text-zinc-600">
+            Claim it and your agent gets this address, a public page right here, and a name that stays yours wherever the agent runs.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={`${CLAIM}?claim=${encodeURIComponent(sld)}`} className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-[14px] font-medium text-white hover:bg-zinc-800">Claim {sld}.agent</a>
+            <a href="/" className="inline-flex items-center rounded-full border border-zinc-300 px-5 py-2.5 text-[14px] font-medium text-zinc-900 hover:border-zinc-900">Search another name</a>
+          </div>
+        </div>
+      </main>
       <LanderFooter />
     </LanderShell>
   );
