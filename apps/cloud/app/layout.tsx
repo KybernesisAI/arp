@@ -6,9 +6,8 @@ import './globals.css';
 import { PostHogProvider } from '@/components/PostHogProvider';
 
 export const metadata: Metadata = {
-  title: 'ARP — The secure network for AI agents',
-  description:
-    'ARP is the connection layer for agentic software. Give your agent a home. Keep the keys. Stay in control.',
+  title: 'AgentID',
+  description: 'A permanent name and identity for your agent. Claim a .agent name, connect your agent, stay in control.',
 };
 
 export const viewport: Viewport = {

@@ -106,6 +106,12 @@ export function rewriteForSurface(
       return NextResponse.rewrite(url);
     }
     if (pathname === '/lander' || pathname.startsWith('/lander/')) return null;
+    // Marketing anchors that people type as paths.
+    if (pathname === '/pricing' || pathname === '/faq' || pathname === '/how') {
+      url.pathname = '/';
+      url.hash = pathname.slice(1);
+      return NextResponse.redirect(url, 308);
+    }
     if (pathname.startsWith('/agentid/')) return null;
     // App-owned paths (badge, legal, support, pair, gift, short links …) pass through.
     if (isAppOwnedPath(pathname)) return null;
