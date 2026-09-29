@@ -15,7 +15,7 @@
 - Rotate the keys minted through the browser during build (Resend `arp-cloud-agentid`; delete `arp-cloud`, `arp-cloud-2`), rotate `ARP_CLOUD_KEY_ENCRYPTION_KEY`/`CRON_SECRET` only if they were ever exposed (they were not).
 
 ## 2. Third parties
-- **Stripe:** ✅ live products/prices/webhook created 2026-09-29. **Open: `STRIPE_SECRET_KEY` on Vercel is test-mode — Ian sets the live key.** Customer portal branding; tax settings.
+- **Stripe:** ✅ live products/prices/webhook created 2026-09-29. Live key on Vercel (CLI restricted key, expires 2026-12-28) — **rotate before public launch**. Customer portal branding; tax settings.
 - **Headless (registrar supplier):** "Setup" links → `cloud.agentid.dev`; HNS-side records for early names → `<sld>.agentid.dev`; confirm their webhooks target `cloud.agentid.dev/api/webhooks/headless`; ask about renewals by card or an API path we can call.
 - **Vercel:** detach `arp.run`, `cloud.arp.run`, `app.arp.run`, `agent.arp.run`, `*.agent.arp.run` once 1 + Stripe are done. `arp.run` then hosts only the protocol landing/spec/docs from this app (or moves out).
 - **Railway:** alerting on the gateway (see 4).
