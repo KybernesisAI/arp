@@ -22,8 +22,9 @@ import { schnorr } from '@noble/curves/secp256k1';
 import { bech32 } from '@scure/base';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AgentLinkKind, AgentLinkRow, AgentRow, TenantDb } from '@kybernesis/arp-cloud-db';
-import { agentAvatarUrl, agentProfileUrl, buildDidDocument } from '@kybernesis/arp-templates';
-import { buildSignedA2aCard, openPrivateKey, sealingKey } from './key-custody';
+import { agentAvatarUrl, agentProfileUrl, buildAgentCard, buildArpJson, buildDidDocument } from '@kybernesis/arp-templates';
+import { buildSignedA2aCard, mirrorOriginFor, openPrivateKey, sealingKey } from './key-custody';
+import { env } from './env';
 
 // ------------------------------------------------------------------ errors
 
@@ -317,8 +318,9 @@ export function alsoKnownAsFor(link: Pick<AgentLinkRow, 'kind' | 'value'>): stri
 
 /**
  * Regenerate the agent's DID document from its current key + verified links.
- * The mirror origin and endpoints are recovered from the stored document so
- * an identity minted on either origin (mirror or gateway) keeps its shape.
+ * The mirror origin comes from the configured suffix (domain migration,
+ * 2026-09-29), so a rebuild also moves an identity whose stored documents
+ * were minted on an old origin; every endpoint is rederived from it.
  */
 export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Promise<AgentRow | null> {
   const agent = await tenantDb.getAgent(agentDid);
@@ -326,33 +328,23 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
   const links = await tenantDb.listLinks(agentDid);
   const verified = links.filter((l) => l.status === 'verified');
 
-  const current = agent.wellKnownDid as {
-    service?: Array<{ id: string; type: string; serviceEndpoint: string }>;
-    principal?: { representationVC?: string };
-    alsoKnownAs?: string[];
-  };
-  const didcomm = current.service?.find((s) => s.type === 'DIDCommMessaging')?.serviceEndpoint;
-  const agentCard = current.service?.find((s) => s.type === 'AgentCard')?.serviceEndpoint;
-  const repUrl = current.principal?.representationVC;
-  if (!didcomm || !agentCard || !repUrl) return agent;
+  const current = agent.wellKnownDid as { alsoKnownAs?: string[] } | null;
+  const domain = agentDid.replace(/^did:web:/, '');
+  const origin = mirrorOriginFor(domain, env().AGENTID_MIRROR_SUFFIX);
+  const didcomm = `${origin}/didcomm`;
+  const agentCard = `${origin}/.well-known/agent-card.json`;
+  const repUrl = `${origin}/representation.jwt`;
 
-  // Keep the mirror origin alias (any https alias that is not a link value).
+  // Aliases: verified links only. Structural https aliases from an earlier
+  // origin are dropped; the identity's one address is `origin`.
   const linkValues = new Set(links.map((l) => l.value));
-  const structural = (current.alsoKnownAs ?? []).filter(
-    (a) => a.startsWith('https://') && !linkValues.has(a) && !a.startsWith('nostr:') && !a.startsWith('kybernesis:'),
-  );
-  const aka = new Set<string>(structural);
+  const aka = new Set<string>((current?.alsoKnownAs ?? []).filter((a) => a.startsWith('https://') && linkValues.has(a)));
   for (const l of verified) {
     const v = alsoKnownAsFor(l);
     if (v) aka.add(v);
   }
 
-  let docOrigin: string;
-  try {
-    docOrigin = new URL(agentCard).origin;
-  } catch {
-    docOrigin = new URL(didcomm).origin;
-  }
+  const docOrigin = origin;
   const doc = buildDidDocument({
     agentDid,
     controllerDid: agent.principalDid,
@@ -380,8 +372,6 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
   // (cloud custody) whenever links change so scopes/provider stay current.
   let a2aCard: Record<string, unknown> | undefined;
   try {
-    const originFromCard = (agent.wellKnownA2aCard as { supportedInterfaces?: Array<{ url?: string }> } | null)?.supportedInterfaces?.[0]?.url;
-    const origin = originFromCard ? new URL(originFromCard).origin : new URL(agentCard).origin;
     const seed =
       agent.keyCustody === 'cloud' && agent.privateKeyEnc
         ? openPrivateKey(agent.privateKeyEnc, sealingKey({ ARP_CLOUD_KEY_ENCRYPTION_KEY: process.env['ARP_CLOUD_KEY_ENCRYPTION_KEY'] ?? null }))
@@ -400,6 +390,17 @@ export async function rebuildWellKnown(tenantDb: TenantDb, agentDid: string): Pr
     a2aCard = undefined;
   }
 
-  await tenantDb.updateAgent(agentDid, { wellKnownDid: doc, ...(a2aCard ? { wellKnownA2aCard: a2aCard } : {}) });
-  return { ...agent, wellKnownDid: doc, ...(a2aCard ? { wellKnownA2aCard: a2aCard } : {}) };
+  // The ARP agent card + arp.json follow the same origin.
+  const arpCard = buildAgentCard({
+    name: agent.agentName,
+    did: agentDid,
+    description: agent.agentDescription || 'Personal agent',
+    endpoints: { didcomm, pairing: `${origin}/pairing` },
+    agentOrigin: origin,
+  }) as Record<string, unknown>;
+  const arpJson = buildArpJson({ agentOrigin: origin }) as Record<string, unknown>;
+
+  const patch = { wellKnownDid: doc, wellKnownAgentCard: arpCard, wellKnownArp: arpJson, ...(a2aCard ? { wellKnownA2aCard: a2aCard } : {}) };
+  await tenantDb.updateAgent(agentDid, patch);
+  return { ...agent, ...patch };
 }
