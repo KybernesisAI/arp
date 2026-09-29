@@ -180,12 +180,11 @@ export function EditConnectionForm({
         <div>
           <Label htmlFor="edit-pair">Existing pair</Label>
           <div className="mt-1 text-body-sm break-all">
-            <Code>{currentAgentDid}</Code>
-            <br />
-            <span className="font-mono text-kicker uppercase text-muted">→ </span>
-            <Code>{currentPeerDid}</Code>
+            <span className="font-medium text-ink">{currentAgentDid.replace(/^did:web:/, '')}</span>
+            <span className="font-mono text-kicker uppercase text-muted"> ↔ </span>
+            <span className="font-medium text-ink">{currentPeerDid.replace(/^did:web:/, '')}</span>
           </div>
-          <FieldHint>SENDER + RECIPIENT ARE LOCKED FOR EDITS</FieldHint>
+          <FieldHint>THE TWO AGENTS STAY THE SAME</FieldHint>
         </div>
 
         <div>
@@ -274,20 +273,10 @@ export function EditConnectionForm({
               </ButtonLink>
             </div>
             <div className="mt-3 font-mono text-kicker uppercase">
-              NEW CONNECTION · <Code>{generated.connectionId}</Code>
-              <br />
-              REPLACES · <Code>{connectionId}</Code>
-              <br />
               EXPIRES · {new Date(generated.expiresAt).toLocaleString()}
             </div>
             <div className="mt-4 border-t border-white/30 pt-3 text-body-sm">
-              <strong>What happens next.</strong> Send the URL above to
-              the peer. When they accept, the supervisor on both sides
-              swaps to the new policies and the old connection enters
-              the <Code>revoked</Code> status with{' '}
-              <Code>replacedBy</Code> pointing at the new id. Until they
-              accept, the old policies stay in effect — there&apos;s no
-              permission gap.
+              <strong>What happens next.</strong> Send this link to the other owner. When they approve, the new permissions take over on both sides and the old connection ends. Until then the current permissions stay in force.
             </div>
           </>
         )}
